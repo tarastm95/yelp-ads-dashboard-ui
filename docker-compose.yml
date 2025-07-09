@@ -35,6 +35,7 @@ services:
     command: npm run dev
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     environment:
       - NODE_ENV=development
     networks:
