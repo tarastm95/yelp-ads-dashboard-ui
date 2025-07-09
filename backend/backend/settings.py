@@ -10,6 +10,9 @@ SECRET_KEY = env('SECRET_KEY', default='dummy-secret-key')
 DEBUG = env.bool('DEBUG', default=True)
 ALLOWED_HOSTS = ['*']
 LOG_LEVEL = env('LOG_LEVEL', default=('DEBUG' if DEBUG else 'INFO'))
+YELP_API_KEY = env('YELP_API_KEY', default='')
+YELP_API_SECRET = env('YELP_API_SECRET', default='')
+YELP_FUSION_TOKEN = env('YELP_FUSION_TOKEN', default='')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
