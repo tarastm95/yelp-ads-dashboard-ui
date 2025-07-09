@@ -17,7 +17,8 @@ pip install -r requirements.txt
 ```
 
 2. Copy `.env.example` to `.env` and adjust credentials. The default PostgreSQL
-user and password are both `yelpadmin`.
+user and password are both `yelpadmin`. When running via Docker Compose set
+`DATABASE_URL` to use `db` as the host instead of `localhost`.
 
 3. Apply migrations
 
