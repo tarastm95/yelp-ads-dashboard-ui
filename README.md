@@ -47,3 +47,14 @@ From the `backend` directory run:
 ```bash
 pytest
 ```
+
+## Development with Docker Compose
+
+Running `docker compose up` starts both services with source code mounted in the
+containers. Any file changes automatically reload Django and Vite.
+
+```bash
+docker compose up --build
+```
+
+Adjust backend log verbosity via the `LOG_LEVEL` variable in `backend/.env`.
