@@ -18,6 +18,11 @@ services:
       - "8000:8000"
     env_file:
       - backend/.env
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
     networks:
       - app-network
 
@@ -26,9 +31,12 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:3000"
-    env_file:
-      - frontend/.env
+      - "8080:8080"
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+    environment:
+      - NODE_ENV=development
     networks:
       - app-network
 
