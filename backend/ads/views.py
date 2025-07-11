@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+import requests
 from .services import YelpService
 from .models import Program
 from .serializers import ProgramSerializer
@@ -38,8 +39,13 @@ class JobStatusView(APIView):
 
 class RequestReportView(APIView):
     def post(self, request, period):
-        data = YelpService.request_report(period, request.data)
-        return Response(data)
+        try:
+            data = YelpService.request_report(period, request.data)
+        except ValueError as ve:
+            return Response({"detail": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except requests.HTTPError as he:
+            return Response({"detail": he.response.text}, status=he.response.status_code)
+        return Response(data, status=status.HTTP_202_ACCEPTED)
 
 class FetchReportView(APIView):
     def get(self, request, period, report_id):

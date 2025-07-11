@@ -83,7 +83,11 @@ class YelpService:
             "end":          payload.get("end")
                              or payload.get("end_date")
                              or payload.get("endDate"),
-            "business_ids": payload.get("business_ids") or payload.get("ids"),
+            "ids": [
+                b.strip()
+                for b in (payload.get("business_ids") or [payload.get("business_id")])
+                if b
+            ],
             "metrics":      payload.get("metrics"),
         }
 
