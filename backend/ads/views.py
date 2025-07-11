@@ -18,6 +18,21 @@ class SyncSpecialtiesView(APIView):
         data = YelpService.sync_specialties(request.data)
         return Response(data)
 
+class EditProgramView(APIView):
+    def post(self, request, program_id):
+        data = YelpService.edit_program(program_id, request.data)
+        return Response(data)
+
+class TerminateProgramView(APIView):
+    def post(self, request, program_id):
+        data = YelpService.terminate_program(program_id)
+        return Response(data)
+
+class JobStatusView(APIView):
+    def get(self, request, job_id):
+        data = YelpService.get_job_status(job_id)
+        return Response(data)
+
 class RequestReportView(APIView):
     def post(self, request, period):
         data = YelpService.request_report(period, request.data)
