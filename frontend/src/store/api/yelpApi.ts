@@ -94,11 +94,19 @@ export const yelpApi = createApi({
     }),
 
     // 8. Запросить отчеты
-    requestDailyReport: builder.mutation<{ report_id: string }, { business_id: string; start_date: string; end_date: string }>({
-      query: (data) => ({
+    requestDailyReport: builder.mutation<
+      { report_id: string },
+      { business_id: string; start_date: string; end_date: string }
+    >({
+      query: ({ business_id, start_date, end_date }) => ({
         url: '/reporting/businesses/daily',
         method: 'POST',
-        body: data,
+        body: {
+          start_date,
+          end_date,
+          business_ids: [business_id],
+          metrics: ['impressions', 'clicks'],
+        },
       }),
     }),
 
