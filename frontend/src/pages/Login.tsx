@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,15 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('credentials');
+    if (stored) {
+      const creds = JSON.parse(stored);
+      setUsername(creds.username || '');
+      setPassword(creds.password || '');
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

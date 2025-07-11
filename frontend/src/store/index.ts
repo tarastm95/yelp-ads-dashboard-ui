@@ -5,6 +5,9 @@ import programsReducer from './slices/programsSlice';
 import reportsReducer from './slices/reportsSlice';
 import authReducer from './slices/authSlice';
 
+const stored = localStorage.getItem('credentials');
+const preloadedState = stored ? { auth: JSON.parse(stored) } : undefined;
+
 export const store = configureStore({
   reducer: {
     [yelpApi.reducerPath]: yelpApi.reducer,
@@ -14,6 +17,7 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(yelpApi.middleware),
+  preloadedState,
 });
 
 export type RootState = ReturnType<typeof store.getState>;
