@@ -74,8 +74,15 @@ class YelpService:
         # Explicitly build the body from allowed fields.  Frontend may send
         # camelCase names so we support both variants.
         body = {
-            "start_date":   payload.get("start_date")   or payload.get("startDate"),
-            "end_date":     payload.get("end_date")     or payload.get("endDate"),
+            # Yelp Reporting API expects "start" and "end" fields.  Support
+            # historical parameter names (start_date/end_date) from the frontend
+            # for backwards compatibility.
+            "start":        payload.get("start")
+                             or payload.get("start_date")
+                             or payload.get("startDate"),
+            "end":          payload.get("end")
+                             or payload.get("end_date")
+                             or payload.get("endDate"),
             "business_ids": payload.get("business_ids") or payload.get("ids"),
             "metrics":      payload.get("metrics"),
         }
