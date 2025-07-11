@@ -6,7 +6,15 @@ import reportsReducer from './slices/reportsSlice';
 import authReducer from './slices/authSlice';
 
 const stored = localStorage.getItem('credentials');
-const preloadedState = stored ? { auth: JSON.parse(stored) } : undefined;
+let preloadedState: { auth: { username: string; password: string } } | undefined;
+if (stored) {
+  try {
+    preloadedState = { auth: JSON.parse(stored) };
+  } catch (err) {
+    console.error('Failed to parse credentials from localStorage', err);
+    localStorage.removeItem('credentials');
+  }
+}
 
 export const store = configureStore({
   reducer: {

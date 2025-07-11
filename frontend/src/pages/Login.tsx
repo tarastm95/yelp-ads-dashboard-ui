@@ -15,9 +15,14 @@ const Login: React.FC = () => {
   useEffect(() => {
     const stored = localStorage.getItem('credentials');
     if (stored) {
-      const creds = JSON.parse(stored);
-      setUsername(creds.username || '');
-      setPassword(creds.password || '');
+      try {
+        const creds = JSON.parse(stored);
+        setUsername(creds.username || '');
+        setPassword(creds.password || '');
+      } catch (err) {
+        console.error('Failed to parse credentials from localStorage', err);
+        localStorage.removeItem('credentials');
+      }
     }
   }, []);
 

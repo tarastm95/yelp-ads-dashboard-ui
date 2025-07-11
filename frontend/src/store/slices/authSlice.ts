@@ -6,9 +6,19 @@ interface AuthState {
 }
 
 const stored = localStorage.getItem('credentials');
-const initialState: AuthState = stored
-  ? JSON.parse(stored)
-  : { username: '', password: '' };
+let parsedCreds: AuthState | null = null;
+if (stored) {
+  try {
+    parsedCreds = JSON.parse(stored);
+  } catch (err) {
+    console.error('Failed to parse credentials from localStorage', err);
+    localStorage.removeItem('credentials');
+  }
+}
+const initialState: AuthState = parsedCreds ?? {
+  username: '',
+  password: '',
+};
 
 const authSlice = createSlice({
   name: 'auth',
