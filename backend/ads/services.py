@@ -68,10 +68,37 @@ class YelpService:
 
     @classmethod
     def request_report(cls, period, payload):
+        """Request a business level performance report from Yelp."""
         url = f'{cls.FUSION_BASE}/v3/reporting/businesses/{period}'
-        resp = requests.post(url, json=payload, headers=cls.headers_fusion)
-        resp.raise_for_status()
+
+        # Explicitly build the body from allowed fields.  Frontend may send
+        # camelCase names so we support both variants.
+        body = {
+            "start_date":   payload.get("start_date")   or payload.get("startDate"),
+            "end_date":     payload.get("end_date")     or payload.get("endDate"),
+            "business_ids": payload.get("business_ids") or payload.get("ids"),
+            "metrics":      payload.get("metrics"),
+        }
+
+        # Validate required fields before making the request so that we fail
+        # fast and provide a clear error message.
+        missing = [k for k, v in body.items() if not v]
+        if missing:
+            raise ValueError(f"Missing fields for reporting API: {missing}")
+
+        resp = requests.post(url, json=body, headers=cls.headers_fusion)
+
+        if not resp.ok:
+            # Include Yelp response text in logs for easier debugging.
+            import logging
+
+            logging.getLogger("yelp").error(
+                "Yelp Reporting API error %s: %s", resp.status_code, resp.text
+            )
+            resp.raise_for_status()
+
         data = resp.json()
+        # Store job id for later polling of the report data.
         Report.objects.create(
             job_id=data.get('report_id', data.get('job_id')),
             period=period,
