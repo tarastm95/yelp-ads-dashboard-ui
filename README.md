@@ -20,6 +20,11 @@ pip install -r requirements.txt
 user and password are both `yelpadmin`. When running via Docker Compose set
 `DATABASE_URL` to use `db` as the host instead of `localhost`.
 
+   The backend automatically creates a Django user using `YELP_API_KEY` and
+   `YELP_API_SECRET` from the environment. These values must match the login
+   and password you use on the frontend so that requests authenticated with
+   `BasicAuthentication` are accepted.
+
 3. Apply migrations
 
 ```bash
