@@ -95,14 +95,16 @@ class YelpService:
 
         resp = requests.post(url, json=body, headers=cls.headers_fusion)
 
-        if not resp.ok:
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError:
             # Include Yelp response text in logs for easier debugging.
             import logging
 
             logging.getLogger("yelp").error(
                 "Yelp Reporting API error %s: %s", resp.status_code, resp.text
             )
-            resp.raise_for_status()
+            raise
 
         data = resp.json()
         # Store job id for later polling of the report data.
