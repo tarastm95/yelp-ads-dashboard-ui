@@ -105,7 +105,10 @@ export const yelpApi = createApi({
           start_date,
           end_date,
           business_ids: [business_id],
-          metrics: ['impressions', 'clicks'],
+          metrics: [
+            'billed_impressions',
+            'billed_clicks',
+          ],
         },
       }),
     }),
