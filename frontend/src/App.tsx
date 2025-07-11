@@ -13,6 +13,7 @@ import BusinessSearch from './components/BusinessSearch';
 import Dashboard from './components/Dashboard';
 import JobStatusMonitor from './components/JobStatusMonitor';
 import CategoryManager from './components/CategoryManager';
+import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -22,6 +23,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Index />} />
             <Route path="create" element={<CreateProgram />} />

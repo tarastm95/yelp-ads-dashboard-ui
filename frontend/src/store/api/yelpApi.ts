@@ -1,5 +1,6 @@
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '../index';
 import {
   Program,
   CreateProgramRequest,
@@ -13,9 +14,13 @@ import {
 
 const baseQuery = fetchBaseQuery({
   baseUrl: '/api', // Проксировать через бекенд
-  prepareHeaders: (headers) => {
-    // Базовая авторизация будет обрабатываться на бекенде
+  prepareHeaders: (headers, { getState }) => {
     headers.set('Content-Type', 'application/json');
+    const { auth } = (getState() as RootState);
+    if (auth.username && auth.password) {
+      const encoded = btoa(`${auth.username}:${auth.password}`);
+      headers.set('Authorization', `Basic ${encoded}`);
+    }
     return headers;
   },
 });
