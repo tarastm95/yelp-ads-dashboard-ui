@@ -1,4 +1,6 @@
 import requests
+import csv
+from io import StringIO
 from django.conf import settings
 from .models import Program, Report
 
@@ -11,15 +13,16 @@ class YelpService:
     @classmethod
     def create_program(cls, payload):
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/create'
-        resp = requests.post(url, json=payload, auth=cls.auth_partner)
+        # Partner Advertising API expects query params, not JSON body
+        resp = requests.post(url, params=payload, auth=cls.auth_partner)
         resp.raise_for_status()
         data = resp.json()
         Program.objects.create(
             job_id=data['job_id'],
             name=payload['program_name'],
             budget=payload.get('budget', 0),
-            start_date=payload['start'],
-            end_date=payload['end'],
+            start_date=payload.get('start'),
+            end_date=payload.get('end'),
             status='PENDING',
         )
         return data
@@ -34,6 +37,7 @@ class YelpService:
     @classmethod
     def sync_specialties(cls, payload):
         url = f'{cls.PARTNER_BASE}/v1/batch/businesses/sync'
+        # Batch sync uses JSON payload
         resp = requests.post(url, json=payload, auth=cls.auth_partner)
         resp.raise_for_status()
         return resp.json()
@@ -41,7 +45,8 @@ class YelpService:
     @classmethod
     def edit_program(cls, program_id, payload):
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
-        resp = requests.post(url, json=payload, auth=cls.auth_partner)
+        # Partner Advertising API expects query params, not JSON body
+        resp = requests.post(url, params=payload, auth=cls.auth_partner)
         resp.raise_for_status()
         return resp.json()
 
@@ -68,7 +73,7 @@ class YelpService:
         Report.objects.create(
             job_id=data.get('report_id', data.get('job_id')),
             period=period,
-            data={},
+            data={},  # initial empty
         )
         return data
 
@@ -77,8 +82,12 @@ class YelpService:
         url = f'{cls.FUSION_BASE}/v3/reporting/businesses/{period}/{report_id}'
         resp = requests.get(url, headers=cls.headers_fusion)
         resp.raise_for_status()
-        data = resp.json()
+        # Reporting API returns CSV, not JSON
+        csv_text = resp.text
+        reader = csv.DictReader(StringIO(csv_text))
+        rows = list(reader)
+
         report = Report.objects.get(job_id=report_id)
-        report.data = data
+        report.data = rows
         report.save()
-        return data
+        return rows
