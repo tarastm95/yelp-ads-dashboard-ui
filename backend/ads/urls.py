@@ -8,6 +8,8 @@ from .views import (
     SyncSpecialtiesView,
     RequestReportView,
     FetchReportView,
+    ProgramListView,
+    ProgramInfoView,
 )
 
 urlpatterns = [
@@ -23,6 +25,8 @@ urlpatterns = [
     path('reseller/program/<str:program_id>/edit', EditProgramView.as_view()),
     path('reseller/program/<str:program_id>/end', TerminateProgramView.as_view()),
     path('reseller/status/<str:job_id>', JobStatusView.as_view()),
+    path('reseller/programs', ProgramListView.as_view()),
+    path('reseller/get_program_info', ProgramInfoView.as_view()),
 
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),
