@@ -2,6 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .services import YelpService
+from .models import Program
+from .serializers import ProgramSerializer
+from django.shortcuts import get_object_or_404
 
 class CreateProgramView(APIView):
     def post(self, request):
@@ -42,3 +45,27 @@ class FetchReportView(APIView):
     def get(self, request, period, report_id):
         data = YelpService.fetch_report_data(period, report_id)
         return Response(data)
+
+
+class ProgramListView(APIView):
+    """Return list of stored programs."""
+
+    def get(self, request):
+        programs = Program.objects.all()
+        serializer = ProgramSerializer(programs, many=True)
+        return Response(serializer.data)
+
+
+class ProgramInfoView(APIView):
+    """Return single program info by job/program id."""
+
+    def get(self, request):
+        program_id = request.query_params.get("program_id")
+        if not program_id:
+            return Response(
+                {"detail": "program_id query param required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        program = get_object_or_404(Program, job_id=program_id)
+        serializer = ProgramSerializer(program)
+        return Response(serializer.data)

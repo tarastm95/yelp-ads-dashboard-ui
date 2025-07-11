@@ -30,3 +30,15 @@ def test_fetch_report(api_client):
     url = '/api/reports/daily/1/'
     response = api_client.get(url)
     assert response.status_code in [200, 404, 401]
+
+
+def test_get_programs(api_client):
+    url = '/api/reseller/programs'
+    response = api_client.get(url)
+    assert response.status_code in [200, 401]
+
+
+def test_get_program_info(api_client):
+    url = '/api/reseller/get_program_info'
+    response = api_client.get(url)
+    assert response.status_code in [200, 400, 404, 401]

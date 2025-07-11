@@ -12,6 +12,7 @@ class YelpService:
 
     @classmethod
     def create_program(cls, payload):
+        """Create a program using the fields coming from the frontend."""
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/create'
         # Partner Advertising API expects query params, not JSON body
         resp = requests.post(url, params=payload, auth=cls.auth_partner)
@@ -19,8 +20,9 @@ class YelpService:
         data = resp.json()
         Program.objects.create(
             job_id=data['job_id'],
-            name=payload['program_name'],
-            budget=payload.get('budget', 0),
+            # The frontend sends product_type which we store as name
+            name=payload.get('product_type', payload.get('program_name', '')),
+            budget=payload.get('budget_amount', payload.get('budget', 0)),
             start_date=payload.get('start'),
             end_date=payload.get('end'),
             status='PENDING',
