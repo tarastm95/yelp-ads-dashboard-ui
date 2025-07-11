@@ -39,6 +39,27 @@ class YelpService:
         return resp.json()
 
     @classmethod
+    def edit_program(cls, program_id, payload):
+        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
+        resp = requests.post(url, json=payload, auth=cls.auth_partner)
+        resp.raise_for_status()
+        return resp.json()
+
+    @classmethod
+    def terminate_program(cls, program_id):
+        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/end'
+        resp = requests.post(url, auth=cls.auth_partner)
+        resp.raise_for_status()
+        return resp.json()
+
+    @classmethod
+    def get_job_status(cls, job_id):
+        url = f'{cls.PARTNER_BASE}/v1/reseller/status/{job_id}'
+        resp = requests.get(url, auth=cls.auth_partner)
+        resp.raise_for_status()
+        return resp.json()
+
+    @classmethod
     def request_report(cls, period, payload):
         url = f'{cls.FUSION_BASE}/v3/reporting/businesses/{period}'
         resp = requests.post(url, json=payload, headers=cls.headers_fusion)
