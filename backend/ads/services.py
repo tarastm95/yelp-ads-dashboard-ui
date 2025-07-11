@@ -15,12 +15,12 @@ class YelpService:
         resp.raise_for_status()
         data = resp.json()
         Program.objects.create(
-            program_id=data['program_id'],
-            name=payload.get('name', ''),
+            job_id=data['job_id'],
+            name=payload['program_name'],
             budget=payload.get('budget', 0),
-            start_date=payload.get('start_date'),
-            end_date=payload.get('end_date'),
-            status=data.get('status', ''),
+            start_date=payload['start'],
+            end_date=payload['end'],
+            status='PENDING',
         )
         return data
 
@@ -65,7 +65,11 @@ class YelpService:
         resp = requests.post(url, json=payload, headers=cls.headers_fusion)
         resp.raise_for_status()
         data = resp.json()
-        Report.objects.create(report_id=data['report_id'], period=period, data={})
+        Report.objects.create(
+            job_id=data.get('report_id', data.get('job_id')),
+            period=period,
+            data={},
+        )
         return data
 
     @classmethod
@@ -74,7 +78,7 @@ class YelpService:
         resp = requests.get(url, headers=cls.headers_fusion)
         resp.raise_for_status()
         data = resp.json()
-        report = Report.objects.get(report_id=report_id)
+        report = Report.objects.get(job_id=report_id)
         report.data = data
         report.save()
         return data
