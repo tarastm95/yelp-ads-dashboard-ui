@@ -26,6 +26,7 @@ const Layout: React.FC = () => {
     { name: 'Аналитика', href: '/dashboard', icon: BarChart3 },
     { name: 'Мониторинг задач', href: '/jobs', icon: Clock },
     { name: 'Управление категориями', href: '/categories', icon: Settings },
+    { name: 'Логин', href: '/login', icon: Home },
   ];
 
   return (
