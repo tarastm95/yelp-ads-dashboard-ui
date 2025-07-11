@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from .views import (
     CreateProgramView,
     EditProgramView,
@@ -24,6 +24,6 @@ urlpatterns = [
     path('reseller/program/<str:program_id>/end', TerminateProgramView.as_view()),
     path('reseller/status/<str:job_id>', JobStatusView.as_view()),
 
-    path('reporting/businesses/<str:period>/', RequestReportView.as_view()),
-    path('reporting/businesses/<str:period>/<str:report_id>/', FetchReportView.as_view()),
+    re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
+    re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),
 ]
