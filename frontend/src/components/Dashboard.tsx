@@ -58,8 +58,8 @@ const Dashboard: React.FC = () => {
   // Подготовка данных для графиков
   const chartData = reportData?.data || [];
   
-  const totalImpressions = chartData.reduce((sum, item) => sum + item.impressions, 0);
-  const totalClicks = chartData.reduce((sum, item) => sum + item.clicks, 0);
+  const totalImpressions = chartData.reduce((sum, item) => sum + item.billed_impressions, 0);
+  const totalClicks = chartData.reduce((sum, item) => sum + item.billed_clicks, 0);
   const totalCalls = chartData.reduce((sum, item) => sum + item.calls, 0);
   const totalCost = chartData.reduce((sum, item) => sum + item.cost, 0);
   const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0';
@@ -205,8 +205,8 @@ const Dashboard: React.FC = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="impressions" stroke="#8884d8" name="Показы" />
-                    <Line type="monotone" dataKey="clicks" stroke="#82ca9d" name="Клики" />
+                    <Line type="monotone" dataKey="billed_impressions" stroke="#8884d8" name="Показы" />
+                    <Line type="monotone" dataKey="billed_clicks" stroke="#82ca9d" name="Клики" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>

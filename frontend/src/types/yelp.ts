@@ -54,8 +54,8 @@ export interface BusinessMatch {
 
 export interface ReportData {
   date: string;
-  impressions: number;
-  clicks: number;
+  billed_impressions: number;
+  billed_clicks: number;
   calls: number;
   cost: number;
 }
