@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Edit, Trash2, Eye } from 'lucide-react';
+import { Loader2, Edit, Trash2, Eye, Clock } from 'lucide-react';
+import ProgramStatusDialog from './ProgramStatusDialog';
 import { useNavigate } from 'react-router-dom';
 
 const ProgramsList: React.FC = () => {
@@ -134,6 +135,7 @@ const ProgramsList: React.FC = () => {
                     <Edit className="h-4 w-4 mr-1" />
                     Редактировать
                   </Button>
+                  <ProgramStatusDialog jobId={program.program_id} />
                   <Button
                     variant="destructive"
                     size="sm"
