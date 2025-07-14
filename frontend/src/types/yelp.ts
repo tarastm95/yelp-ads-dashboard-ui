@@ -90,6 +90,39 @@ export interface MonthlyReport {
   data: ReportData[];
 }
 
+export interface BusinessProgram {
+  active_features: string[];
+  available_features: string[];
+  end_date: string;
+  program_id: string;
+  program_pause_status: string;
+  program_status: string;
+  program_type: string;
+  start_date: string;
+  program_metrics?: {
+    budget: number;
+    currency: string;
+    is_autobid: boolean;
+    max_bid: number | null;
+    fee_period: string;
+    billed_impressions: number;
+    billed_clicks: number;
+    ad_cost: number;
+  };
+  future_budget_changes: any[];
+}
+
+export interface BusinessProgramsResponse {
+  businesses: Array<{
+    yelp_business_id: string;
+    advertiser_status: string;
+    partner_business_id: string | null;
+    programs: BusinessProgram[];
+    destination_yelp_business_id: string | null;
+  }>;
+  errors: any[];
+}
+
 export interface BusinessUpdate {
   business_id: string;
   categories: string[];

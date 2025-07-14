@@ -1,9 +1,10 @@
 
-import React from 'react';
-import { useGetProgramsQuery, useTerminateProgramMutation } from '../store/api/yelpApi';
+import React, { useState } from 'react';
+import { useGetProgramsQuery, useTerminateProgramMutation, useLazyGetBusinessProgramsQuery } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Edit, Trash2, Eye, Clock } from 'lucide-react';
 import ProgramStatusDialog from './ProgramStatusDialog';
@@ -12,6 +13,8 @@ import { useNavigate } from 'react-router-dom';
 const ProgramsList: React.FC = () => {
   const { data: programs, isLoading, error } = useGetProgramsQuery();
   const [terminateProgram] = useTerminateProgramMutation();
+  const [businessId, setBusinessId] = useState('');
+  const [fetchBusinessPrograms, { data: businessPrograms, isLoading: loadingBusiness, error: errorBusiness }] = useLazyGetBusinessProgramsQuery();
   const navigate = useNavigate();
 
   const handleTerminate = async (programId: string) => {
@@ -69,6 +72,41 @@ const ProgramsList: React.FC = () => {
           Создать программу
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Проверка Business ID</CardTitle>
+          <CardDescription>
+            Введите зашифрованный Business ID для просмотра программ
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 mb-4">
+            <Input
+              value={businessId}
+              onChange={(e) => setBusinessId(e.target.value)}
+              placeholder="J9R1gG5xy7DpWsCWBup7DQ"
+            />
+            <Button onClick={() => businessId && fetchBusinessPrograms(businessId)}>
+              Показать
+            </Button>
+          </div>
+          {loadingBusiness && (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Загрузка...</span>
+            </div>
+          )}
+          {errorBusiness && (
+            <p className="text-red-500">Ошибка загрузки данных</p>
+          )}
+          {businessPrograms && (
+            <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto">
+              {JSON.stringify(businessPrograms, null, 2)}
+            </pre>
+          )}
+        </CardContent>
+      </Card>
 
       {programs?.length === 0 ? (
         <Card>

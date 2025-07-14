@@ -133,3 +133,11 @@ class YelpService:
         report.data = rows
         report.save()
         return rows
+
+    @classmethod
+    def get_business_programs(cls, business_id):
+        """Return advertising program info for a given business."""
+        url = f"{cls.PARTNER_BASE}/v1/reseller/businesses/{business_id}/programs"
+        resp = requests.get(url, auth=cls.auth_partner)
+        resp.raise_for_status()
+        return resp.json()
