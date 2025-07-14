@@ -1,5 +1,7 @@
 import requests
 import csv
+import threading
+import time
 from io import StringIO
 from django.conf import settings
 from .models import Program, Report, PartnerCredential
@@ -34,6 +36,7 @@ class YelpService:
             end_date=payload.get('end'),
             status='PENDING',
         )
+        threading.Thread(target=cls._poll_program_status, args=(data['job_id'],), daemon=True).start()
         return data
 
     @classmethod
@@ -72,6 +75,34 @@ class YelpService:
         resp = requests.get(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
+
+    @classmethod
+    def _poll_program_status(cls, job_id):
+        """Poll program status every 15 seconds until completion."""
+        while True:
+            data = cls.get_program_status(job_id)
+            status = data.get('status')
+            program = Program.objects.filter(job_id=job_id).first()
+            if program:
+                program.status = status
+                if status != 'PROCESSING':
+                    program.status_data = data
+                    # try extract partner program id
+                    try:
+                        br = data.get('business_results', [])[0]
+                        added = br.get('update_results', {}).get('program_added', {})
+                        pid = added.get('program_id', {}).get('requested_value')
+                        if pid:
+                            program.partner_program_id = pid
+                    except Exception:
+                        pass
+                    program.save()
+                    break
+                program.save()
+            if status == 'PROCESSING':
+                time.sleep(15)
+            else:
+                break
 
     @classmethod
     def request_report(cls, period, payload):
