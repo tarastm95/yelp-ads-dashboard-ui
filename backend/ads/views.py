@@ -85,3 +85,11 @@ class BusinessProgramsView(APIView):
     def get(self, request, business_id):
         data = YelpService.get_business_programs(business_id)
         return Response(data)
+
+
+class PartnerProgramInfoView(APIView):
+    """Return program info from Yelp for a specific program id."""
+
+    def get(self, request, program_id):
+        data = YelpService.get_program_info(program_id)
+        return Response(data)
