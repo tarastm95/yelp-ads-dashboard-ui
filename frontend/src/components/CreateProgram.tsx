@@ -4,9 +4,29 @@ import { useCreateProgramMutation } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Loader2 } from 'lucide-react';
+
+const PROGRAM_OPTIONS = [
+  { value: 'BP', label: 'BP \u2013 Branded Profile' },
+  { value: 'EP', label: 'EP \u2013 Enhanced Profile' },
+  { value: 'CPC', label: 'CPC \u2013 Cost Per Click ads' },
+  { value: 'RCA', label: 'RCA \u2013 Remove Competitor Ads' },
+  { value: 'CTA', label: 'CTA \u2013 Call To Action' },
+  { value: 'SLIDESHOW', label: 'SLIDESHOW \u2013 Slideshow' },
+  { value: 'BH', label: 'BH \u2013 Business Highlights' },
+  { value: 'VL', label: 'VL \u2013 Verified License' },
+  { value: 'LOGO', label: 'LOGO \u2013 Logo Feature' },
+  { value: 'PORTFOLIO', label: 'PORTFOLIO \u2013 Portfolio Feature' },
+];
 
 const CreateProgram: React.FC = () => {
   const [createProgram, { isLoading }] = useCreateProgramMutation();
@@ -88,13 +108,21 @@ const CreateProgram: React.FC = () => {
 
           <div className="space-y-2">
             <Label htmlFor="program_name">Program Name</Label>
-            <Input
-              id="program_name"
+            <Select
               value={formData.program_name}
-              onChange={(e) => handleChange('program_name', e.target.value)}
-              placeholder="CPC"
-              required
-            />
+              onValueChange={(value) => handleChange('program_name', value)}
+            >
+              <SelectTrigger id="program_name">
+                <SelectValue placeholder="Select program" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROGRAM_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
