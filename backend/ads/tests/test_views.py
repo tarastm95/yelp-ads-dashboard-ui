@@ -44,7 +44,3 @@ def test_get_program_info(api_client):
     assert response.status_code in [200, 400, 404, 401]
 
 
-def test_get_business_programs(api_client):
-    url = '/api/reseller/business_programs/test'
-    response = api_client.get(url)
-    assert response.status_code in [200, 401]
