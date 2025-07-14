@@ -15,3 +15,14 @@ class Report(models.Model):
     period = models.CharField(max_length=10)
     requested_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
+
+
+class PartnerCredential(models.Model):
+    """Store plain partner API credentials captured from Basic auth."""
+
+    username = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:  # pragma: no cover - simple display
+        return self.username

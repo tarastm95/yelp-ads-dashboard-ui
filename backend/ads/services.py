@@ -2,20 +2,27 @@ import requests
 import csv
 from io import StringIO
 from django.conf import settings
-from .models import Program, Report
+from .models import Program, Report, PartnerCredential
 
 class YelpService:
     PARTNER_BASE = 'https://partner-api.yelp.com'
     FUSION_BASE = 'https://api.yelp.com'
-    auth_partner = (settings.YELP_API_KEY, settings.YELP_API_SECRET)
     headers_fusion = {'Authorization': f'Bearer {settings.YELP_FUSION_TOKEN}'}
+
+    @classmethod
+    def _get_partner_auth(cls):
+        """Return credentials stored via Basic auth or fall back to settings."""
+        cred = PartnerCredential.objects.order_by('-updated_at').first()
+        if cred:
+            return cred.username, cred.password
+        return settings.YELP_API_KEY, settings.YELP_API_SECRET
 
     @classmethod
     def create_program(cls, payload):
         """Create a program using the fields coming from the frontend."""
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/create'
         # Partner Advertising API expects query params, not JSON body
-        resp = requests.post(url, params=payload, auth=cls.auth_partner)
+        resp = requests.post(url, params=payload, auth=cls._get_partner_auth())
         resp.raise_for_status()
         data = resp.json()
         Program.objects.create(
@@ -40,7 +47,7 @@ class YelpService:
     def sync_specialties(cls, payload):
         url = f'{cls.PARTNER_BASE}/v1/batch/businesses/sync'
         # Batch sync uses JSON payload
-        resp = requests.post(url, json=payload, auth=cls.auth_partner)
+        resp = requests.post(url, json=payload, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
 
@@ -48,21 +55,21 @@ class YelpService:
     def edit_program(cls, program_id, payload):
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
         # Partner Advertising API expects query params, not JSON body
-        resp = requests.post(url, params=payload, auth=cls.auth_partner)
+        resp = requests.post(url, params=payload, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
 
     @classmethod
     def terminate_program(cls, program_id):
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/end'
-        resp = requests.post(url, auth=cls.auth_partner)
+        resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
 
     @classmethod
     def get_program_status(cls, program_id):
         url = f'{cls.PARTNER_BASE}/v1/reseller/status/{program_id}'
-        resp = requests.get(url, auth=cls.auth_partner)
+        resp = requests.get(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
 
