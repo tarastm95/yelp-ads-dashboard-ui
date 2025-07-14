@@ -8,6 +8,8 @@ class ProgramSerializer(serializers.ModelSerializer):
     created_date = serializers.DateTimeField(source='created_at')
     modified_date = serializers.DateTimeField(source='updated_at')
     business_id = serializers.SerializerMethodField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField(allow_null=True)
 
     def get_business_id(self, obj):
         return ''
@@ -22,6 +24,8 @@ class ProgramSerializer(serializers.ModelSerializer):
             'created_date',
             'modified_date',
             'budget_amount',
+            'start_date',
+            'end_date',
         ]
 
 class ReportSerializer(serializers.ModelSerializer):

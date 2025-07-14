@@ -170,6 +170,15 @@ const ProgramsList: React.FC = () => {
                     <Edit className="h-4 w-4 mr-1" />
                     Редактировать
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/edit-advanced/${program.program_id}`)}
+                    disabled={program.status === 'terminated'}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Расширенно
+                  </Button>
                   <ProgramStatusDialog jobId={program.program_id} />
                   <Button
                     variant="destructive"
