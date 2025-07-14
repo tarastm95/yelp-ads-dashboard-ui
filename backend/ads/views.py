@@ -33,8 +33,8 @@ class TerminateProgramView(APIView):
         return Response(data)
 
 class JobStatusView(APIView):
-    def get(self, request, job_id):
-        data = YelpService.get_job_status(job_id)
+    def get(self, request, program_id):
+        data = YelpService.get_program_status(program_id)
         return Response(data)
 
 class RequestReportView(APIView):

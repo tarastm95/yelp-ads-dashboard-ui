@@ -31,11 +31,29 @@ export interface EditProgramRequest {
   };
 }
 
+export interface FieldStatus {
+  requested_value: string;
+  status: 'COMPLETED' | 'FAILED';
+}
+
+export interface ProgramUpdateResults {
+  program_added?: Record<string, FieldStatus>;
+  program_updated?: Record<string, FieldStatus>;
+  program_deleted?: Record<string, FieldStatus>;
+}
+
+export interface BusinessResult {
+  status: 'COMPLETED' | 'FAILED';
+  identifier: string;
+  identifier_type: string;
+  update_results: ProgramUpdateResults;
+}
+
 export interface JobStatus {
-  job_id: string;
-  status: 'pending' | 'completed' | 'failed';
-  result?: any;
-  error_message?: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  created_at: string;
+  completed_at?: string;
+  business_results: BusinessResult[];
 }
 
 export interface BusinessMatch {

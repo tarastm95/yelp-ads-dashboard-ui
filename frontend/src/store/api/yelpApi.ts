@@ -61,7 +61,7 @@ export const yelpApi = createApi({
 
     // 4. Проверить статус задачи
     getJobStatus: builder.query<JobStatus, string>({
-      query: (job_id) => `/reseller/status/${job_id}`,
+      query: (id) => `/reseller/status/${id}`,
       providesTags: ['JobStatus'],
     }),
 

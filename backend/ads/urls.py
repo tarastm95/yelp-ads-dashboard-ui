@@ -24,7 +24,7 @@ urlpatterns = [
     path('reseller/program/create', CreateProgramView.as_view()),
     path('reseller/program/<str:program_id>/edit', EditProgramView.as_view()),
     path('reseller/program/<str:program_id>/end', TerminateProgramView.as_view()),
-    path('reseller/status/<str:job_id>', JobStatusView.as_view()),
+    path('reseller/status/<str:program_id>', JobStatusView.as_view()),
     path('reseller/programs', ProgramListView.as_view()),
     path('reseller/get_program_info', ProgramInfoView.as_view()),
 
