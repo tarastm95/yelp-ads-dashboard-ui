@@ -13,6 +13,7 @@ const EditAdvancedProgram: React.FC = () => {
   const navigate = useNavigate();
   const [editProgram, { isLoading }] = useEditProgramMutation();
   const { data: program } = useGetProgramInfoQuery(programId || '', { skip: !programId });
+  const [programIdInput, setProgramIdInput] = useState('');
 
   const [form, setForm] = useState({
     start: '',
@@ -76,7 +77,38 @@ const EditAdvancedProgram: React.FC = () => {
   };
 
   if (!programId) {
-    return <p className="text-red-500">Program ID не указан</p>;
+    const handleProgramIdSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (programIdInput) {
+        navigate(`/edit-advanced/${programIdInput}`);
+      }
+    };
+
+    return (
+      <Card className="w-full max-w-sm mx-auto">
+        <CardHeader>
+          <CardTitle>Укажите Program ID</CardTitle>
+          <CardDescription>
+            Введите идентификатор программы для редактирования
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleProgramIdSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="program_id">Program ID</Label>
+              <Input
+                id="program_id"
+                value={programIdInput}
+                onChange={(e) => setProgramIdInput(e.target.value)}
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Загрузить
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
