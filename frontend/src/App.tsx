@@ -12,6 +12,7 @@ import EditProgram from './components/EditProgram';
 import ProgramsList from './components/ProgramsList';
 import JobStatusMonitor from './components/JobStatusMonitor';
 import ProgramDetails from './pages/ProgramDetails';
+import BusinessProgramsInfo from './pages/BusinessProgramsInfo';
 import EditAdvancedProgram from './pages/EditAdvancedProgram';
 import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="edit-advanced/:programId" element={<EditAdvancedProgram />} />
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
+            <Route path="business-programs/:businessId" element={<BusinessProgramsInfo />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
           </Route>
           <Route path="*" element={<NotFound />} />

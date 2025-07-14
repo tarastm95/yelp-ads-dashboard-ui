@@ -10,6 +10,7 @@ from .views import (
     FetchReportView,
     ProgramListView,
     ProgramInfoView,
+    BusinessProgramsView,
 )
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     path('reseller/status/<str:program_id>', JobStatusView.as_view()),
     path('reseller/programs', ProgramListView.as_view()),
     path('reseller/get_program_info', ProgramInfoView.as_view()),
+    path('reseller/business_programs/<str:business_id>', BusinessProgramsView.as_view()),
 
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),
