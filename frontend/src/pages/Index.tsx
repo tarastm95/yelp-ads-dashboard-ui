@@ -4,12 +4,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
-  Plus, 
-  List, 
-  Search, 
-  BarChart3, 
-  Clock, 
-  Settings,
+  Plus,
+  List,
+  Clock,
   TrendingUp,
   Users,
   Target
@@ -32,32 +29,11 @@ const Index = () => {
       color: 'bg-green-500',
     },
     {
-      title: 'Поиск бизнесов',
-      description: 'Найдите бизнесы и получите их зашифрованные ID',
-      icon: Search,
-      path: '/search',
-      color: 'bg-purple-500',
-    },
-    {
-      title: 'Аналитика',
-      description: 'Просматривайте отчеты и метрики эффективности',
-      icon: BarChart3,
-      path: '/dashboard',
-      color: 'bg-orange-500',
-    },
-    {
       title: 'Мониторинг задач',
       description: 'Отслеживайте статус выполнения операций',
       icon: Clock,
       path: '/jobs',
       color: 'bg-red-500',
-    },
-    {
-      title: 'Управление категориями',
-      description: 'Обновляйте категории бизнесов',
-      icon: Settings,
-      path: '/categories',
-      color: 'bg-teal-500',
     },
   ];
 
@@ -149,18 +125,6 @@ const Index = () => {
               <Link to="/create">
                 <Plus className="mr-2 h-4 w-4" />
                 Создать программу
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/dashboard">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Открыть аналитику
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/search">
-                <Search className="mr-2 h-4 w-4" />
-                Найти бизнес
               </Link>
             </Button>
           </div>

@@ -10,10 +10,7 @@ import Index from "./pages/Index";
 import CreateProgram from './components/CreateProgram';
 import EditProgram from './components/EditProgram';
 import ProgramsList from './components/ProgramsList';
-import BusinessSearch from './components/BusinessSearch';
-import Dashboard from './components/Dashboard';
 import JobStatusMonitor from './components/JobStatusMonitor';
-import CategoryManager from './components/CategoryManager';
 import ProgramDetails from './pages/ProgramDetails';
 import EditAdvancedProgram from './pages/EditAdvancedProgram';
 import Login from './pages/Login';
@@ -35,10 +32,7 @@ const App = () => (
             <Route path="edit-advanced/:programId" element={<EditAdvancedProgram />} />
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
-            <Route path="search" element={<BusinessSearch />} />
-            <Route path="dashboard" element={<Dashboard />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
-            <Route path="categories" element={<CategoryManager />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
