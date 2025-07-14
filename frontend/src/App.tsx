@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from './components/Layout';
 import Index from "./pages/Index";
 import CreateProgram from './components/CreateProgram';
+import EditProgram from './components/EditProgram';
 import ProgramsList from './components/ProgramsList';
 import BusinessSearch from './components/BusinessSearch';
 import Dashboard from './components/Dashboard';
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/" element={<Layout />}>
             <Route index element={<Index />} />
             <Route path="create" element={<CreateProgram />} />
+            <Route path="edit/:programId" element={<EditProgram />} />
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
             <Route path="search" element={<BusinessSearch />} />
