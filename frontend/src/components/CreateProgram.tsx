@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Loader2 } from 'lucide-react';
 
@@ -13,10 +12,12 @@ const CreateProgram: React.FC = () => {
   const [createProgram, { isLoading }] = useCreateProgramMutation();
   const [formData, setFormData] = useState({
     business_id: '',
-    product_type: '',
-    budget_amount: '',
-    locations: '',
-    categories: '',
+    program_name: '',
+    budget: '',
+    max_bid: '',
+    is_autobid: false,
+    start: '',
+    end: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,12 +26,12 @@ const CreateProgram: React.FC = () => {
     try {
       const result = await createProgram({
         business_id: formData.business_id,
-        product_type: formData.product_type,
-        budget_amount: parseFloat(formData.budget_amount),
-        targeting: {
-          locations: formData.locations.split(',').map(l => l.trim()),
-          categories: formData.categories.split(',').map(c => c.trim()),
-        },
+        program_name: formData.program_name,
+        budget: parseFloat(formData.budget),
+        max_bid: parseFloat(formData.max_bid),
+        is_autobid: formData.is_autobid,
+        start: formData.start,
+        end: formData.end || undefined,
       }).unwrap();
 
       toast({
@@ -41,10 +42,12 @@ const CreateProgram: React.FC = () => {
       // Сброс формы
       setFormData({
         business_id: '',
-        product_type: '',
-        budget_amount: '',
-        locations: '',
-        categories: '',
+        program_name: '',
+        budget: '',
+        max_bid: '',
+        is_autobid: false,
+        start: '',
+        end: '',
       });
     } catch (error) {
       toast({
@@ -55,7 +58,7 @@ const CreateProgram: React.FC = () => {
     }
   };
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -84,49 +87,68 @@ const CreateProgram: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="product_type">Тип продукта</Label>
-            <Select value={formData.product_type} onValueChange={(value) => handleChange('product_type', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите тип продукта" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ads">Yelp Ads</SelectItem>
-                <SelectItem value="enhanced_profile">Enhanced Profile</SelectItem>
-                <SelectItem value="business_page">Business Page</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="budget_amount">Бюджет (USD)</Label>
+            <Label htmlFor="program_name">Program Name</Label>
             <Input
-              id="budget_amount"
-              type="number"
-              step="0.01"
-              value={formData.budget_amount}
-              onChange={(e) => handleChange('budget_amount', e.target.value)}
-              placeholder="100.00"
+              id="program_name"
+              value={formData.program_name}
+              onChange={(e) => handleChange('program_name', e.target.value)}
+              placeholder="CPC"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="locations">Локации (через запятую)</Label>
+            <Label htmlFor="budget">Budget (USD)</Label>
             <Input
-              id="locations"
-              value={formData.locations}
-              onChange={(e) => handleChange('locations', e.target.value)}
-              placeholder="New York, NY, Los Angeles, CA"
+              id="budget"
+              type="number"
+              value={formData.budget}
+              onChange={(e) => handleChange('budget', e.target.value)}
+              placeholder="30000"
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="categories">Категории (через запятую)</Label>
+            <Label htmlFor="max_bid">Max Bid (USD)</Label>
             <Input
-              id="categories"
-              value={formData.categories}
-              onChange={(e) => handleChange('categories', e.target.value)}
-              placeholder="restaurants, bars, cafes"
+              id="max_bid"
+              type="number"
+              value={formData.max_bid}
+              onChange={(e) => handleChange('max_bid', e.target.value)}
+              placeholder="1000"
+              required
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              id="is_autobid"
+              type="checkbox"
+              checked={formData.is_autobid}
+              onChange={(e) => handleChange('is_autobid', e.target.checked)}
+            />
+            <Label htmlFor="is_autobid">Autobid</Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="start">Start Date</Label>
+            <Input
+              id="start"
+              type="date"
+              value={formData.start}
+              onChange={(e) => handleChange('start', e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="end">End Date</Label>
+            <Input
+              id="end"
+              type="date"
+              value={formData.end}
+              onChange={(e) => handleChange('end', e.target.value)}
             />
           </div>
 
