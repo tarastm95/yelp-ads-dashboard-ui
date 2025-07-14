@@ -3,14 +3,15 @@ import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
-  Home, 
-  Plus, 
-  List, 
-  Search, 
-  BarChart3, 
-  Clock, 
+  Home,
+  Plus,
+  List,
+  Search,
+  BarChart3,
+  Clock,
   Settings,
-  Menu
+  Menu,
+  Edit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ const Layout: React.FC = () => {
     { name: 'Главная', href: '/', icon: Home },
     { name: 'Создать программу', href: '/create', icon: Plus },
     { name: 'Программы', href: '/programs', icon: List },
+    { name: 'Расширенное редактирование', href: '/edit-advanced', icon: Edit },
     { name: 'Поиск бизнесов', href: '/search', icon: Search },
     { name: 'Аналитика', href: '/dashboard', icon: BarChart3 },
     { name: 'Мониторинг задач', href: '/jobs', icon: Clock },

@@ -31,6 +31,7 @@ const App = () => (
             <Route index element={<Index />} />
             <Route path="create" element={<CreateProgram />} />
             <Route path="edit/:programId" element={<EditProgram />} />
+            <Route path="edit-advanced" element={<EditAdvancedProgram />} />
             <Route path="edit-advanced/:programId" element={<EditAdvancedProgram />} />
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
