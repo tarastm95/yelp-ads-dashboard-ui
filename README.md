@@ -63,6 +63,12 @@ containers. Any file changes automatically reload Django and Vite.
 docker compose up --build
 ```
 
+To continuously watch the output of both containers, run:
+
+```bash
+docker compose logs -f backend frontend
+```
+
 Adjust backend log verbosity via the `LOG_LEVEL` variable in `backend/.env`.
 
 ## Checking Program Status
