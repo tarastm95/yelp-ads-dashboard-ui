@@ -60,11 +60,14 @@ const ProgramsList: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Бюджет: ${program.budget_amount || 'N/A'}
                 </p>
-                <Button
-                  size="sm"
-                  onClick={() => navigate(`/program-info/${program.program_id}`)}
-                >
-                  Переглянути інформацію
+                <Button size="sm" asChild>
+                  <a
+                    href={`https://partner-api.yelp.com/v1/reseller/status/${program.program_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Переглянути інформацію
+                  </a>
                 </Button>
               </CardContent>
             </Card>
