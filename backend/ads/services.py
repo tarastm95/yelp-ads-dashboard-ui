@@ -60,8 +60,8 @@ class YelpService:
         return resp.json()
 
     @classmethod
-    def get_job_status(cls, job_id):
-        url = f'{cls.PARTNER_BASE}/v1/reseller/status/{job_id}'
+    def get_program_status(cls, program_id):
+        url = f'{cls.PARTNER_BASE}/v1/reseller/status/{program_id}'
         resp = requests.get(url, auth=cls.auth_partner)
         resp.raise_for_status()
         return resp.json()

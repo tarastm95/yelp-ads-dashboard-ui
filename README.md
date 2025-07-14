@@ -64,3 +64,40 @@ docker compose up --build
 ```
 
 Adjust backend log verbosity via the `LOG_LEVEL` variable in `backend/.env`.
+
+## Checking Program Status
+
+After creating or editing a reseller program you can poll its status via
+`/v1/reseller/status/<program_id>`.  The endpoint returns details for each
+business that was updated.
+
+Example request:
+
+```
+GET https://partner-api.yelp.com/v1/reseller/status/LYhR2q1OsOd2KYsE2y67_A
+```
+
+Example response:
+
+```json
+{
+  "business_results": [
+    {
+      "status": "COMPLETED",
+      "identifier": "e2JTWqyUwRHXjpG8TCZ7Ow",
+      "identifier_type": "BUSINESS",
+      "update_results": {
+        "program_added": {
+          "yelp_business_id": {
+            "requested_value": "e2JTWqyUwRHXjpG8TCZ7Ow",
+            "status": "COMPLETED"
+          }
+        }
+      }
+    }
+  ],
+  "status": "COMPLETED",
+  "created_at": "2025-07-11T12:54:46+00:00",
+  "completed_at": "2025-07-11T12:55:44+00:00"
+}
+```

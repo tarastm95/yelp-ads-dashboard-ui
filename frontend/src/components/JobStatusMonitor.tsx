@@ -32,11 +32,12 @@ const JobStatusMonitor: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
+      case 'IN_PROGRESS':
         return <Clock className="h-4 w-4" />;
-      case 'completed':
+      case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
-      case 'failed':
+      case 'FAILED':
         return <XCircle className="h-4 w-4" />;
       default:
         return <Loader2 className="h-4 w-4 animate-spin" />;
@@ -45,11 +46,12 @@ const JobStatusMonitor: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
+      case 'IN_PROGRESS':
         return 'bg-yellow-500';
-      case 'completed':
+      case 'COMPLETED':
         return 'bg-green-500';
-      case 'failed':
+      case 'FAILED':
         return 'bg-red-500';
       default:
         return 'bg-gray-500';
@@ -71,12 +73,12 @@ const JobStatusMonitor: React.FC = () => {
         <CardContent>
           <div className="flex gap-4 items-end">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="job_id">Job ID</Label>
+              <Label htmlFor="job_id">Program/Job ID</Label>
               <Input
                 id="job_id"
                 value={jobId}
                 onChange={(e) => setJobId(e.target.value)}
-                placeholder="Введите Job ID для мониторинга"
+                placeholder="Введите ID программы для мониторинга"
               />
             </div>
             <div className="flex gap-2">
@@ -118,25 +120,25 @@ const JobStatusMonitor: React.FC = () => {
                   </Badge>
                 </div>
 
-                {jobStatus.status === 'completed' && jobStatus.result && (
+                {jobStatus.status === 'COMPLETED' && jobStatus.business_results && (
                   <div>
                     <h4 className="font-semibold mb-2">Результат:</h4>
                     <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto">
-                      {JSON.stringify(jobStatus.result, null, 2)}
+                      {JSON.stringify(jobStatus.business_results, null, 2)}
                     </pre>
                   </div>
                 )}
 
-                {jobStatus.status === 'failed' && jobStatus.error_message && (
+                {jobStatus.status === 'FAILED' && (
                   <div>
                     <h4 className="font-semibold mb-2 text-red-600">Ошибка:</h4>
-                    <p className="text-red-600 bg-red-50 p-3 rounded">
-                      {jobStatus.error_message}
-                    </p>
+                    <pre className="text-red-600 bg-red-50 p-3 rounded">
+                      {JSON.stringify(jobStatus.business_results ?? {}, null, 2)}
+                    </pre>
                   </div>
                 )}
 
-                {jobStatus.status === 'pending' && (
+                {(jobStatus.status === 'PENDING' || jobStatus.status === 'IN_PROGRESS') && (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Задача выполняется... Обновление каждые 5 секунд</span>
