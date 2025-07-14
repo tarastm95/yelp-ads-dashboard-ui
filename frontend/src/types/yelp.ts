@@ -15,12 +15,12 @@ export interface Program {
 
 export interface CreateProgramRequest {
   business_id: string;
-  product_type: string;
-  budget_amount: number;
-  targeting: {
-    locations: string[];
-    categories: string[];
-  };
+  program_name: string;
+  budget: number;
+  max_bid: number;
+  is_autobid: boolean;
+  start: string;
+  end?: string;
 }
 
 export interface EditProgramRequest {
