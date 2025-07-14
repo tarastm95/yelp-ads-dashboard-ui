@@ -7,6 +7,8 @@ class Program(models.Model):
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=50)
+    partner_program_id = models.CharField(max_length=100, null=True, blank=True)
+    status_data = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
