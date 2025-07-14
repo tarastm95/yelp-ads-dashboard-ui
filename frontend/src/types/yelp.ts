@@ -7,6 +7,8 @@ export interface Program {
   created_date: string;
   modified_date: string;
   budget_amount?: number;
+  start_date?: string;
+  end_date?: string | null;
   targeting?: {
     locations?: string[];
     categories?: string[];
@@ -24,11 +26,21 @@ export interface CreateProgramRequest {
 }
 
 export interface EditProgramRequest {
+  // Legacy fields used by the basic EditProgram page
   budget_amount?: number;
   targeting?: {
     locations?: string[];
     categories?: string[];
   };
+
+  // Fields supported by the Yelp program edit endpoint
+  start?: string;
+  end?: string;
+  budget?: number;
+  future_budget_date?: string;
+  max_bid?: number;
+  pacing_method?: 'paced' | 'unpaced';
+  ad_categories?: string[];
 }
 
 export interface FieldStatus {

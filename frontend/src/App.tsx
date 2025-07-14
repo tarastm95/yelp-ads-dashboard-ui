@@ -15,6 +15,7 @@ import Dashboard from './components/Dashboard';
 import JobStatusMonitor from './components/JobStatusMonitor';
 import CategoryManager from './components/CategoryManager';
 import ProgramDetails from './pages/ProgramDetails';
+import EditAdvancedProgram from './pages/EditAdvancedProgram';
 import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route index element={<Index />} />
             <Route path="create" element={<CreateProgram />} />
             <Route path="edit/:programId" element={<EditProgram />} />
+            <Route path="edit-advanced/:programId" element={<EditAdvancedProgram />} />
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
             <Route path="search" element={<BusinessSearch />} />
