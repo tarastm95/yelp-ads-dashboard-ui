@@ -24,10 +24,7 @@ const Layout: React.FC = () => {
     { name: 'Создать программу', href: '/create', icon: Plus },
     { name: 'Программы', href: '/programs', icon: List },
     { name: 'Расширенное редактирование', href: '/edit-advanced', icon: Edit },
-    { name: 'Поиск бизнесов', href: '/search', icon: Search },
-    { name: 'Аналитика', href: '/dashboard', icon: BarChart3 },
     { name: 'Мониторинг задач', href: '/jobs', icon: Clock },
-    { name: 'Управление категориями', href: '/categories', icon: Settings },
     { name: 'Логин', href: '/login', icon: Home },
   ];
 
