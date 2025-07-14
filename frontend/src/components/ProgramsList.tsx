@@ -51,13 +51,23 @@ const ProgramsList: React.FC = () => {
                   {program.product_type} (ID: {program.program_id})
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Статус: {program.status}
-                </p>
+              <CardContent className="space-y-2">
+                {program.status !== 'PENDING' && (
+                  <p className="text-sm text-muted-foreground">
+                    Статус: {program.status}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground">
                   Бюджет: ${program.budget_amount || 'N/A'}
                 </p>
+                {program.business_id && (
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/business-programs/${program.business_id}`)}
+                  >
+                    Переглянути інформацію
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
