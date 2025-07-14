@@ -138,6 +138,7 @@ export const {
   useEditProgramMutation,
   useTerminateProgramMutation,
   useGetJobStatusQuery,
+  useLazyGetJobStatusQuery,
   useGetProgramsQuery,
   useGetProgramInfoQuery,
   useGetBusinessMatchesQuery,
