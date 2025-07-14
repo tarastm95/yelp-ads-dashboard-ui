@@ -1,7 +1,8 @@
 from django.apps import AppConfig
+from django.db.models.signals import post_migrate
 
 
-def _ensure_default_user():
+def _ensure_default_user(sender=None, **kwargs):
     """Create a Django user based on Yelp API credentials if missing."""
     from django.conf import settings
     from django.contrib.auth import get_user_model
@@ -21,4 +22,4 @@ class AdsConfig(AppConfig):
     name = 'ads'
 
     def ready(self):
-        _ensure_default_user()
+        post_migrate.connect(_ensure_default_user, sender=self)
