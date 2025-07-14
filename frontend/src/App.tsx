@@ -14,6 +14,7 @@ import JobStatusMonitor from './components/JobStatusMonitor';
 import ProgramDetails from './pages/ProgramDetails';
 import BusinessProgramsInfo from './pages/BusinessProgramsInfo';
 import PartnerProgramInfo from './pages/PartnerProgramInfo';
+import ProgramStatus from './pages/ProgramStatus';
 import EditAdvancedProgram from './pages/EditAdvancedProgram';
 import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="programs" element={<ProgramsList />} />
             <Route path="program/:programId" element={<ProgramDetails />} />
             <Route path="program-info/:programId" element={<PartnerProgramInfo />} />
+            <Route path="program-status/:programId" element={<ProgramStatus />} />
             <Route path="business-programs/:businessId" element={<BusinessProgramsInfo />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
           </Route>
