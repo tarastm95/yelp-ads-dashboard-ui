@@ -36,10 +36,11 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    environment:
-      - NODE_ENV=development
-    networks:
-      - app-network
+      environment:
+        - NODE_ENV=development
+        - CHOKIDAR_USEPOLLING=true
+      networks:
+        - app-network
 
 networks:
   app-network:

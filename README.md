@@ -59,6 +59,11 @@ pytest
 Running `docker compose up` starts both services with source code mounted in the
 containers. Any file changes automatically reload Django and Vite.
 
+If file watching does not work on your system (for example on Windows or
+certain virtualized environments), Vite can be forced to poll for changes by
+setting the `CHOKIDAR_USEPOLLING` environment variable.  This repository already
+enables the variable in `docker-compose.yml` for convenience.
+
 ```bash
 docker compose up --build
 ```
