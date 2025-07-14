@@ -62,7 +62,7 @@ const ProgramsList: React.FC = () => {
                 </p>
                 <Button
                   size="sm"
-                  onClick={() => navigate(`/program-info/${program.program_id}`)}
+                  onClick={() => navigate(`/program-status/${program.program_id}`)}
                 >
                   Переглянути інформацію
                 </Button>
