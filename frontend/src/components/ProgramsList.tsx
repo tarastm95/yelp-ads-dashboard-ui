@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Edit, Trash2, Eye, Clock } from 'lucide-react';
 import ProgramStatusDialog from './ProgramStatusDialog';
+import BusinessProgramsView from './BusinessProgramsView';
 import { useNavigate } from 'react-router-dom';
 
 const ProgramsList: React.FC = () => {
@@ -100,11 +101,7 @@ const ProgramsList: React.FC = () => {
           {errorBusiness && (
             <p className="text-red-500">Ошибка загрузки данных</p>
           )}
-          {businessPrograms && (
-            <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto">
-              {JSON.stringify(businessPrograms, null, 2)}
-            </pre>
-          )}
+          {businessPrograms && <BusinessProgramsView data={businessPrograms} />}
         </CardContent>
       </Card>
 
