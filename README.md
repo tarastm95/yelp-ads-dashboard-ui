@@ -25,6 +25,9 @@ user and password are both `yelpadmin`. When running via Docker Compose set
    and password you use on the frontend so that requests authenticated with
    `BasicAuthentication` are accepted.
 
+   Credentials supplied via Basic authentication are stored in the database and
+   reused for all requests sent to the Yelp partner API.
+
 3. Apply migrations
 
 ```bash
