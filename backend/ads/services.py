@@ -136,8 +136,12 @@ class YelpService:
 
     @classmethod
     def get_business_programs(cls, business_id):
-        """Return advertising program info for a given business."""
-        url = f"{cls.PARTNER_BASE}/v1/reseller/businesses/{business_id}/programs"
+        """Return advertising program info for a given business.
+
+        This uses Yelp's ``/v1/programs/list/<business_id>`` endpoint which
+        requires the encrypted Yelp business identifier.
+        """
+        url = f"{cls.PARTNER_BASE}/v1/programs/list/{business_id}"
         resp = requests.get(url, auth=cls.auth_partner)
         resp.raise_for_status()
         return resp.json()
