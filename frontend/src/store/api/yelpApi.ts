@@ -10,7 +10,8 @@ import {
   DailyReport,
   MonthlyReport,
   BusinessUpdate,
-  BusinessProgramsResponse
+  BusinessProgramsResponse,
+  ProgramInfoResponse,
 } from '../../types/yelp';
 
 const baseQuery = fetchBaseQuery({
@@ -90,6 +91,11 @@ export const yelpApi = createApi({
       query: (business_id) => `/reseller/business_programs/${business_id}`,
     }),
 
+    // Получить информацию о программе по её ID
+    getPartnerProgramInfo: builder.query<ProgramInfoResponse, string>({
+      query: (program_id) => `/reseller/program_info/${program_id}`,
+    }),
+
     // 7. Обновить категории бизнеса
     updateBusinessCategories: builder.mutation<{ job_id: string }, BusinessUpdate[]>({
       query: (businesses) => ({
@@ -150,6 +156,7 @@ export const {
   useGetBusinessMatchesQuery,
   useGetBusinessProgramsQuery,
   useLazyGetBusinessProgramsQuery,
+  useGetPartnerProgramInfoQuery,
   useUpdateBusinessCategoriesMutation,
   useRequestDailyReportMutation,
   useRequestMonthlyReportMutation,

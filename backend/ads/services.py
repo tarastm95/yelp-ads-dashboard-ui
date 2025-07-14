@@ -149,3 +149,11 @@ class YelpService:
         resp.raise_for_status()
         return resp.json()
 
+    @classmethod
+    def get_program_info(cls, program_id):
+        """Return detailed information for a specific program."""
+        url = f'{cls.PARTNER_BASE}/v1/programs/info/{program_id}'
+        resp = requests.get(url, auth=cls._get_partner_auth())
+        resp.raise_for_status()
+        return resp.json()
+

@@ -60,14 +60,12 @@ const ProgramsList: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Бюджет: ${program.budget_amount || 'N/A'}
                 </p>
-                {program.business_id && (
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(`/business-programs/${program.business_id}`)}
-                  >
-                    Переглянути інформацію
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/program-info/${program.program_id}`)}
+                >
+                  Переглянути інформацію
+                </Button>
               </CardContent>
             </Card>
           ))}

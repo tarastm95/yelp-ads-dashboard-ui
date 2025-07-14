@@ -135,6 +135,11 @@ export interface BusinessProgramsResponse {
   errors: any[];
 }
 
+export interface ProgramInfoResponse {
+  programs: BusinessProgram[];
+  errors: any[];
+}
+
 export interface BusinessUpdate {
   business_id: string;
   categories: string[];
