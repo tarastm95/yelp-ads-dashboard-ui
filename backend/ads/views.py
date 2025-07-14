@@ -37,6 +37,14 @@ class JobStatusView(APIView):
         data = YelpService.get_program_status(program_id)
         return Response(data)
 
+
+class BusinessProgramsView(APIView):
+    """Fetch advertising programs for a business."""
+
+    def get(self, request, business_id):
+        data = YelpService.get_business_programs(business_id)
+        return Response(data)
+
 class RequestReportView(APIView):
     def post(self, request, period):
         try:
