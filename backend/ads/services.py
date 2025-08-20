@@ -2,9 +2,12 @@ import requests
 import csv
 import threading
 import time
+import logging
 from io import StringIO
 from django.conf import settings
 from .models import Program, Report, PartnerCredential
+
+logger = logging.getLogger(__name__)
 
 class YelpService:
     PARTNER_BASE = 'https://partner-api.yelp.com'
@@ -22,29 +25,88 @@ class YelpService:
     @classmethod
     def create_program(cls, payload):
         """Create a program using the fields coming from the frontend."""
+        logger.info(f"Creating program with payload: {payload}")
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/create'
-        # Partner Advertising API expects query params, not JSON body
-        resp = requests.post(url, params=payload, auth=cls._get_partner_auth())
-        resp.raise_for_status()
-        data = resp.json()
-        Program.objects.create(
-            job_id=data['job_id'],
-            # The frontend sends product_type which we store as name
-            name=payload.get('product_type', payload.get('program_name', '')),
-            budget=payload.get('budget_amount', payload.get('budget', 0)),
-            start_date=payload.get('start'),
-            end_date=payload.get('end'),
-            status='PENDING',
-        )
-        threading.Thread(target=cls._poll_program_status, args=(data['job_id'],), daemon=True).start()
-        return data
+        
+        # Правильно формуємо параметри залежно від типу програми
+        program_type = payload.get('program_name', '').upper()
+        params = {
+            'business_id': payload.get('business_id'),
+            'program_name': program_type,
+            'start': payload.get('start'),
+            'end': payload.get('end'),
+        }
+        
+        # Для CPC програм додаємо budget та bid параметри
+        if program_type == 'CPC':
+            budget = payload.get('budget')
+            if budget:
+                # Конвертуємо в центи якщо передано в доларах
+                if isinstance(budget, (int, float)) and budget < 1000:
+                    budget = int(budget * 100)  # $200.00 → 20000
+                params['budget'] = int(budget)
+            
+            is_autobid = payload.get('is_autobid', False)
+            # Перетворюємо в рядок lowercase для API
+            params['is_autobid'] = str(is_autobid).lower()
+            
+            # Якщо не автобід, то обов'язково потрібен max_bid
+            if not is_autobid:
+                max_bid = payload.get('max_bid')
+                if max_bid:
+                    # Конвертуємо в центи якщо передано в доларах
+                    if isinstance(max_bid, (int, float)) and max_bid < 100:
+                        max_bid = int(max_bid * 100)  # $5.00 → 500
+                    params['max_bid'] = int(max_bid)
+                else:
+                    logger.warning("CPC program with manual bidding requires max_bid")
+        
+        # Для BP та інших програм НЕ додаємо CPC-специфічні параметри
+        logger.info(f"Final API parameters: {params}")
+        
+        try:
+            logger.debug(f"Making request to: {url}")
+            # Partner Advertising API expects query params, not JSON body
+            resp = requests.post(url, params=params, auth=cls._get_partner_auth())
+            logger.debug(f"Response status: {resp.status_code}")
+            logger.debug(f"Response text: {resp.text}")
+            resp.raise_for_status()
+            
+            data = resp.json()
+            logger.info(f"Program creation response: {data}")
+            
+            program = Program.objects.create(
+                job_id=data['job_id'],
+                name=program_type,
+                budget=params.get('budget', 0),
+                start_date=params.get('start'),
+                end_date=params.get('end'),
+                status='PENDING',
+            )
+            logger.info(f"Program saved to database: {program.job_id}")
+            
+            threading.Thread(target=cls._poll_program_status, args=(data['job_id'],), daemon=True).start()
+            logger.info(f"Started background polling for program: {data['job_id']}")
+            
+            return data
+        except Exception as e:
+            logger.error(f"Error creating program: {e}")
+            raise
 
     @classmethod
     def business_match(cls, params):
+        logger.info(f"Business match request with params: {params}")
         url = f'{cls.FUSION_BASE}/v3/businesses/matches'
-        resp = requests.get(url, headers=cls.headers_fusion, params=params)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = requests.get(url, headers=cls.headers_fusion, params=params)
+            logger.debug(f"Business match response status: {resp.status_code}")
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"Business match found {len(data.get('businesses', []))} businesses")
+            return data
+        except Exception as e:
+            logger.error(f"Error in business match: {e}")
+            raise
 
     @classmethod
     def sync_specialties(cls, payload):
@@ -56,11 +118,39 @@ class YelpService:
 
     @classmethod
     def edit_program(cls, program_id, payload):
+        """Edit existing program - only budget and max_bid for CPC programs."""
+        logger.info(f"Editing program {program_id} with payload: {payload}")
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
-        # Partner Advertising API expects query params, not JSON body
-        resp = requests.post(url, params=payload, auth=cls._get_partner_auth())
-        resp.raise_for_status()
-        return resp.json()
+        
+        # Для редагування передаємо тільки budget та max_bid (в центах)
+        params = {}
+        
+        if 'budget' in payload:
+            budget = payload['budget']
+            # Конвертуємо в центи якщо передано в доларах
+            if isinstance(budget, (int, float)) and budget < 1000:
+                budget = int(budget * 100)
+            params['budget'] = int(budget)
+            
+        if 'max_bid' in payload:
+            max_bid = payload['max_bid']
+            # Конвертуємо в центи якщо передано в доларах  
+            if isinstance(max_bid, (int, float)) and max_bid < 100:
+                max_bid = int(max_bid * 100)
+            params['max_bid'] = int(max_bid)
+        
+        logger.info(f"Edit program API parameters: {params}")
+        
+        try:
+            # Partner Advertising API expects query params, not JSON body
+            resp = requests.post(url, params=params, auth=cls._get_partner_auth())
+            logger.debug(f"Edit response status: {resp.status_code}")
+            logger.debug(f"Edit response text: {resp.text}")
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Error editing program {program_id}: {e}")
+            raise
 
     @classmethod
     def terminate_program(cls, program_id):
@@ -71,37 +161,56 @@ class YelpService:
 
     @classmethod
     def get_program_status(cls, program_id):
+        logger.debug(f"Getting program status for: {program_id}")
         url = f'{cls.PARTNER_BASE}/v1/reseller/status/{program_id}'
-        resp = requests.get(url, auth=cls._get_partner_auth())
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = requests.get(url, auth=cls._get_partner_auth())
+            resp.raise_for_status()
+            data = resp.json()
+            logger.debug(f"Program {program_id} status: {data.get('status')}")
+            return data
+        except Exception as e:
+            logger.error(f"Error getting program status for {program_id}: {e}")
+            raise
 
     @classmethod
     def _poll_program_status(cls, job_id):
         """Poll program status every 15 seconds until completion."""
+        logger.info(f"Starting status polling for job: {job_id}")
         while True:
-            data = cls.get_program_status(job_id)
-            status = data.get('status')
-            program = Program.objects.filter(job_id=job_id).first()
-            if program:
-                program.status = status
-                if status != 'PROCESSING':
-                    program.status_data = data
-                    # try extract partner program id
-                    try:
-                        br = data.get('business_results', [])[0]
-                        added = br.get('update_results', {}).get('program_added', {})
-                        pid = added.get('program_id', {}).get('requested_value')
-                        if pid:
-                            program.partner_program_id = pid
-                    except Exception:
-                        pass
+            try:
+                logger.debug(f"Polling status for job: {job_id}")
+                data = cls.get_program_status(job_id)
+                status = data.get('status')
+                logger.debug(f"Job {job_id} status: {status}")
+                
+                program = Program.objects.filter(job_id=job_id).first()
+                if program:
+                    program.status = status
+                    if status != 'PROCESSING':
+                        program.status_data = data
+                        logger.info(f"Job {job_id} completed with status: {status}")
+                        # try extract partner program id
+                        try:
+                            br = data.get('business_results', [])[0]
+                            added = br.get('update_results', {}).get('program_added', {})
+                            pid = added.get('program_id', {}).get('requested_value')
+                            if pid:
+                                program.partner_program_id = pid
+                                logger.info(f"Extracted partner program ID: {pid} for job: {job_id}")
+                        except Exception as e:
+                            logger.debug(f"Could not extract partner program ID for job {job_id}: {e}")
+                        program.save()
+                        break
                     program.save()
+                
+                if status == 'PROCESSING':
+                    logger.debug(f"Job {job_id} still processing, sleeping 15 seconds")
+                    time.sleep(15)
+                else:
                     break
-                program.save()
-            if status == 'PROCESSING':
-                time.sleep(15)
-            else:
+            except Exception as e:
+                logger.error(f"Error polling status for job {job_id}: {e}")
                 break
 
     @classmethod

@@ -11,6 +11,7 @@ import CreateProgram from './components/CreateProgram';
 import EditProgram from './components/EditProgram';
 import ProgramsList from './components/ProgramsList';
 import JobStatusMonitor from './components/JobStatusMonitor';
+import ApiTestPanel from './components/ApiTestPanel';
 import ProgramDetails from './pages/ProgramDetails';
 import BusinessProgramsInfo from './pages/BusinessProgramsInfo';
 import PartnerProgramInfo from './pages/PartnerProgramInfo';
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="program-status/:programId" element={<ProgramStatus />} />
             <Route path="business-programs/:businessId" element={<BusinessProgramsInfo />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
+            <Route path="api-test" element={<ApiTestPanel />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

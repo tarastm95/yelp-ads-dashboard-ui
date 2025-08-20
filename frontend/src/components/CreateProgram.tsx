@@ -4,6 +4,7 @@ import { useCreateProgramMutation } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TEST_BUSINESS_IDS } from '@/constants/testData';
 import {
   Select,
   SelectTrigger,
@@ -44,15 +45,26 @@ const CreateProgram: React.FC = () => {
     e.preventDefault();
     
     try {
-      const result = await createProgram({
+      // Базові параметри для всіх типів програм
+      const baseParams = {
         business_id: formData.business_id,
         program_name: formData.program_name,
-        budget: parseFloat(formData.budget),
-        max_bid: parseFloat(formData.max_bid),
-        is_autobid: formData.is_autobid,
         start: formData.start,
         end: formData.end || undefined,
-      }).unwrap();
+      };
+
+      // Додаємо CPC-специфічні параметри тільки для CPC програм
+      const isCPCProgram = formData.program_name === 'CPC';
+      
+      const payload = isCPCProgram ? {
+        ...baseParams,
+        budget: parseFloat(formData.budget),
+        is_autobid: formData.is_autobid,
+        // max_bid тільки якщо не автобід
+        ...(formData.is_autobid ? {} : { max_bid: parseFloat(formData.max_bid) })
+      } : baseParams;
+
+      const result = await createProgram(payload).unwrap();
 
       toast({
         title: "Программа создается",
@@ -104,6 +116,21 @@ const CreateProgram: React.FC = () => {
               placeholder="Введите зашифрованный business ID"
               required
             />
+            <div className="flex gap-2 mt-2">
+              <p className="text-sm text-gray-600">Тестові IDs:</p>
+              {TEST_BUSINESS_IDS.map((id, index) => (
+                <Button
+                  key={id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleChange('business_id', id)}
+                  className="text-xs"
+                >
+                  Test #{index + 1}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -125,39 +152,63 @@ const CreateProgram: React.FC = () => {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="budget">Budget (USD)</Label>
-            <Input
-              id="budget"
-              type="number"
-              value={formData.budget}
-              onChange={(e) => handleChange('budget', e.target.value)}
-              placeholder="30000"
-              required
-            />
-          </div>
+          {/* CPC-специфічні поля показуємо тільки для CPC програм */}
+          {formData.program_name === 'CPC' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="budget">Budget (USD в центах)</Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  value={formData.budget}
+                  onChange={(e) => handleChange('budget', e.target.value)}
+                  placeholder="20000 (= $200.00)"
+                  required
+                />
+                <p className="text-sm text-gray-500">
+                  Введіть суму в центах: $200.00 = 20000
+                </p>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="max_bid">Max Bid (USD)</Label>
-            <Input
-              id="max_bid"
-              type="number"
-              value={formData.max_bid}
-              onChange={(e) => handleChange('max_bid', e.target.value)}
-              placeholder="1000"
-              required
-            />
-          </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  id="is_autobid"
+                  type="checkbox"
+                  checked={formData.is_autobid}
+                  onChange={(e) => handleChange('is_autobid', e.target.checked)}
+                />
+                <Label htmlFor="is_autobid">Автоматичне бідування (Autobid)</Label>
+              </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              id="is_autobid"
-              type="checkbox"
-              checked={formData.is_autobid}
-              onChange={(e) => handleChange('is_autobid', e.target.checked)}
-            />
-            <Label htmlFor="is_autobid">Autobid</Label>
-          </div>
+              {/* Max bid тільки якщо НЕ автобід */}
+              {!formData.is_autobid && (
+                <div className="space-y-2">
+                  <Label htmlFor="max_bid">Max Bid (USD в центах)</Label>
+                  <Input
+                    id="max_bid"
+                    type="number"
+                    value={formData.max_bid}
+                    onChange={(e) => handleChange('max_bid', e.target.value)}
+                    placeholder="500 (= $5.00)"
+                    required
+                  />
+                  <p className="text-sm text-gray-500">
+                    Введіть суму в центах: $5.00 = 500
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Інформаційне повідомлення для не-CPC програм */}
+          {formData.program_name && formData.program_name !== 'CPC' && (
+            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+              <p className="text-sm text-blue-700">
+                <strong>{formData.program_name}</strong> програма не потребує budget та bid параметрів. 
+                Тільки business_id, дати початку та кінця.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="start">Start Date</Label>

@@ -3,13 +3,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { TEST_BUSINESS_IDS, TEST_ENVIRONMENT_INFO } from '@/constants/testData';
 import { 
   Plus,
   List,
   Clock,
   TrendingUp,
   Users,
-  Target
+  Target,
+  AlertTriangle,
+  TestTube,
+  Building
 } from 'lucide-react';
 
 const Index = () => {
@@ -34,6 +38,13 @@ const Index = () => {
       icon: Clock,
       path: '/jobs',
       color: 'bg-red-500',
+    },
+    {
+      title: 'API Тестування',
+      description: 'Тестуйте правильні запити до Yelp Ads API',
+      icon: TestTube,
+      path: '/api-test',
+      color: 'bg-purple-500',
     },
   ];
 
@@ -85,6 +96,64 @@ const Index = () => {
                   <p className="text-2xl font-bold">38</p>
                 </div>
                 <Users className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Test Environment Notice */}
+        <div className="mb-12">
+          <Card className="border-l-4 border-l-orange-500 bg-orange-50">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500">
+                  <TestTube className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-orange-800">🧪 Тестове середовище Yelp Ads API</CardTitle>
+                  <CardDescription className="text-orange-700">
+                    Поточно використовуються тестові облікові дані з обмеженим доступом
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    Доступні тестові Business IDs:
+                  </h4>
+                  <div className="space-y-2">
+                    {TEST_BUSINESS_IDS.map((businessId, index) => (
+                      <div key={businessId} className="bg-white p-3 rounded border font-mono text-sm">
+                        <div className="font-semibold text-gray-700">Business #{index + 1}:</div>
+                        <code className="text-blue-600 select-all">{businessId}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Обмеження тестового режиму:
+                  </h4>
+                  <ul className="space-y-2 text-sm text-orange-700">
+                    {TEST_ENVIRONMENT_INFO.limitations.map((limitation, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="block w-1.5 h-1.5 bg-orange-400 rounded-full mt-2 flex-shrink-0"></span>
+                        {limitation}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded border-l-4 border-l-blue-500">
+                <p className="text-sm text-gray-700">
+                  <strong>Примітка:</strong> {TEST_ENVIRONMENT_INFO.note}
+                </p>
               </div>
             </CardContent>
           </Card>
