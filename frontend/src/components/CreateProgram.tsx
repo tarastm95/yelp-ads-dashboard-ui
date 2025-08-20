@@ -39,6 +39,11 @@ const CreateProgram: React.FC = () => {
     is_autobid: false,
     start: '',
     end: '',
+    promotion_code: '',
+    currency: 'USD',
+    pacing_method: '',
+    fee_period: '',
+    ad_categories: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +56,8 @@ const CreateProgram: React.FC = () => {
         program_name: formData.program_name,
         start: formData.start,
         end: formData.end || undefined,
-      };
+        promotion_code: formData.promotion_code || undefined,
+      } as any;
 
       // Додаємо CPC-специфічні параметри тільки для CPC програм
       const isCPCProgram = formData.program_name === 'CPC';
@@ -60,6 +66,10 @@ const CreateProgram: React.FC = () => {
         ...baseParams,
         budget: parseFloat(formData.budget),
         is_autobid: formData.is_autobid,
+        currency: formData.currency || undefined,
+        pacing_method: formData.pacing_method || undefined,
+        fee_period: formData.fee_period || undefined,
+        ad_categories: formData.ad_categories ? formData.ad_categories.split(',').map(c=>c.trim()).filter(Boolean) : undefined,
         // max_bid тільки якщо не автобід
         ...(formData.is_autobid ? {} : { max_bid: parseFloat(formData.max_bid) })
       } : baseParams;
@@ -80,6 +90,11 @@ const CreateProgram: React.FC = () => {
         is_autobid: false,
         start: '',
         end: '',
+        promotion_code: '',
+        currency: 'USD',
+        pacing_method: '',
+        fee_period: '',
+        ad_categories: '',
       });
     } catch (error) {
       toast({
@@ -197,6 +212,46 @@ const CreateProgram: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Input
+                  id="currency"
+                  value={formData.currency}
+                  onChange={(e) => handleChange('currency', e.target.value)}
+                  placeholder="USD"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pacing_method">Pacing Method</Label>
+                <Input
+                  id="pacing_method"
+                  value={formData.pacing_method}
+                  onChange={(e) => handleChange('pacing_method', e.target.value)}
+                  placeholder="paced | unpaced"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fee_period">Fee Period</Label>
+                <Input
+                  id="fee_period"
+                  value={formData.fee_period}
+                  onChange={(e) => handleChange('fee_period', e.target.value)}
+                  placeholder="CALENDAR_MONTH"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ad_categories">Ad Categories (comma separated)</Label>
+                <Input
+                  id="ad_categories"
+                  value={formData.ad_categories}
+                  onChange={(e) => handleChange('ad_categories', e.target.value)}
+                  placeholder="hvac, plumbing"
+                />
+              </div>
             </>
           )}
 
@@ -228,6 +283,16 @@ const CreateProgram: React.FC = () => {
               type="date"
               value={formData.end}
               onChange={(e) => handleChange('end', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="promotion_code">Promotion Code</Label>
+            <Input
+              id="promotion_code"
+              value={formData.promotion_code}
+              onChange={(e) => handleChange('promotion_code', e.target.value)}
+              placeholder="Optional"
             />
           </div>
 

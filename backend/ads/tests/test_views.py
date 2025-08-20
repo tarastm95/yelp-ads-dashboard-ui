@@ -2,6 +2,8 @@ import pytest
 from rest_framework.test import APIClient
 from django.urls import reverse
 
+pytestmark = pytest.mark.django_db
+
 @pytest.fixture
 def api_client():
     return APIClient()
@@ -42,5 +44,17 @@ def test_get_program_info(api_client):
     url = '/api/reseller/get_program_info'
     response = api_client.get(url)
     assert response.status_code in [200, 400, 404, 401]
+
+
+def test_pause_program(api_client):
+    url = '/api/program/123/pause'
+    response = api_client.post(url)
+    assert response.status_code in [202, 401, 404]
+
+
+def test_resume_program(api_client):
+    url = '/api/program/123/resume'
+    response = api_client.post(url)
+    assert response.status_code in [202, 401, 404]
 
 

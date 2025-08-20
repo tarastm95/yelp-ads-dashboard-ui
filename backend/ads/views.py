@@ -17,6 +17,9 @@ class CreateProgramView(APIView):
             data = YelpService.create_program(request.data)
             logger.info(f"Program created successfully: {data}")
             return Response(data, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            logger.error(f"Validation error creating program: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error creating program: {e}")
             raise
@@ -63,6 +66,28 @@ class TerminateProgramView(APIView):
             return Response(data)
         except Exception as e:
             logger.error(f"Error terminating program {program_id}: {e}")
+            raise
+
+
+class PauseProgramView(APIView):
+    def post(self, request, program_id):
+        logger.info(f"Pausing program {program_id}")
+        try:
+            YelpService.pause_program(program_id)
+            return Response(status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            logger.error(f"Error pausing program {program_id}: {e}")
+            raise
+
+
+class ResumeProgramView(APIView):
+    def post(self, request, program_id):
+        logger.info(f"Resuming program {program_id}")
+        try:
+            YelpService.resume_program(program_id)
+            return Response(status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            logger.error(f"Error resuming program {program_id}: {e}")
             raise
 
 class JobStatusView(APIView):
