@@ -61,6 +61,22 @@ export const yelpApi = createApi({
       invalidatesTags: ['Program'],
     }),
 
+    pauseProgram: builder.mutation<{ status: number }, string>({
+      query: (program_id) => ({
+        url: `/program/${program_id}/pause`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Program'],
+    }),
+
+    resumeProgram: builder.mutation<{ status: number }, string>({
+      query: (program_id) => ({
+        url: `/program/${program_id}/resume`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Program'],
+    }),
+
     // 4. Проверить статус задачи
     getJobStatus: builder.query<JobStatus, string>({
       query: (id) => `/reseller/status/${id}`,
@@ -149,6 +165,8 @@ export const {
   useCreateProgramMutation,
   useEditProgramMutation,
   useTerminateProgramMutation,
+  usePauseProgramMutation,
+  useResumeProgramMutation,
   useGetJobStatusQuery,
   useLazyGetJobStatusQuery,
   useGetProgramsQuery,

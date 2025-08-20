@@ -18,11 +18,16 @@ export interface Program {
 export interface CreateProgramRequest {
   business_id: string;
   program_name: string;
-  budget: number;
-  max_bid: number;
-  is_autobid: boolean;
-  start: string;
+  budget?: number;
+  max_bid?: number;
+  is_autobid?: boolean;
+  start?: string;
   end?: string;
+  promotion_code?: string;
+  currency?: string;
+  pacing_method?: 'paced' | 'unpaced';
+  fee_period?: 'CALENDAR_MONTH' | 'ROLLING_MONTH';
+  ad_categories?: string[];
 }
 
 export interface EditProgramRequest {

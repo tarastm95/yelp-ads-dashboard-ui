@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGetProgramInfoQuery } from '../store/api/yelpApi';
+import { useGetProgramInfoQuery, usePauseProgramMutation, useResumeProgramMutation } from '../store/api/yelpApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 const ProgramDetails: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
+  const [pauseProgram] = usePauseProgramMutation();
+  const [resumeProgram] = useResumeProgramMutation();
 
   const {
     data: program,
@@ -67,6 +69,10 @@ const ProgramDetails: React.FC = () => {
           <div>
             <p className="text-sm text-muted-foreground">Изменено</p>
             <p className="text-sm">{new Date(program.modified_date).toLocaleDateString()}</p>
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button variant="outline" onClick={() => pauseProgram(program.program_id)}>Пауза</Button>
+            <Button variant="outline" onClick={() => resumeProgram(program.program_id)}>Возобновить</Button>
           </div>
         </CardContent>
       </Card>

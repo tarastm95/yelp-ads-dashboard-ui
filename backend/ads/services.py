@@ -35,39 +35,47 @@ class YelpService:
             'program_name': program_type,
             'start': payload.get('start'),
             'end': payload.get('end'),
+            'promotion_code': payload.get('promotion_code'),
         }
         
         # Для CPC програм додаємо budget та bid параметри
         if program_type == 'CPC':
             budget = payload.get('budget')
-            if budget:
-                # Конвертуємо в центи якщо передано в доларах
-                if isinstance(budget, (int, float)) and budget < 1000:
-                    budget = int(budget * 100)  # $200.00 → 20000
-                params['budget'] = int(budget)
-            
-            is_autobid = payload.get('is_autobid', False)
-            # Перетворюємо в рядок lowercase для API
+            if budget is None:
+                raise ValueError("CPC program requires budget")
+            if isinstance(budget, (int, float)) and budget < 1000:
+                budget = int(budget * 100)  # $200.00 → 20000
+            params['budget'] = int(budget)
+
+            is_autobid = payload.get('is_autobid')
+            if is_autobid is None:
+                raise ValueError("CPC program requires is_autobid flag")
             params['is_autobid'] = str(is_autobid).lower()
-            
-            # Якщо не автобід, то обов'язково потрібен max_bid
+
             if not is_autobid:
                 max_bid = payload.get('max_bid')
-                if max_bid:
-                    # Конвертуємо в центи якщо передано в доларах
-                    if isinstance(max_bid, (int, float)) and max_bid < 100:
-                        max_bid = int(max_bid * 100)  # $5.00 → 500
-                    params['max_bid'] = int(max_bid)
-                else:
-                    logger.warning("CPC program with manual bidding requires max_bid")
-        
-        # Для BP та інших програм НЕ додаємо CPC-специфічні параметри
+                if max_bid is None:
+                    raise ValueError("max_bid required when is_autobid is false")
+                if isinstance(max_bid, (int, float)) and max_bid < 100:
+                    max_bid = int(max_bid * 100)  # $5.00 → 500
+                params['max_bid'] = int(max_bid)
+
+            if payload.get('currency'):
+                params['currency'] = payload['currency']
+            if payload.get('pacing_method'):
+                params['pacing_method'] = payload['pacing_method']
+            if payload.get('fee_period'):
+                params['fee_period'] = payload['fee_period']
+            if payload.get('ad_categories'):
+                params['ad_categories'] = ','.join(payload['ad_categories'])
+
         logger.info(f"Final API parameters: {params}")
         
         try:
             logger.debug(f"Making request to: {url}")
             # Partner Advertising API expects query params, not JSON body
-            resp = requests.post(url, params=params, auth=cls._get_partner_auth())
+            params_filtered = {k: v for k, v in params.items() if v is not None}
+            resp = requests.post(url, params=params_filtered, auth=cls._get_partner_auth())
             logger.debug(f"Response status: {resp.status_code}")
             logger.debug(f"Response text: {resp.text}")
             resp.raise_for_status()
@@ -118,32 +126,40 @@ class YelpService:
 
     @classmethod
     def edit_program(cls, program_id, payload):
-        """Edit existing program - only budget and max_bid for CPC programs."""
+        """Edit existing program."""
         logger.info(f"Editing program {program_id} with payload: {payload}")
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
-        
-        # Для редагування передаємо тільки budget та max_bid (в центах)
+
         params = {}
-        
+
         if 'budget' in payload:
             budget = payload['budget']
-            # Конвертуємо в центи якщо передано в доларах
             if isinstance(budget, (int, float)) and budget < 1000:
                 budget = int(budget * 100)
             params['budget'] = int(budget)
-            
+
         if 'max_bid' in payload:
             max_bid = payload['max_bid']
-            # Конвертуємо в центи якщо передано в доларах  
             if isinstance(max_bid, (int, float)) and max_bid < 100:
                 max_bid = int(max_bid * 100)
             params['max_bid'] = int(max_bid)
-        
+
+        if 'future_budget_date' in payload:
+            params['future_budget_date'] = payload['future_budget_date']
+        if 'pacing_method' in payload:
+            params['pacing_method'] = payload['pacing_method']
+        if 'ad_categories' in payload and payload['ad_categories']:
+            params['ad_categories'] = ','.join(payload['ad_categories'])
+        if 'start' in payload:
+            params['start'] = payload['start']
+        if 'end' in payload:
+            params['end'] = payload['end']
+
         logger.info(f"Edit program API parameters: {params}")
-        
+
         try:
-            # Partner Advertising API expects query params, not JSON body
-            resp = requests.post(url, params=params, auth=cls._get_partner_auth())
+            params_filtered = {k: v for k, v in params.items() if v is not None}
+            resp = requests.post(url, params=params_filtered, auth=cls._get_partner_auth())
             logger.debug(f"Edit response status: {resp.status_code}")
             logger.debug(f"Edit response text: {resp.text}")
             resp.raise_for_status()
@@ -158,6 +174,20 @@ class YelpService:
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
+
+    @classmethod
+    def pause_program(cls, program_id):
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/pause/v1'
+        resp = requests.post(url, auth=cls._get_partner_auth())
+        resp.raise_for_status()
+        return {'status': resp.status_code}
+
+    @classmethod
+    def resume_program(cls, program_id):
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/resume/v1'
+        resp = requests.post(url, auth=cls._get_partner_auth())
+        resp.raise_for_status()
+        return {'status': resp.status_code}
 
     @classmethod
     def get_program_status(cls, program_id):
