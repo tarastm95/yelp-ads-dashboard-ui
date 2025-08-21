@@ -30,10 +30,10 @@ const EditProgram: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!programId) return;
+    if (!program || !program.partner_program_id) return;
     try {
       const result = await editProgram({
-        program_id: programId,
+        partner_program_id: program.partner_program_id,
         data: {
           budget_amount: budget ? parseFloat(budget) : undefined,
           targeting: categories

@@ -1,6 +1,8 @@
 
 export interface Program {
   program_id: string;
+  partner_program_id?: string;
+  job_id?: string;
   business_id: string;
   product_type: string;
   status: 'active' | 'paused' | 'terminated';

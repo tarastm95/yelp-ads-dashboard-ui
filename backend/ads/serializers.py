@@ -3,6 +3,7 @@ from .models import Program, Report
 
 class ProgramSerializer(serializers.ModelSerializer):
     program_id = serializers.SerializerMethodField()
+    partner_program_id = serializers.CharField()
     job_id = serializers.CharField()
     product_type = serializers.CharField(source='name')
     budget_amount = serializers.DecimalField(source='budget', max_digits=12, decimal_places=2)
@@ -13,7 +14,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     end_date = serializers.DateField(allow_null=True)
 
     def get_program_id(self, obj):
-        return obj.partner_program_id or obj.job_id
+        return obj.partner_program_id
 
     def get_business_id(self, obj):
         return ''
@@ -22,6 +23,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
         fields = [
             'program_id',
+            'partner_program_id',
             'job_id',
             'business_id',
             'product_type',
