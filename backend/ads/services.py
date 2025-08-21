@@ -204,14 +204,14 @@ class YelpService:
 
     @classmethod
     def pause_program(cls, program_id):
-        url = f'{cls.PARTNER_BASE}/program/{program_id}/pause/v1'
+        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/pause'
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return {'status': resp.status_code}
 
     @classmethod
     def resume_program(cls, program_id):
-        url = f'{cls.PARTNER_BASE}/program/{program_id}/resume/v1'
+        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/resume'
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return {'status': resp.status_code}
