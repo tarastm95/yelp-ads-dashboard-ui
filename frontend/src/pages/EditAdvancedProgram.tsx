@@ -44,10 +44,10 @@ const EditAdvancedProgram: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!programId) return;
+    if (!program || !program.partner_program_id) return;
     try {
       const result = await editProgram({
-        program_id: programId,
+        partner_program_id: program.partner_program_id,
         data: {
           start: form.start || undefined,
           end: form.end || undefined,

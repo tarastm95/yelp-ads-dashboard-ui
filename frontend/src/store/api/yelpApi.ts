@@ -43,9 +43,9 @@ export const yelpApi = createApi({
     }),
 
     // 2. Редактировать продукт
-    editProgram: builder.mutation<{ job_id: string }, { program_id: string; data: EditProgramRequest }>({
-      query: ({ program_id, data }) => ({
-        url: `/reseller/program/${program_id}/edit`,
+    editProgram: builder.mutation<{ job_id: string }, { partner_program_id: string; data: EditProgramRequest }>({
+      query: ({ partner_program_id, data }) => ({
+        url: `/reseller/program/${partner_program_id}/edit`,
         method: 'POST',
         body: data,
       }),
@@ -54,8 +54,8 @@ export const yelpApi = createApi({
 
     // 3. Завершить продукт
     terminateProgram: builder.mutation<{ job_id: string }, string>({
-      query: (program_id) => ({
-        url: `/reseller/program/${program_id}/end`,
+      query: (partner_program_id) => ({
+        url: `/reseller/program/${partner_program_id}/end`,
         method: 'POST',
       }),
       invalidatesTags: ['Program'],
