@@ -3,7 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 import requests
 import logging
-from .services import YelpService
+from .services import (
+    YelpService,
+    ProgramExpiredError,
+    ProgramNotFoundError,
+    ProgramNotActiveError,
+)
 from .models import Program
 from .serializers import ProgramSerializer
 from django.shortcuts import get_object_or_404
@@ -64,6 +69,9 @@ class TerminateProgramView(APIView):
             data = YelpService.terminate_program(program_id)
             logger.info(f"Program {program_id} terminated successfully")
             return Response(data)
+        except (ProgramExpiredError, ProgramNotFoundError, ProgramNotActiveError) as e:
+            logger.error(f"Cannot terminate program {program_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error terminating program {program_id}: {e}")
             raise

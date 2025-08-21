@@ -9,6 +9,19 @@ from .models import Program, Report, PartnerCredential
 
 logger = logging.getLogger(__name__)
 
+
+class ProgramExpiredError(Exception):
+    """Raised when a program has already expired."""
+
+
+class ProgramNotFoundError(Exception):
+    """Raised when a program cannot be found."""
+
+
+class ProgramNotActiveError(Exception):
+    """Raised when a program is not currently active."""
+
+
 class YelpService:
     PARTNER_BASE = 'https://partner-api.yelp.com'
     FUSION_BASE = 'https://api.yelp.com'
@@ -171,8 +184,29 @@ class YelpService:
     @classmethod
     def terminate_program(cls, program_id):
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/end'
-        resp = requests.post(url, auth=cls._get_partner_auth())
-        resp.raise_for_status()
+        try:
+            resp = requests.post(url, auth=cls._get_partner_auth())
+            resp.raise_for_status()
+        except requests.HTTPError as e:
+            # Try to extract error code from Yelp response
+            code = None
+            try:
+                data = e.response.json()
+                br = data.get('business_results')
+                if isinstance(br, list) and br:
+                    br = br[0]
+                if isinstance(br, dict):
+                    code = br.get('error', {}).get('code')
+            except ValueError:
+                pass
+
+            if code == 'PROGRAM_HAS_EXPIRED':
+                raise ProgramExpiredError('Program has already expired') from e
+            if code == 'PROGRAM_NOT_FOUND':
+                raise ProgramNotFoundError('Program not found') from e
+            if code and code.startswith('PROGRAM_NOT_ACTIVE'):
+                raise ProgramNotActiveError('Program is not active') from e
+            raise
         return resp.json()
 
     @classmethod

@@ -2,6 +2,13 @@ import pytest
 from rest_framework.test import APIClient
 from django.urls import reverse
 
+from ads.services import (
+    ProgramExpiredError,
+    ProgramNotFoundError,
+    ProgramNotActiveError,
+    YelpService,
+)
+
 pytestmark = pytest.mark.django_db
 
 @pytest.fixture
@@ -56,5 +63,26 @@ def test_resume_program(api_client):
     url = '/api/program/123/resume'
     response = api_client.post(url)
     assert response.status_code in [202, 401, 404]
+
+
+@pytest.mark.parametrize(
+    "exc_cls, message",
+    [
+        (ProgramExpiredError, "Program has already expired"),
+        (ProgramNotFoundError, "Program not found"),
+        (ProgramNotActiveError, "Program is not active"),
+    ],
+)
+def test_terminate_program_errors(api_client, monkeypatch, exc_cls, message):
+    url = '/api/reseller/program/123/end'
+
+    def mock_terminate(_program_id):
+        raise exc_cls(message)
+
+    monkeypatch.setattr(YelpService, 'terminate_program', mock_terminate)
+
+    response = api_client.post(url)
+    assert response.status_code == 400
+    assert response.json()["detail"] == message
 
 
