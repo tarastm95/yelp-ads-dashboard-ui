@@ -169,7 +169,28 @@ class YelpService:
             raise
 
     @classmethod
+    def validate_program_active(cls, program_id):
+        """Ensure program exists and is currently active."""
+        try:
+            info = cls.get_program_info(program_id)
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise ValueError("PROGRAM_NOT_FOUND")
+            raise
+
+        status = info.get("program_status") or info.get("status")
+        if status != "ACTIVE":
+            raise ValueError("PROGRAM_HAS_EXPIRED")
+
+        return info
+
+    @classmethod
     def terminate_program(cls, program_id):
+        try:
+            cls.validate_program_active(program_id)
+        except ValueError as e:
+            return {"detail": str(e)}
+
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/end'
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
