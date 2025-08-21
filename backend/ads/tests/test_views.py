@@ -58,3 +58,9 @@ def test_resume_program(api_client):
     assert response.status_code in [202, 401, 404]
 
 
+def test_terminate_program(api_client):
+    url = '/api/reseller/program/123/end'
+    response = api_client.post(url)
+    assert response.status_code in [200, 400, 404, 401]
+
+

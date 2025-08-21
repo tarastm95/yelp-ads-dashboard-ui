@@ -62,6 +62,14 @@ class TerminateProgramView(APIView):
         logger.info(f"Terminating program {program_id}")
         try:
             data = YelpService.terminate_program(program_id)
+            detail = data.get("detail") if isinstance(data, dict) else None
+            if detail:
+                logger.warning(f"Program {program_id} not terminated: {detail}")
+                status_map = {
+                    "PROGRAM_HAS_EXPIRED": status.HTTP_400_BAD_REQUEST,
+                    "PROGRAM_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+                }
+                return Response({"detail": detail}, status=status_map.get(detail, status.HTTP_400_BAD_REQUEST))
             logger.info(f"Program {program_id} terminated successfully")
             return Response(data)
         except Exception as e:
