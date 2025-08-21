@@ -5,6 +5,7 @@ import time
 import logging
 from io import StringIO
 from django.conf import settings
+from decimal import Decimal
 from .models import Program, Report, PartnerCredential
 
 logger = logging.getLogger(__name__)
@@ -82,11 +83,16 @@ class YelpService:
             
             data = resp.json()
             logger.info(f"Program creation response: {data}")
-            
+
+            budget_cents = params.get('budget', 0)
+            budget_dollars = (
+                Decimal(budget_cents) / Decimal('100') if budget_cents is not None else 0
+            )
+
             program = Program.objects.create(
                 job_id=data['job_id'],
                 name=program_type,
-                budget=params.get('budget', 0),
+                budget=budget_dollars,
                 start_date=params.get('start'),
                 end_date=params.get('end'),
                 status='PENDING',
