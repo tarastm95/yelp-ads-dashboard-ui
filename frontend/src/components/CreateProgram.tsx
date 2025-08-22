@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { formatErrorForToast } from '@/lib/utils';
 import { Plus, Loader2 } from 'lucide-react';
 
 const PROGRAM_OPTIONS = [
@@ -96,10 +97,11 @@ const CreateProgram: React.FC = () => {
         fee_period: '',
         ad_categories: '',
       });
-    } catch (error) {
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
       toast({
-        title: "Ошибка создания программы",
-        description: "Проверьте введенные данные",
+        title,
+        description,
         variant: "destructive",
       });
     }
@@ -225,22 +227,28 @@ const CreateProgram: React.FC = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="pacing_method">Pacing Method</Label>
-                <Input
-                  id="pacing_method"
-                  value={formData.pacing_method}
-                  onChange={(e) => handleChange('pacing_method', e.target.value)}
-                  placeholder="paced | unpaced"
-                />
+                <Select value={formData.pacing_method} onValueChange={(value) => handleChange('pacing_method', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select pacing method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paced">Paced (spread budget evenly)</SelectItem>
+                    <SelectItem value="unpaced">Unpaced (spend as fast as possible)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="fee_period">Fee Period</Label>
-                <Input
-                  id="fee_period"
-                  value={formData.fee_period}
-                  onChange={(e) => handleChange('fee_period', e.target.value)}
-                  placeholder="CALENDAR_MONTH"
-                />
+                <Select value={formData.fee_period} onValueChange={(value) => handleChange('fee_period', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select fee period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CALENDAR_MONTH">Calendar Month (reset on 1st)</SelectItem>
+                    <SelectItem value="ROLLING_MONTH">Rolling Month (reset every 30 days)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

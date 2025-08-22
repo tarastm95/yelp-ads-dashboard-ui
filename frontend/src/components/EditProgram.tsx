@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { formatErrorForToast } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const EditProgram: React.FC = () => {
@@ -48,10 +49,11 @@ const EditProgram: React.FC = () => {
       });
 
       navigate('/programs');
-    } catch (error) {
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
       toast({
-        title: 'Ошибка редактирования программы',
-        description: 'Проверьте введенные данные',
+        title,
+        description,
         variant: 'destructive',
       });
     }

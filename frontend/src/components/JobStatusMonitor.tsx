@@ -30,7 +30,7 @@ const JobStatusMonitor: React.FC = () => {
     setShouldPoll(false);
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | undefined | null) => {
     switch (status) {
       case 'PENDING':
       case 'IN_PROGRESS':
@@ -44,7 +44,7 @@ const JobStatusMonitor: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined | null) => {
     switch (status) {
       case 'PENDING':
       case 'IN_PROGRESS':
@@ -111,11 +111,15 @@ const JobStatusMonitor: React.FC = () => {
           <CardContent>
             {jobStatus ? (
               <div className="space-y-4">
+                {/* Додаємо debug інформацію */}
+                <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+                  <strong>Debug:</strong> status = "{jobStatus.status}", type = {typeof jobStatus.status}
+                </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={getStatusColor(jobStatus.status)}>
+                  <Badge className={getStatusColor(jobStatus.status || 'UNKNOWN')}>
                     <span className="flex items-center gap-1">
-                      {getStatusIcon(jobStatus.status)}
-                      {jobStatus.status.toUpperCase()}
+                      {getStatusIcon(jobStatus.status || 'UNKNOWN')}
+                      {jobStatus.status?.toUpperCase() || 'UNKNOWN'}
                     </span>
                   </Badge>
                 </div>

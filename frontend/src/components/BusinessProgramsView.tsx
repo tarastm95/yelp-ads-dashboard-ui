@@ -44,8 +44,8 @@ const BusinessProgramsView: React.FC<Props> = ({ data }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {biz.programs.map((p) => (
-                    <TableRow key={p.program_id}>
+                  {biz.programs.map((p, index) => (
+                    <TableRow key={p.program_id || `program-${biz.yelp_business_id}-${index}`}>
                       <TableCell className="font-mono text-xs">{p.program_id}</TableCell>
                       <TableCell>{p.program_type}</TableCell>
                       <TableCell>{p.program_status}</TableCell>

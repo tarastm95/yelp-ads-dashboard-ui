@@ -12,6 +12,9 @@ import {
   BusinessUpdate,
   BusinessProgramsResponse,
   ProgramInfoResponse,
+  BusinessProgram,
+  ProgramFeaturesResponse,
+  ProgramFeaturesUpdateRequest,
 } from '../../types/yelp';
 
 const baseQuery = fetchBaseQuery({
@@ -30,7 +33,7 @@ const baseQuery = fetchBaseQuery({
 export const yelpApi = createApi({
   reducerPath: 'yelpApi',
   baseQuery,
-  tagTypes: ['Program', 'Report', 'JobStatus'],
+  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures'],
   endpoints: (builder) => ({
     // 1. Создать новый рекламный продукт
     createProgram: builder.mutation<{ job_id: string }, CreateProgramRequest>({
@@ -63,7 +66,7 @@ export const yelpApi = createApi({
 
     pauseProgram: builder.mutation<{ status: number }, string>({
       query: (program_id) => ({
-        url: `/program/${program_id}/pause`,
+        url: `/program/${program_id}/pause/v1`,
         method: 'POST',
       }),
       invalidatesTags: ['Program'],
@@ -71,7 +74,7 @@ export const yelpApi = createApi({
 
     resumeProgram: builder.mutation<{ status: number }, string>({
       query: (program_id) => ({
-        url: `/program/${program_id}/resume`,
+        url: `/program/${program_id}/resume/v1`,
         method: 'POST',
       }),
       invalidatesTags: ['Program'],
@@ -84,8 +87,11 @@ export const yelpApi = createApi({
     }),
 
     // 5. Получить информацию о продуктах
-    getPrograms: builder.query<Program[], void>({
-      query: () => '/reseller/programs',
+    getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string }>({
+      query: ({ offset = 0, limit = 20, program_status = 'CURRENT' } = {}) => ({
+        url: '/reseller/programs',
+        params: { offset, limit, program_status },
+      }),
       providesTags: ['Program'],
     }),
 
@@ -158,6 +164,41 @@ export const yelpApi = createApi({
       query: (report_id) => `/reporting/businesses/monthly/${report_id}`,
       providesTags: ['Report'],
     }),
+
+    // Program Features endpoints
+    getProgramFeatures: builder.query<ProgramFeaturesResponse, string>({
+      query: (program_id) => `/program/${program_id}/features/v1`,
+      providesTags: (result, error, program_id) => [
+        { type: 'ProgramFeatures', id: program_id },
+        'ProgramFeatures',
+      ],
+    }),
+
+    updateProgramFeatures: builder.mutation<ProgramFeaturesResponse, { program_id: string; features: ProgramFeaturesUpdateRequest }>({
+      query: ({ program_id, features }) => ({
+        url: `/program/${program_id}/features/v1`,
+        method: 'POST',
+        body: features,
+      }),
+      invalidatesTags: (result, error, { program_id }) => [
+        { type: 'ProgramFeatures', id: program_id },
+        'ProgramFeatures',
+        'Program', // Also invalidate program data as features affect program state
+      ],
+    }),
+
+    deleteProgramFeatures: builder.mutation<ProgramFeaturesResponse, { program_id: string; features: string[] }>({
+      query: ({ program_id, features }) => ({
+        url: `/program/${program_id}/features/v1`,
+        method: 'DELETE',
+        body: { features },
+      }),
+      invalidatesTags: (result, error, { program_id }) => [
+        { type: 'ProgramFeatures', id: program_id },
+        'ProgramFeatures',
+        'Program', // Also invalidate program data as features affect program state
+      ],
+    }),
   }),
 });
 
@@ -180,4 +221,7 @@ export const {
   useRequestMonthlyReportMutation,
   useGetDailyReportQuery,
   useGetMonthlyReportQuery,
+  useGetProgramFeaturesQuery,
+  useUpdateProgramFeaturesMutation,
+  useDeleteProgramFeaturesMutation,
 } = yelpApi;

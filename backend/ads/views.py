@@ -100,13 +100,17 @@ class ResumeProgramView(APIView):
 
 class JobStatusView(APIView):
     def get(self, request, program_id):
-        logger.info(f"Getting status for program {program_id}")
+        logger.info(f"🔍 JobStatusView: Getting status for program_id '{program_id}' from frontend")
+        logger.info(f"📝 JobStatusView: Request URL: {request.build_absolute_uri()}")
+        logger.info(f"📝 JobStatusView: Request headers: {dict(request.headers)}")
+        logger.info(f"📝 JobStatusView: Request user: {request.user}")
         try:
             data = YelpService.get_program_status(program_id)
-            logger.info(f"Status retrieved for program {program_id}: {data.get('status')}")
+            logger.info(f"✅ JobStatusView: Status retrieved for program {program_id}: {data.get('status')}")
+            logger.info(f"📊 JobStatusView: Full response data: {data}")
             return Response(data)
         except Exception as e:
-            logger.error(f"Error getting status for program {program_id}: {e}")
+            logger.error(f"❌ JobStatusView: Error getting status for program {program_id}: {e}")
             raise
 
 
@@ -138,17 +142,21 @@ class FetchReportView(APIView):
 
 
 class ProgramListView(APIView):
-    """Return list of stored programs."""
+    """Return list of programs from Yelp API with pagination support."""
 
     def get(self, request):
-        logger.info("Getting list of all programs")
+        # Отримуємо параметри пагінації та фільтрації з запиту
+        offset = int(request.query_params.get('offset', 0))
+        limit = int(request.query_params.get('limit', 20))
+        program_status = request.query_params.get('program_status', 'CURRENT')
+        
+        logger.info(f"Getting programs list from Yelp API - offset: {offset}, limit: {limit}, status: {program_status}")
         try:
-            programs = Program.objects.all()
-            serializer = ProgramSerializer(programs, many=True)
-            logger.info(f"Retrieved {len(programs)} programs")
-            return Response(serializer.data)
+            data = YelpService.get_all_programs(offset=offset, limit=limit, program_status=program_status)
+            logger.info(f"Retrieved {len(data.get('programs', []))} programs from Yelp API")
+            return Response(data)
         except Exception as e:
-            logger.error(f"Error getting programs list: {e}")
+            logger.error(f"Error getting programs list from Yelp API: {e}")
             raise
 
 
@@ -202,3 +210,125 @@ class PartnerProgramInfoView(APIView):
         except Exception as e:
             logger.error(f"Error getting partner program info for program_id {program_id}: {e}")
             raise
+
+class ProgramFeaturesView(APIView):
+    """Get and update program features"""
+    
+    def get(self, request, program_id):
+        """Get available and active features for a specific program"""
+        logger.info(f"Getting program features for program_id: {program_id}")
+        try:
+            data = YelpService.get_program_features(program_id)
+            logger.info(f"Program features retrieved successfully for program_id: {program_id}")
+            return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Program not found: {program_id}")
+                return Response(
+                    {"detail": "Program not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                logger.warning(f"Bad request for program features: {program_id}")
+                return Response(
+                    {"detail": "Invalid program ID or program doesn't support features"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            logger.error(f"HTTP error getting program features for {program_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting program features for program_id {program_id}: {e}")
+            raise
+    
+    def post(self, request, program_id):
+        """Update features for a specific program"""
+        logger.info(f"Updating program features for program_id: {program_id}")
+        logger.info(f"Features payload: {request.data}")
+        
+        if not request.data:
+            return Response(
+                {"detail": "Features data is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            data = YelpService.update_program_features(program_id, request.data)
+            logger.info(f"Program features updated successfully for program_id: {program_id}")
+            return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Program not found for features update: {program_id}")
+                return Response(
+                    {"detail": "Program not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                logger.warning(f"Bad request for program features update: {program_id}")
+                try:
+                    error_data = e.response.json()
+                    return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+                except:
+                    return Response(
+                        {"detail": "Invalid features data"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            logger.error(f"HTTP error updating program features for {program_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error updating program features for program_id {program_id}: {e}")
+            raise
+    
+    def delete(self, request, program_id):
+        """Delete/disable specific features for a program"""
+        logger.info(f"Deleting program features for program_id: {program_id}")
+        logger.info(f"Features to delete: {request.data}")
+        
+        # Валідуємо, що передано список фіч для видалення
+        features_list = request.data.get('features', [])
+        if not features_list or not isinstance(features_list, list):
+            return Response(
+                {"detail": "features list is required and must be an array"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            data = YelpService.delete_program_features(program_id, features_list)
+            logger.info(f"Program features deleted successfully for program_id: {program_id}")
+            return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Program not found for features deletion: {program_id}")
+                return Response(
+                    {"detail": "Program not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                logger.warning(f"Bad request for program features deletion: {program_id}")
+                try:
+                    error_data = e.response.json()
+                    return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+                except:
+                    return Response(
+                        {"detail": "Invalid features data"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            logger.error(f"HTTP error deleting program features for {program_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting program features for program_id {program_id}: {e}")
+            raise
+
+
+class SyncStatusView(APIView):
+    """Статус синхронізації - заглушка для майбутнього функціоналу"""
+    
+    def get(self, request):
+        # Простий статус без використання неіснуючих моделей
+        return Response({
+            'status': 'available',
+            'message': 'Sync functionality not yet implemented',
+            'total_programs': 0,
+            'latest_sync': None,
+            'last_full_sync': None,
+            'last_incremental_sync': None,
+        })

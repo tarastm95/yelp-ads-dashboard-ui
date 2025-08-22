@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { TEST_BUSINESS_IDS } from '@/constants/testData';
 import { useCreateProgramMutation } from '@/store/api/yelpApi';
 import { toast } from '@/hooks/use-toast';
+import { formatErrorForToast } from '@/lib/utils';
 import { TestTube, Copy } from 'lucide-react';
 
 const ApiTestPanel: React.FC = () => {
@@ -71,9 +72,11 @@ const ApiTestPanel: React.FC = () => {
       setResults(prev => prev + `❌ Помилка: ${JSON.stringify(error, null, 2)}\n`);
       setResults(prev => prev + '─'.repeat(50) + '\n');
       
+      // Use formatErrorForToast for better error handling
+      const { title, description } = formatErrorForToast(error);
       toast({
-        title: `Помилка в ${testCase.name}`,
-        description: error?.data?.detail || 'Невідома помилка',
+        title: `${testCase.name}: ${title}`,
+        description,
         variant: "destructive",
       });
     }

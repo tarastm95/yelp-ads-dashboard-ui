@@ -27,7 +27,7 @@ const Index = () => {
     },
     {
       title: 'Управление программами',
-      description: 'Просматривайте и управляйте существующими программами',
+      description: 'Полный цикл Yelp Ads API: Create, Modify, Terminate, Status + Pause/Resume',
       icon: List,
       path: '/programs',
       color: 'bg-green-500',

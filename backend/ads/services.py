@@ -17,10 +17,14 @@ class YelpService:
 
     @classmethod
     def _get_partner_auth(cls):
-        """Return credentials stored via Basic auth or fall back to settings."""
-        cred = PartnerCredential.objects.order_by('-updated_at').first()
-        if cred:
-            return cred.username, cred.password
+        """Return credentials from settings (bypassing database for now)."""
+        # TODO: Uncomment database lookup when DB is available
+        # try:
+        #     cred = PartnerCredential.objects.order_by('-updated_at').first()
+        #     if cred:
+        #         return cred.username, cred.password
+        # except Exception:
+        #     pass  # Fall back to settings if DB is not available
         return settings.YELP_API_KEY, settings.YELP_API_SECRET
 
     @classmethod
@@ -184,9 +188,20 @@ class YelpService:
                 raise ValueError("PROGRAM_NOT_FOUND")
             raise
 
-        status = info.get("program_status") or info.get("status")
-        if status != "ACTIVE":
-            raise ValueError("PROGRAM_HAS_EXPIRED")
+        # Check if response has programs array (new API format)
+        if 'programs' in info and len(info['programs']) > 0:
+            program = info['programs'][0]
+            status = program.get("program_status")
+            if status != "ACTIVE":
+                if status == "INACTIVE":
+                    raise ValueError("PROGRAM_HAS_EXPIRED")
+                else:
+                    raise ValueError(f"PROGRAM_NOT_ACTIVE_{status}")
+        else:
+            # Fallback for old format
+            status = info.get("program_status") or info.get("status")
+            if status != "ACTIVE":
+                raise ValueError("PROGRAM_HAS_EXPIRED")
 
         return info
 
@@ -204,30 +219,48 @@ class YelpService:
 
     @classmethod
     def pause_program(cls, program_id):
-        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/pause'
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/pause/v1'
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return {'status': resp.status_code}
 
     @classmethod
     def resume_program(cls, program_id):
-        url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/resume'
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/resume/v1'
         resp = requests.post(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return {'status': resp.status_code}
 
     @classmethod
     def get_program_status(cls, program_id):
-        logger.debug(f"Getting program status for: {program_id}")
+        logger.info(f"🔍 YelpService.get_program_status: Starting request for program_id '{program_id}'")
         url = f'{cls.PARTNER_BASE}/v1/reseller/status/{program_id}'
+        logger.info(f"🌐 YelpService.get_program_status: Request URL: {url}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.get_program_status: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
         try:
-            resp = requests.get(url, auth=cls._get_partner_auth())
+            logger.info(f"📤 YelpService.get_program_status: Making GET request to Yelp API...")
+            resp = requests.get(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.get_program_status: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.get_program_status: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.get_program_status: Raw response text: {resp.text}")
+            
             resp.raise_for_status()
             data = resp.json()
-            logger.debug(f"Program {program_id} status: {data.get('status')}")
+            logger.info(f"✅ YelpService.get_program_status: Successfully parsed JSON response")
+            logger.info(f"📊 YelpService.get_program_status: Program {program_id} status: {data.get('status')}")
+            logger.info(f"📊 YelpService.get_program_status: Full response data: {data}")
             return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.get_program_status: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.get_program_status: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.get_program_status: Response text: {e.response.text}")
+            raise
         except Exception as e:
-            logger.error(f"Error getting program status for {program_id}: {e}")
+            logger.error(f"❌ YelpService.get_program_status: Unexpected error for {program_id}: {e}")
             raise
 
     @classmethod
@@ -353,4 +386,165 @@ class YelpService:
         resp = requests.get(url, auth=cls._get_partner_auth())
         resp.raise_for_status()
         return resp.json()
+
+    @classmethod
+    def get_all_programs(cls, offset=0, limit=20, program_status='CURRENT'):
+        """Return list of programs from Yelp API with pagination."""
+        logger.info(f"Getting programs list from Yelp API - offset: {offset}, limit: {limit}, status: {program_status}")
+        url = f'{cls.PARTNER_BASE}/programs/v1'
+        
+        params = {
+            'offset': offset,
+            'limit': limit,
+            'program_status': program_status
+        }
+        
+        logger.info(f"🌐 YelpService.get_all_programs: Request URL: {url}")
+        logger.info(f"📝 YelpService.get_all_programs: Request params: {params}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.get_all_programs: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.get_all_programs: Making GET request to Yelp API...")
+            resp = requests.get(url, params=params, auth=auth_creds)
+            logger.info(f"📥 YelpService.get_all_programs: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.get_all_programs: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.get_all_programs: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.get_all_programs: Successfully parsed JSON response")
+            
+            # Yelp API повертає 'payment_programs' замість 'programs'
+            programs = data.get('payment_programs', [])
+            logger.info(f"📊 YelpService.get_all_programs: Found {len(programs)} programs")
+            
+            # Перетворюємо у формат, очікуваний frontend
+            normalized_data = {
+                'programs': programs,
+                'total_count': data.get('total', 0),
+                'offset': data.get('offset', offset),
+                'limit': data.get('limit', limit)
+            }
+            
+            return normalized_data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.get_all_programs: HTTP Error: {e}")
+            logger.error(f"❌ YelpService.get_all_programs: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.get_all_programs: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.get_all_programs: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def get_program_features(cls, program_id):
+        """Get available and active features for a specific program."""
+        logger.info(f"🔍 YelpService.get_program_features: Getting features for program '{program_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/features/v1'
+        logger.info(f"🌐 YelpService.get_program_features: Request URL: {url}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.get_program_features: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.get_program_features: Making GET request to Yelp API...")
+            resp = requests.get(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.get_program_features: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.get_program_features: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.get_program_features: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.get_program_features: Successfully parsed JSON response")
+            logger.info(f"📊 YelpService.get_program_features: Program {program_id} features: {list(data.get('features', {}).keys())}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.get_program_features: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.get_program_features: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.get_program_features: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.get_program_features: Unexpected error for {program_id}: {e}")
+            raise
+
+    @classmethod
+    def update_program_features(cls, program_id, features_payload):
+        """Update features for a specific program."""
+        logger.info(f"🔧 YelpService.update_program_features: Updating features for program '{program_id}'")
+        logger.info(f"📝 YelpService.update_program_features: Payload: {features_payload}")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/features/v1'
+        logger.info(f"🌐 YelpService.update_program_features: Request URL: {url}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.update_program_features: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.update_program_features: Making POST request to Yelp API...")
+            resp = requests.post(url, json=features_payload, auth=auth_creds)
+            logger.info(f"📥 YelpService.update_program_features: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.update_program_features: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.update_program_features: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.update_program_features: Successfully updated features for program {program_id}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.update_program_features: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.update_program_features: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.update_program_features: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.update_program_features: Unexpected error for {program_id}: {e}")
+            raise
+
+    @classmethod
+    def delete_program_features(cls, program_id, features_list):
+        """Delete/disable specific features for a program.
+        
+        Args:
+            program_id (str): The program ID
+            features_list (list): List of feature types to disable (e.g., ["LINK_TRACKING", "AD_GOAL"])
+        
+        Returns:
+            dict: Response with features set to disabled state (null/empty values)
+        """
+        logger.info(f"🗑️ YelpService.delete_program_features: Deleting features for program '{program_id}'")
+        logger.info(f"📝 YelpService.delete_program_features: Features to delete: {features_list}")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/features/v1'
+        logger.info(f"🌐 YelpService.delete_program_features: Request URL: {url}")
+        
+        # Формуємо payload згідно документації Yelp
+        delete_payload = {"features": features_list}
+        logger.info(f"📝 YelpService.delete_program_features: Delete payload: {delete_payload}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.delete_program_features: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.delete_program_features: Making DELETE request to Yelp API...")
+            resp = requests.delete(url, json=delete_payload, auth=auth_creds)
+            logger.info(f"📥 YelpService.delete_program_features: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.delete_program_features: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.delete_program_features: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.delete_program_features: Successfully deleted features for program {program_id}")
+            logger.info(f"📊 YelpService.delete_program_features: Remaining features: {list(data.get('features', {}).keys())}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.delete_program_features: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.delete_program_features: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.delete_program_features: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.delete_program_features: Unexpected error for {program_id}: {e}")
+            raise
 
