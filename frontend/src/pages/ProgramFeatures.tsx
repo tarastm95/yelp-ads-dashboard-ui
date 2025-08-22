@@ -190,6 +190,7 @@ const FEATURE_DESCRIPTIONS = {
 const ProgramFeatures: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedDeactivatedFeatures, setSelectedDeactivatedFeatures] = useState<string[]>([]);
   
   const { data, isLoading, error, refetch } = useGetProgramFeaturesQuery(programId!, {
     skip: !programId,
@@ -270,27 +271,35 @@ const ProgramFeatures: React.FC = () => {
     if (selectedFeatures.length === 0) {
       toast({
         title: 'Нічого не вибрано',
-        description: 'Виберіть функції для видалення',
+        description: 'Виберіть функції для деактивації',
         variant: 'destructive',
       });
       return;
     }
 
+    console.log('🗑️ Deactivating features:', selectedFeatures);
+
     try {
-      await deleteFeatures({
+      const result = await deleteFeatures({
         program_id: programId,
         features: selectedFeatures,
       }).unwrap();
 
+      console.log('✅ Delete API response:', result);
+      
+      // Принудово оновлюємо дані з сервера
+      await refetch();
+
       setSelectedFeatures([]);
       toast({
-        title: 'Функції видалені',
-        description: `Успішно видалено ${selectedFeatures.length} функцій`,
+        title: 'Функції деактивовані',
+        description: `Yelp API деактивував ${selectedFeatures.length} функцій`,
       });
     } catch (error: any) {
+      console.error('❌ Delete error:', error);
       toast({
-        title: 'Помилка видалення',
-        description: error.data?.detail || 'Не вдалося видалити функції',
+        title: 'Помилка деактивації',
+        description: error.data?.detail || 'Не вдалося деактивувати функції',
         variant: 'destructive',
       });
     }
@@ -304,23 +313,160 @@ const ProgramFeatures: React.FC = () => {
     );
   };
 
+  const toggleDeactivatedFeatureSelection = (featureType: string) => {
+    setSelectedDeactivatedFeatures(prev => 
+      prev.includes(featureType) 
+        ? prev.filter(f => f !== featureType)
+        : [...prev, featureType]
+    );
+  };
+
+  // Дефолтні значення для активації функцій
+  const getDefaultFeatureValue = (featureType: string) => {
+    switch (featureType) {
+      case 'CUSTOM_RADIUS_TARGETING':
+        return { feature_type: 'CUSTOM_RADIUS_TARGETING', custom_radius: 25 };
+      case 'CALL_TRACKING':
+        return { feature_type: 'CALL_TRACKING', enabled: true, businesses: [] };
+      case 'LINK_TRACKING':
+        return { feature_type: 'LINK_TRACKING', website: 'https://example.com/track', menu: null, call_to_action: null };
+      case 'CUSTOM_LOCATION_TARGETING':
+        return { feature_type: 'CUSTOM_LOCATION_TARGETING', businesses: [] };
+      case 'NEGATIVE_KEYWORD_TARGETING':
+        return { feature_type: 'NEGATIVE_KEYWORD_TARGETING', blocked_keywords: ['spam', 'fake'] };
+      case 'STRICT_CATEGORY_TARGETING':
+        return { feature_type: 'STRICT_CATEGORY_TARGETING', enabled: true };
+      case 'AD_SCHEDULING':
+        return { feature_type: 'AD_SCHEDULING', uses_opening_hours: true };
+      case 'CUSTOM_AD_TEXT':
+        return { feature_type: 'CUSTOM_AD_TEXT', custom_text: 'Активована функція' };
+      case 'CUSTOM_AD_PHOTO':
+        return { feature_type: 'CUSTOM_AD_PHOTO', custom_photo_id: 'default_photo_id' };
+      case 'AD_GOAL':
+        return { feature_type: 'AD_GOAL', ad_goal: 'WEBSITE_CLICKS' };
+      default:
+        return { feature_type: featureType };
+    }
+  };
+
+  const handleActivateSelected = async () => {
+    if (selectedDeactivatedFeatures.length === 0) {
+      toast({
+        title: 'Нічого не вибрано',
+        description: 'Виберіть деактивовані функції для активації',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('🔄 Activating features:', selectedDeactivatedFeatures);
+
+    try {
+      // Створюємо payload з дефолтними значеннями для активації
+      const featuresPayload = {
+        features: selectedDeactivatedFeatures.reduce((acc, featureType) => {
+          acc[featureType] = getDefaultFeatureValue(featureType);
+          return acc;
+        }, {} as any)
+      };
+
+      console.log('📝 Activation payload:', featuresPayload);
+
+      const result = await updateFeatures({
+        program_id: programId,
+        features: featuresPayload,
+      }).unwrap();
+
+      console.log('✅ Activation API response:', result);
+      
+      // Принудово оновлюємо дані з сервера
+      await refetch();
+
+      setSelectedDeactivatedFeatures([]);
+      toast({
+        title: 'Функції активовані',
+        description: `Успішно активовано ${selectedDeactivatedFeatures.length} функцій`,
+      });
+    } catch (error: any) {
+      console.error('❌ Activation error:', error);
+      toast({
+        title: 'Помилка активації',
+        description: error.data?.detail || 'Не вдалося активувати функції',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Функція для визначення чи функція активна згідно з логікою Yelp API
+  const isFeatureActive = (featureType: string, featureData: any): boolean => {
+    if (!featureData) return false;
+    
+    switch (featureType) {
+      case 'CUSTOM_RADIUS_TARGETING':
+        return featureData.custom_radius !== null && featureData.custom_radius !== undefined;
+      case 'CALL_TRACKING':
+        return featureData.enabled === true;
+      case 'LINK_TRACKING':
+        return !!(featureData.website || featureData.menu || featureData.call_to_action);
+      case 'CUSTOM_LOCATION_TARGETING':
+        return featureData.businesses?.some((b: any) => b.locations?.length > 0) || false;
+      case 'NEGATIVE_KEYWORD_TARGETING':
+        return featureData.blocked_keywords?.length > 0 || false;
+      case 'STRICT_CATEGORY_TARGETING':
+        return featureData.enabled === true;
+      case 'AD_SCHEDULING':
+        return featureData.uses_opening_hours === true;
+      case 'CUSTOM_AD_TEXT':
+        return !!(featureData.custom_text || featureData.custom_review_id);
+      case 'CUSTOM_AD_PHOTO':
+        return !!featureData.custom_photo_id;
+      case 'AD_GOAL':
+        return featureData.ad_goal !== 'DEFAULT';
+      case 'BUSINESS_LOGO':
+        return !!featureData.business_logo_url;
+      case 'YELP_PORTFOLIO':
+        return featureData.projects?.length > 0 || false;
+      case 'BUSINESS_HIGHLIGHTS':
+        return featureData.active_business_highlights?.length > 0 || false;
+      case 'VERIFIED_LICENSE':
+        return featureData.licenses?.length > 0 || false;
+      case 'SERVICE_OFFERINGS_TARGETING':
+        return featureData.enabled_service_offerings?.length > 0 || false;
+      default:
+        return true; // За замовчуванням вважаємо активною якщо дані є
+    }
+  };
+
   const FeatureCard: React.FC<{ featureType: string; featureData?: any }> = ({ featureType, featureData }) => {
     const description = FEATURE_DESCRIPTIONS[featureType as keyof typeof FEATURE_DESCRIPTIONS];
     const IconComponent = description?.icon || Settings;
-    const isActive = !!featureData;
+    const isPresent = !!featureData;
+    const isActive = isFeatureActive(featureType, featureData);
+    const isDeactivated = isPresent && !isActive;
     const isSelected = selectedFeatures.includes(featureType);
+    const isDeactivatedSelected = selectedDeactivatedFeatures.includes(featureType);
 
     return (
       <Card 
         className={`cursor-pointer transition-all ${
-          isSelected ? 'ring-2 ring-blue-500' : ''
-        } ${isActive ? 'border-green-500' : 'border-gray-200'}`}
-        onClick={() => isActive && toggleFeatureSelection(featureType)}
+          isSelected ? 'ring-2 ring-blue-500' : 
+          isDeactivatedSelected ? 'ring-2 ring-orange-500' : ''
+        } ${isActive ? 'border-green-500' : isPresent ? 'border-orange-300' : 'border-gray-200'}`}
+        onClick={() => {
+          if (isActive) {
+            toggleFeatureSelection(featureType);
+          } else if (isDeactivated) {
+            toggleDeactivatedFeatureSelection(featureType);
+          }
+        }}
       >
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center justify-between">
             <div className="flex items-center">
-              <IconComponent className={`w-5 h-5 mr-2 ${isActive ? 'text-green-600' : 'text-gray-400'}`} />
+              <IconComponent className={`w-5 h-5 mr-2 ${
+                isActive ? 'text-green-600' : 
+                isPresent ? 'text-orange-500' : 'text-gray-400'
+              }`} />
               {description?.title || featureType}
             </div>
             <div className="flex items-center space-x-2">
@@ -329,7 +475,12 @@ const ProgramFeatures: React.FC = () => {
                   Активна
                 </Badge>
               )}
-              {!isActive && (
+              {isPresent && !isActive && (
+                <Badge variant="outline" className="border-orange-300 text-orange-700">
+                  Деактивована {isDeactivatedSelected ? '(вибрана)' : ''}
+                </Badge>
+              )}
+              {!isPresent && (
                 <Badge variant="secondary">
                   Недоступна
                 </Badge>
@@ -361,10 +512,14 @@ const ProgramFeatures: React.FC = () => {
             </div>
           )}
 
-          {isActive && featureData && (
+          {isPresent && featureData && (
             <details className="mt-3">
-              <summary className="text-sm font-medium cursor-pointer">Поточні дані</summary>
-              <pre className="text-xs bg-gray-50 p-2 rounded mt-2 overflow-auto">
+              <summary className="text-sm font-medium cursor-pointer">
+                Поточні дані {isActive ? '(активна)' : '(деактивована)'}
+              </summary>
+              <pre className={`text-xs p-2 rounded mt-2 overflow-auto ${
+                isActive ? 'bg-green-50' : 'bg-orange-50'
+              }`}>
                 {JSON.stringify(featureData, null, 2)}
               </pre>
             </details>
@@ -412,7 +567,7 @@ const ProgramFeatures: React.FC = () => {
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active">Активні функції ({featureKeys.length})</TabsTrigger>
+          <TabsTrigger value="active">Всі функції програми ({featureKeys.length})</TabsTrigger>
           <TabsTrigger value="available">Всі доступні типи ({availableFeatureTypes.length})</TabsTrigger>
           <TabsTrigger value="documentation">Документація API</TabsTrigger>
         </TabsList>
@@ -423,7 +578,7 @@ const ProgramFeatures: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center">
                   <p className="text-sm">
-                    Вибрано {selectedFeatures.length} функцій для видалення
+                    Вибрано {selectedFeatures.length} активних функцій для деактивації
                   </p>
                   <div className="space-x-2">
                     <Button 
@@ -444,7 +599,42 @@ const ProgramFeatures: React.FC = () => {
                       ) : (
                         <Trash2 className="w-4 h-4 mr-2" />
                       )}
-                      Видалити
+                      Деактивувати
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {selectedDeactivatedFeatures.length > 0 && (
+            <Card className="border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm">
+                    Вибрано {selectedDeactivatedFeatures.length} деактивованих функцій для активації
+                  </p>
+                  <div className="space-x-2">
+                    <Button 
+                      onClick={() => setSelectedDeactivatedFeatures([])}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Скасувати
+                    </Button>
+                    <Button 
+                      onClick={handleActivateSelected}
+                      disabled={isUpdating}
+                      variant="default"
+                      className="bg-green-600 hover:bg-green-700"
+                      size="sm"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Активувати
                     </Button>
                   </div>
                 </div>
@@ -510,8 +700,8 @@ const ProgramFeatures: React.FC = () => {
                 <h3 className="font-semibold mb-2">🔧 Поведінка API:</h3>
                 <ul className="text-sm space-y-1">
                   <li>• GET повертає тільки підтримувані програмою типи функцій</li>
-                  <li>• POST може оновлювати будь-яку підмножину функцій за раз</li>
-                  <li>• DELETE встановлює функції в "disabled" стан (null/порожні значення)</li>
+                  <li>• POST може <strong>активувати</strong> та оновлювати будь-яку підмножину функцій за раз</li>
+                  <li>• DELETE <strong>деактивує</strong> функції (встановлює null/порожні значення)</li>
                   <li>• Якщо програма не підтримує тип функції - повертається помилка</li>
                   <li>• Відповідь завжди ідентична GET (поточний стан функцій)</li>
                 </ul>
