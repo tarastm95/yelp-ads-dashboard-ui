@@ -639,12 +639,13 @@ const ProgramsList: React.FC = () => {
                     </div>
                   );
                 }
-                return null;
+              return null;
               })()}
             </div>
           )}
         </div>
-      </div>
+      )}
+    </div>
   );
 };
 
