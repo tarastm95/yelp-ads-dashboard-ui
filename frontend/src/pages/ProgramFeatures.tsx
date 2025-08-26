@@ -49,142 +49,142 @@ const FEATURE_DESCRIPTIONS = {
     fields: {
       enabled: 'Enable strict targeting (true/false)'
     },
-    validation: 'Логічне значення для увімкнення/вимкнення функції'
+    validation: 'Boolean value to enable/disable the feature'
   },
 
   AD_SCHEDULING: {
     icon: Clock,
-    title: 'Розклад показу реклами',
-    description: 'Налаштування часу показу реклами відповідно до годин роботи бізнесу',
+    title: 'Ad Scheduling',
+    description: 'Configure ad display times according to business operating hours',
     fields: {
-      uses_opening_hours: 'Показувати рекламу тільки в години роботи (true/false)'
+      uses_opening_hours: 'Show ads only during business hours (true/false)'
     },
-    validation: 'Якщо true і години роботи 8-17, то о 18:00 реклама показуватися не буде'
+    validation: 'If true and business hours are 8-17, ads will not show at 6:00 PM'
   },
 
   CUSTOM_LOCATION_TARGETING: {
     icon: MapPin,
-    title: 'Власне географічне таргетування',
-    description: 'Налаштування конкретних локацій для показу реклами',
+    title: 'Custom Location Targeting',
+    description: 'Configure specific locations for ad display',
     fields: {
-      businesses: 'Список бізнесів у рекламній кампанії',
-      'businesses[].business_id': 'ID бізнесу',
-      'businesses[].locations': 'Список локацій (до 25 на бізнес): ZIP-коди, міста, округи, штати (тільки США)'
+      businesses: 'List of businesses in the advertising campaign',
+      'businesses[].business_id': 'Business ID',
+      'businesses[].locations': 'List of locations (up to 25 per business): ZIP codes, cities, counties, states (US only)'
     },
-    validation: 'Максимум 25 локацій на бізнес, тільки локації в США'
+    validation: 'Maximum 25 locations per business, US locations only'
   },
 
   AD_GOAL: {
     icon: Target,
-    title: 'Ціль реклами',
-    description: 'Визначення основної цілі рекламної кампанії',
+    title: 'Ad Goal',
+    description: 'Define the main goal of the advertising campaign',
     fields: {
-      ad_goal: 'Ціль реклами: DEFAULT, CALLS або WEBSITE_CLICKS'
+      ad_goal: 'Ad goal: DEFAULT, CALLS or WEBSITE_CLICKS'
     },
-    validation: 'Має бути одним з трьох значень: DEFAULT, CALLS, WEBSITE_CLICKS'
+    validation: 'Must be one of three values: DEFAULT, CALLS, WEBSITE_CLICKS'
   },
 
   CALL_TRACKING: {
     icon: Phone,
-    title: 'Відстеження дзвінків',
-    description: 'Налаштування відстеження телефонних дзвінків з реклами',
+    title: 'Call Tracking',
+    description: 'Configure tracking of phone calls from advertisements',
     fields: {
-      enabled: 'Увімкнути відстеження дзвінків на рівні кампанії',
-      businesses: 'Список бізнесів у кампанії',
-      'businesses[].business_id': 'ID бізнесу',
-      'businesses[].metered_phone_number': 'Номер телефону для відстеження (null для вимкнення)'
+      enabled: 'Enable call tracking at campaign level',
+      businesses: 'List of businesses in the campaign',
+      'businesses[].business_id': 'Business ID',
+      'businesses[].metered_phone_number': 'Phone number for tracking (null to disable)'
     },
-    validation: 'Номер телефону може бути null для відключення відстеження для конкретного бізнесу'
+    validation: 'Phone number can be null to disable tracking for specific business'
   },
 
   SERVICE_OFFERINGS_TARGETING: {
     icon: Star,
-    title: 'Таргетування за послугами',
-    description: 'Управління послугами, які включені/виключені з реклами (застарілий)',
+    title: 'Service Offerings Targeting',
+    description: 'Manage services that are included/excluded from ads (deprecated)',
     fields: {
-      disabled_service_offerings: 'Список вимкнених послуг для кампанії',
-      enabled_service_offerings: 'Список увімкнених послуг для кампанії'
+      disabled_service_offerings: 'List of disabled services for the campaign',
+      enabled_service_offerings: 'List of enabled services for the campaign'
     },
-    validation: 'Застарілий тип, рекомендується використовувати негативні ключові слова'
+    validation: 'Deprecated type, recommended to use negative keywords instead'
   },
 
   BUSINESS_HIGHLIGHTS: {
     icon: Star,
-    title: 'Підкреслення бізнесу',
-    description: 'Управління особливостями бізнесу, що підкреслюються в рекламі',
+    title: 'Business Highlights',
+    description: 'Manage business features highlighted in advertisements',
     fields: {
-      active_business_highlights: 'Активні підкреслення бізнесу',
-      available_business_highlights: 'Доступні для вибору підкреслення',
-      mutually_exclusive_business_highlights: 'Пари підкреслень, що не можуть бути активними одночасно'
+      active_business_highlights: 'Active business highlights',
+      available_business_highlights: 'Available highlights for selection',
+      mutually_exclusive_business_highlights: 'Pairs of highlights that cannot be active simultaneously'
     },
-    validation: 'Деякі підкреслення є взаємовиключними'
+    validation: 'Some highlights are mutually exclusive'
   },
 
   VERIFIED_LICENSE: {
     icon: Award,
-    title: 'Перевірені ліцензії',
-    description: 'Управління перевіреними ліцензіями бізнесу',
+    title: 'Verified License',
+    description: 'Manage verified business licenses',
     fields: {
-      'licenses[].license_number': 'Номер ліцензії',
-      'licenses[].license_expiry_date': 'Дата закінчення ліцензії (YYYY-MM-DD)',
-      'licenses[].license_trade': 'Бізнес або сфера, для якої видана ліцензія',
-      'licenses[].license_issuing_agency': 'Орган, що видав ліцензію',
-      'licenses[].license_verification_status': 'Статус перевірки: PENDING, VERIFIED, REJECTED',
-      'licenses[].license_verification_failure_reason': 'Причина невдалої перевірки'
+      'licenses[].license_number': 'License number',
+      'licenses[].license_expiry_date': 'License expiry date (YYYY-MM-DD)',
+      'licenses[].license_trade': 'Business or field for which the license is issued',
+      'licenses[].license_issuing_agency': 'License issuing authority',
+      'licenses[].license_verification_status': 'Verification status: PENDING, VERIFIED, REJECTED',
+      'licenses[].license_verification_failure_reason': 'Reason for verification failure'
     },
-    validation: 'Статус перевірки обов\'язковий, дата може бути опціональною'
+    validation: 'Verification status is required, date may be optional'
   },
 
   CUSTOM_RADIUS_TARGETING: {
     icon: MapPin,
-    title: 'Власний радіус таргетування',
-    description: 'Налаштування конкретного радіуса показу реклами навколо бізнесу',
+    title: 'Custom Radius Targeting',
+    description: 'Configure specific radius for ad display around the business',
     fields: {
-      custom_radius: 'Радіус у милях (1-60) або null для вимкнення'
+      custom_radius: 'Radius in miles (1-60) or null to disable'
     },
-    validation: 'Значення від 1 до 60 миль, null означає вимкнену функцію'
+    validation: 'Value from 1 to 60 miles, null means disabled feature'
   },
 
   CUSTOM_AD_TEXT: {
     icon: Info,
-    title: 'Власний текст реклами',
-    description: 'Налаштування власного тексту або використання тексту з відгуків',
+    title: 'Custom Ad Text',
+    description: 'Configure custom text or use text from reviews',
     fields: {
-      custom_review_id: 'ID відгуку для витягання тексту',
-      custom_text: 'Власний текст реклами'
+      custom_review_id: 'Review ID to extract text from',
+      custom_text: 'Custom ad text'
     },
-    validation: 'Тільки одне поле може бути заповнене, інше має бути null. За замовчуванням текст встановлює Yelp'
+    validation: 'Only one field can be filled, the other must be null. By default, Yelp sets the text'
   },
 
   CUSTOM_AD_PHOTO: {
     icon: Camera,
-    title: 'Власне фото реклами',
-    description: 'Налаштування власного фото для показу в рекламі',
+    title: 'Custom Ad Photo',
+    description: 'Configure custom photo for display in advertisements',
     fields: {
-      custom_photo_id: 'ID фото для показу в рекламі або null для вимкнення'
+      custom_photo_id: 'Photo ID for display in ads or null to disable'
     },
-    validation: 'ID має посилатися на існуюче фото бізнесу'
+    validation: 'ID must reference an existing business photo'
   },
 
   BUSINESS_LOGO: {
     icon: Camera,
-    title: 'Логотип бізнесу',
-    description: 'Налаштування логотипу бренду для використання в рекламі',
+    title: 'Business Logo',
+    description: 'Configure brand logo for use in advertisements',
     fields: {
-      business_logo_url: 'URL логотипу бізнесу'
+      business_logo_url: 'Business logo URL'
     },
-    validation: 'URL має бути публічно доступним зображенням типу: jpeg/png/gif/tiff'
+    validation: 'URL must be a publicly accessible image of type: jpeg/png/gif/tiff'
   },
 
   YELP_PORTFOLIO: {
     icon: Globe,
-    title: 'Портфоліо Yelp',
-    description: 'Управління проектами портфоліо для показу в рекламі',
+    title: 'Yelp Portfolio',
+    description: 'Manage portfolio projects for display in advertisements',
     fields: {
-      'projects[].project_id': 'ID проекту',
-      'projects[].published': 'Чи опублікований проект (true/false)'
+      'projects[].project_id': 'Project ID',
+      'projects[].published': 'Whether the project is published (true/false)'
     },
-    validation: 'Проекти можуть бути опублікованими або неопублікованими'
+    validation: 'Projects can be published or unpublished'
   }
 };
 
@@ -244,7 +244,7 @@ const ProgramFeatures: React.FC = () => {
 
   const handleTestUpdate = async () => {
     try {
-      // Спробуємо найпростіший payload з правильним wrapper
+      // Try the simplest payload with correct wrapper
       const testFeatures = {
         features: {
           CUSTOM_RADIUS_TARGETING: {
@@ -293,7 +293,7 @@ const ProgramFeatures: React.FC = () => {
 
       console.log('✅ Delete API response:', result);
       
-      // Принудово оновлюємо дані з сервера
+      // Force refresh data from server
       await refetch();
 
       setSelectedFeatures([]);
@@ -327,26 +327,26 @@ const ProgramFeatures: React.FC = () => {
     );
   };
 
-  // Дефолтні значення для активації функцій згідно з Yelp API специфікацією
+  // Default values for activating features according to Yelp API specification
   const getDefaultFeatureValue = (featureType: string) => {
     switch (featureType) {
       case 'CUSTOM_RADIUS_TARGETING':
-        // Радіус в милях (1-60), null означає неактивна
+        // Radius in miles (1-60), null means inactive
         return { custom_radius: 25 };
         
       case 'CALL_TRACKING':
-        // CALL_TRACKING вимагає business_id і metered_phone_number (string|null)
+        // CALL_TRACKING requires business_id and metered_phone_number (string|null)
         const existingBusinessId = features.CALL_TRACKING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
         return { 
           enabled: true, 
           businesses: [{ 
             business_id: existingBusinessId,
-            metered_phone_number: null // За специфікацією це обов'язкове поле
+            metered_phone_number: null // According to specification this is a required field
           }] 
         };
         
       case 'LINK_TRACKING':
-        // Всі поля мають бути null для деактивації, або містити значення
+        // All fields must be null for deactivation, or contain values
         return { 
           website: 'https://example.com/track',
           menu: null,
@@ -354,7 +354,7 @@ const ProgramFeatures: React.FC = () => {
         };
         
       case 'CUSTOM_LOCATION_TARGETING':
-        // Вимагає business_id і локації (до 25 на бізнес, тільки США)
+        // Requires business_id and locations (up to 25 per business, US only)
         const existingBusinessIdForLocation = features.CUSTOM_LOCATION_TARGETING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
         return { 
           businesses: [{ 
@@ -364,10 +364,10 @@ const ProgramFeatures: React.FC = () => {
         };
         
       case 'NEGATIVE_KEYWORD_TARGETING':
-        // blocked_keywords порожній = деактивована функція
+        // empty blocked_keywords = deactivated feature
         return { 
           blocked_keywords: ['spam', 'fake'],
-          suggested_keywords: [] // Тільки для читання, ігнорується в POST
+          suggested_keywords: [] // Read-only, ignored in POST
         };
         
       case 'STRICT_CATEGORY_TARGETING':
@@ -377,46 +377,46 @@ const ProgramFeatures: React.FC = () => {
         return { uses_opening_hours: true };
         
       case 'CUSTOM_AD_TEXT':
-        // Тільки одне поле може бути встановлене, мін. 15 символів, макс 1500
+        // Only one field can be set, min 15 characters, max 1500
         return { 
           custom_text: 'Custom promotional text for this business',
           custom_review_id: null
         };
         
       case 'AD_GOAL':
-        // Має бути одним з: DEFAULT, CALLS, WEBSITE_CLICKS
+        // Must be one of: DEFAULT, CALLS, WEBSITE_CLICKS
         return { ad_goal: 'WEBSITE_CLICKS' };
         
       case 'BUSINESS_HIGHLIGHTS':
-        // POST використовує business_highlights, а не active_business_highlights
-        return { business_highlights: [] }; // Треба реальні значення
+        // POST uses business_highlights, not active_business_highlights
+        return { business_highlights: [] }; // Need real values
         
       case 'VERIFIED_LICENSE':
-        // Не можна відправляти порожній список, пропустимо
-        return null; // Буде відфільтровано
+        // Cannot send empty list, skip this
+        return null; // Will be filtered out
         
       case 'CUSTOM_AD_PHOTO':
-        // Потрібен реальний photo_id
-        return null; // Буде відфільтровано
+        // Need real photo_id
+        return null; // Will be filtered out
         
       case 'BUSINESS_LOGO':
-        // Потрібен публічний URL зображення
-        return null; // Буде відфільтровано
+        // Need public image URL
+        return null; // Will be filtered out
         
       case 'YELP_PORTFOLIO':
-        // Потрібні реальні project_id
-        return null; // Буде відфільтровано
+        // Need real project_id
+        return null; // Will be filtered out
         
       default:
-        return null; // Буде відфільтровано
+        return null; // Will be filtered out
     }
   };
 
   const handleActivateSelected = async () => {
     if (selectedDeactivatedFeatures.length === 0) {
       toast({
-        title: 'Нічого не вибрано',
-        description: 'Виберіть деактивовані функції для активації',
+        title: 'Nothing Selected',
+        description: 'Select deactivated features for activation',
         variant: 'destructive',
       });
       return;
@@ -425,7 +425,7 @@ const ProgramFeatures: React.FC = () => {
     console.log('🔄 Activating features:', selectedDeactivatedFeatures);
 
     try {
-      // Створюємо payload з дефолтними значеннями для активації
+      // Create payload with default values for activation
       const featuresPayload = {
         features: selectedDeactivatedFeatures.reduce((acc, featureType) => {
           const defaultValue = getDefaultFeatureValue(featureType);
@@ -436,11 +436,11 @@ const ProgramFeatures: React.FC = () => {
         }, {} as any)
       };
 
-      // Перевіряємо чи є валідні функції для активації
+      // Check if there are valid features for activation
       if (Object.keys(featuresPayload.features).length === 0) {
         toast({
-          title: 'Неможливо активувати',
-          description: 'Вибрані функції потребують додаткових даних (фото ID, URL, тощо)',
+          title: 'Cannot Activate',
+          description: 'Selected features require additional data (photo ID, URL, etc.)',
           variant: 'destructive',
         });
         return;
@@ -455,19 +455,19 @@ const ProgramFeatures: React.FC = () => {
 
       console.log('✅ Activation API response:', result);
       
-      // Принудово оновлюємо дані з сервера
+      // Force refresh data from server
       await refetch();
 
       setSelectedDeactivatedFeatures([]);
       toast({
-        title: 'Функції активовані',
-        description: `Успішно активовано ${selectedDeactivatedFeatures.length} функцій`,
+        title: 'Features Activated',
+        description: `Successfully activated ${selectedDeactivatedFeatures.length} features`,
       });
     } catch (error: any) {
       console.error('❌ Activation error:', error);
       toast({
-        title: 'Помилка активації',
-        description: error.data?.detail || 'Не вдалося активувати функції',
+        title: 'Activation Error',
+        description: error.data?.detail || 'Failed to activate features',
         variant: 'destructive',
       });
     }
@@ -495,20 +495,20 @@ const ProgramFeatures: React.FC = () => {
       setEditingFeature(null);
 
       toast({
-        title: 'Функцію оновлено',
-        description: `Налаштування ${featureType.replace(/_/g, ' ')} збережено успішно`,
+        title: 'Feature Updated',
+        description: `Settings for ${featureType.replace(/_/g, ' ')} saved successfully`,
       });
     } catch (error: any) {
       console.error('❌ Save feature error:', error);
       toast({
-        title: 'Помилка збереження',
-        description: error.data?.detail || 'Не вдалося зберегти налаштування',
+        title: 'Save Error',
+        description: error.data?.detail || 'Failed to save settings',
         variant: 'destructive',
       });
     }
   };
 
-  // Функція для визначення чи функція активна згідно з логікою Yelp API
+  // Function to determine if a feature is active according to Yelp API logic
   const isFeatureActive = (featureType: string, featureData: any): boolean => {
     if (!featureData) return false;
     
@@ -532,7 +532,7 @@ const ProgramFeatures: React.FC = () => {
       case 'CUSTOM_AD_PHOTO':
         return !!featureData.custom_photo_id;
       case 'AD_GOAL':
-        // AD_GOAL завжди присутня, активна якщо не DEFAULT
+        // AD_GOAL is always present, active if not DEFAULT
         return featureData.ad_goal !== 'DEFAULT';
       case 'BUSINESS_LOGO':
         return !!featureData.business_logo_url;
