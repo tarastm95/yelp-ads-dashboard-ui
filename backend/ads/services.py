@@ -17,14 +17,18 @@ class YelpService:
 
     @classmethod
     def _get_partner_auth(cls):
-        """Return credentials from settings (bypassing database for now)."""
-        # TODO: Uncomment database lookup when DB is available
-        # try:
-        #     cred = PartnerCredential.objects.order_by('-updated_at').first()
-        #     if cred:
-        #         return cred.username, cred.password
-        # except Exception:
-        #     pass  # Fall back to settings if DB is not available
+        """Return credentials from database first, then fall back to settings."""
+        try:
+            # Спочатку намагаємося отримати з бази даних
+            cred = PartnerCredential.objects.order_by('-updated_at').first()
+            if cred and cred.username and cred.password:
+                logger.info(f"🔐 YelpService._get_partner_auth: Using credentials from database for user '{cred.username}'")
+                return cred.username, cred.password
+        except Exception as e:
+            logger.warning(f"⚠️ YelpService._get_partner_auth: Failed to get credentials from database: {e}")
+        
+        # Фоллбек на .env файл
+        logger.info(f"🔐 YelpService._get_partner_auth: Using credentials from .env file")
         return settings.YELP_API_KEY, settings.YELP_API_SECRET
 
     @classmethod

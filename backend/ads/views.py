@@ -5,7 +5,7 @@ import requests
 import logging
 import uuid
 from .services import YelpService
-from .models import Program, PortfolioProject, PortfolioPhoto
+from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential
 from .serializers import (
     ProgramSerializer, ProgramFeaturesRequestSerializer, ProgramFeaturesDeleteSerializer,
     PortfolioProjectSerializer, PortfolioProjectCreateResponseSerializer,
@@ -633,3 +633,47 @@ class PortfolioPhotoDetailView(APIView):
         except Exception as e:
             logger.error(f"Error deleting portfolio photo: {e}")
             raise
+
+
+class SaveCredentialsView(APIView):
+    """Save user credentials for Yelp API authentication."""
+    
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        logger.info(f"🔐 SaveCredentialsView: Saving credentials for username: '{username}'")
+        
+        try:
+            # Сохраняем или обновляем credentials в базе данных
+            credential, created = PartnerCredential.objects.get_or_create(
+                username=username,
+                defaults={'password': password}
+            )
+            
+            if not created:
+                # Обновляем пароль если пользователь уже существует
+                credential.password = password
+                credential.save()
+                logger.info(f"✅ SaveCredentialsView: Updated credentials for existing user '{username}'")
+            else:
+                logger.info(f"✅ SaveCredentialsView: Created new credentials for user '{username}'")
+            
+            return Response({
+                "message": "Credentials saved successfully",
+                "username": username,
+                "created": created
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"❌ SaveCredentialsView: Error saving credentials for '{username}': {e}")
+            return Response(
+                {"error": f"Failed to save credentials: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

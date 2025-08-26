@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { 
   Home,
@@ -11,13 +12,24 @@ import {
   Clock,
   Settings,
   Menu,
-  Edit
+  Edit,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { clearCredentials } from '../store/slices/authSlice';
+import type { RootState } from '../store';
 
 const Layout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const { username } = useSelector((state: RootState) => state.auth);
+
+  const handleLogout = () => {
+    dispatch(clearCredentials());
+    navigate('/login');
+  };
 
   const navigation = [
     { name: 'Главная', href: '/', icon: Home },
@@ -25,7 +37,6 @@ const Layout: React.FC = () => {
     { name: 'Программы', href: '/programs', icon: List },
     { name: 'Расширенное редактирование', href: '/edit-advanced', icon: Edit },
     { name: 'Мониторинг задач', href: '/jobs', icon: Clock },
-    { name: 'Логин', href: '/login', icon: Home },
   ];
 
   return (
@@ -83,6 +94,34 @@ const Layout: React.FC = () => {
                 );
               })}
             </nav>
+            
+            {/* User info and logout */}
+            <div className="flex-shrink-0 p-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium">
+                    {username ? username.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {username || 'Guest'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Yelp Partner API
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-gray-400 hover:text-gray-600"
+                  title="Выход"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 const Login: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('credentials');
@@ -26,10 +28,55 @@ const Login: React.FC = () => {
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(setCredentials({ username, password }));
-    navigate('/');
+    
+    if (!username.trim() || !password.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Пожалуйста, заполните все поля",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      // Отправляем credentials на backend для сохранения
+      const response = await fetch('http://localhost:8000/api/auth/save-credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Сохраняем в Redux и localStorage
+      dispatch(setCredentials({ username, password }));
+      
+      toast({
+        title: "Успешно",
+        description: `Credentials сохранены для пользователя: ${username}`,
+      });
+      
+      navigate('/');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Ошибка входа",
+        description: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,7 +89,9 @@ const Login: React.FC = () => {
         <Label htmlFor="password">Пароль</Label>
         <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>
-      <Button type="submit" className="w-full">Войти</Button>
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? 'Сохранение...' : 'Войти'}
+      </Button>
     </form>
   );
 };

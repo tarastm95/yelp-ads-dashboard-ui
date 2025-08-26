@@ -21,9 +21,14 @@ from .views import (
     PortfolioProjectCreateView,
     PortfolioPhotoListView,
     PortfolioPhotoDetailView,
+    # Auth Views
+    SaveCredentialsView,
 )
 
 urlpatterns = [
+    # Auth endpoints
+    path('auth/save-credentials', SaveCredentialsView.as_view()),
+    
     # Legacy endpoints
     path('programs/', CreateProgramView.as_view()),
     path('businesses/matches/', BusinessMatchView.as_view()),
