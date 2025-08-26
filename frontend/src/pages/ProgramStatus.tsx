@@ -167,12 +167,118 @@ const ProgramStatus: React.FC = () => {
                         </div>
                       )}
                       
-                      <div className="mt-4">
-                        <label className="text-sm font-medium text-gray-500">Полные данные</label>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto mt-2">
+                      {/* Активные функции */}
+                      {program.active_features && program.active_features.length > 0 && (
+                        <div className="border-t pt-4">
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Активные функции</label>
+                          <div className="flex flex-wrap gap-2">
+                            {program.active_features.map((feature: string) => (
+                              <span key={feature} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Доступные функции */}
+                      {program.available_features && program.available_features.length > 0 && (
+                        <div className="border-t pt-4">
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Доступные функции</label>
+                          <div className="flex flex-wrap gap-2">
+                            {program.available_features.map((feature: string) => {
+                              const isActive = program.active_features?.includes(feature);
+                              return (
+                                <span 
+                                  key={feature} 
+                                  className={`px-2 py-1 text-xs rounded-full ${
+                                    isActive 
+                                      ? 'bg-green-100 text-green-800 font-medium' 
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  {feature}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Дополнительные метрики */}
+                      {program.program_metrics && (
+                        <div className="border-t pt-4">
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Дополнительные метрики</label>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            {program.program_metrics.fee_period && (
+                              <div>
+                                <label className="text-xs text-gray-400">Период оплаты</label>
+                                <p>{program.program_metrics.fee_period}</p>
+                              </div>
+                            )}
+                            <div>
+                              <label className="text-xs text-gray-400">Показы (оплачено)</label>
+                              <p>{program.program_metrics.billed_impressions || 0}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400">Клики (оплачено)</label>
+                              <p>{program.program_metrics.billed_clicks || 0}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400">Стоимость рекламы</label>
+                              <p>{program.program_metrics.ad_cost || 0} {program.program_metrics.currency}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Будущие изменения бюджета */}
+                      {program.future_budget_changes && program.future_budget_changes.length > 0 && (
+                        <div className="border-t pt-4">
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Запланированные изменения бюджета</label>
+                          <div className="space-y-2">
+                            {program.future_budget_changes.map((change: any, index: number) => (
+                              <div key={index} className="bg-blue-50 p-3 rounded">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div>
+                                    <span className="text-gray-500">Дата:</span> {change.date}
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Новый бюджет:</span> {change.budget} {change.currency}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Дополнительная информация */}
+                      <div className="border-t pt-4">
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Дополнительная информация</label>
+                        <div className="grid grid-cols-1 gap-2 text-sm">
+                          {program.partner_business_id && (
+                            <div>
+                              <span className="text-gray-500">Partner Business ID:</span> 
+                              <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{program.partner_business_id}</code>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-gray-500">Program ID:</span> 
+                            <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{program.program_id}</code>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* JSON данные (свернутые) */}
+                      <details className="border-t pt-4">
+                        <summary className="text-sm font-medium text-gray-500 cursor-pointer hover:text-gray-700">
+                          Показать полные JSON данные
+                        </summary>
+                        <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto mt-2 max-h-96">
                           {JSON.stringify(program, null, 2)}
                         </pre>
-                      </div>
+                      </details>
                     </div>
                   ))}
                 </div>

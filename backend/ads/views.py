@@ -3,9 +3,15 @@ from rest_framework.response import Response
 from rest_framework import status
 import requests
 import logging
+import uuid
 from .services import YelpService
-from .models import Program
-from .serializers import ProgramSerializer
+from .models import Program, PortfolioProject, PortfolioPhoto
+from .serializers import (
+    ProgramSerializer, ProgramFeaturesRequestSerializer, ProgramFeaturesDeleteSerializer,
+    PortfolioProjectSerializer, PortfolioProjectCreateResponseSerializer,
+    PortfolioPhotoUploadSerializer, PortfolioPhotoUploadResponseSerializer,
+    PortfolioPhotoSerializer
+)
 from django.shortcuts import get_object_or_404
 
 logger = logging.getLogger(__name__)
@@ -81,22 +87,56 @@ class PauseProgramView(APIView):
     def post(self, request, program_id):
         logger.info(f"Pausing program {program_id}")
         try:
-            YelpService.pause_program(program_id)
-            return Response(status=status.HTTP_202_ACCEPTED)
+            result = YelpService.pause_program(program_id)
+            logger.info(f"Successfully paused program {program_id}")
+            return Response(result, status=status.HTTP_202_ACCEPTED)
+        except requests.HTTPError as e:
+            logger.error(f"HTTP Error pausing program {program_id}: {e}")
+            error_message = f"Failed to pause program: {e}"
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_details = e.response.json()
+                    error_message = f"Yelp API Error: {error_details}"
+                except:
+                    error_message = f"Yelp API Error: {e.response.text}"
+            return Response(
+                {"error": error_message, "status_code": e.response.status_code if hasattr(e, 'response') else 500}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         except Exception as e:
-            logger.error(f"Error pausing program {program_id}: {e}")
-            raise
+            logger.error(f"Unexpected error pausing program {program_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ResumeProgramView(APIView):
     def post(self, request, program_id):
         logger.info(f"Resuming program {program_id}")
         try:
-            YelpService.resume_program(program_id)
-            return Response(status=status.HTTP_202_ACCEPTED)
+            result = YelpService.resume_program(program_id)
+            logger.info(f"Successfully resumed program {program_id}")
+            return Response(result, status=status.HTTP_202_ACCEPTED)
+        except requests.HTTPError as e:
+            logger.error(f"HTTP Error resuming program {program_id}: {e}")
+            error_message = f"Failed to resume program: {e}"
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_details = e.response.json()
+                    error_message = f"Yelp API Error: {error_details}"
+                except:
+                    error_message = f"Yelp API Error: {e.response.text}"
+            return Response(
+                {"error": error_message, "status_code": e.response.status_code if hasattr(e, 'response') else 500}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         except Exception as e:
-            logger.error(f"Error resuming program {program_id}: {e}")
-            raise
+            logger.error(f"Unexpected error resuming program {program_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class JobStatusView(APIView):
     def get(self, request, program_id):
@@ -216,10 +256,19 @@ class ProgramFeaturesView(APIView):
     
     def get(self, request, program_id):
         """Get available and active features for a specific program"""
-        logger.info(f"Getting program features for program_id: {program_id}")
+        logger.info(f"🌐 ProgramFeaturesView.GET: Incoming request for program_id: {program_id}")
+        logger.info(f"🌐 ProgramFeaturesView.GET: Request method: {request.method}")
+        logger.info(f"🌐 ProgramFeaturesView.GET: Request headers: {dict(request.headers)}")
+        logger.info(f"🌐 ProgramFeaturesView.GET: Request user: {getattr(request, 'user', 'Anonymous')}")
+        logger.info(f"🌐 ProgramFeaturesView.GET: Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
+        
         try:
+            logger.info(f"🔄 ProgramFeaturesView.GET: Calling YelpService.get_program_features for {program_id}")
             data = YelpService.get_program_features(program_id)
-            logger.info(f"Program features retrieved successfully for program_id: {program_id}")
+            logger.info(f"✅ ProgramFeaturesView.GET: Successfully retrieved features for program_id: {program_id}")
+            logger.info(f"📊 ProgramFeaturesView.GET: Response data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+            if isinstance(data, dict) and 'features' in data:
+                logger.info(f"🎯 ProgramFeaturesView.GET: Available features: {list(data['features'].keys())}")
             return Response(data)
         except requests.HTTPError as e:
             if e.response.status_code == 404:
@@ -237,23 +286,43 @@ class ProgramFeaturesView(APIView):
             logger.error(f"HTTP error getting program features for {program_id}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Error getting program features for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.GET: Unexpected error for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.GET: Exception type: {type(e).__name__}")
+            logger.error(f"❌ ProgramFeaturesView.GET: Exception args: {e.args}")
+            import traceback
+            logger.error(f"❌ ProgramFeaturesView.GET: Full traceback: {traceback.format_exc()}")
             raise
     
     def post(self, request, program_id):
-        """Update features for a specific program"""
-        logger.info(f"Updating program features for program_id: {program_id}")
-        logger.info(f"Features payload: {request.data}")
+        """Update features for a specific program (Yelp uses POST for updates)"""
+        logger.info(f"🌐 ProgramFeaturesView.POST: Incoming update request for program_id: {program_id}")
+        logger.info(f"🌐 ProgramFeaturesView.POST: Request method: {request.method}")
+        logger.info(f"🌐 ProgramFeaturesView.POST: Request headers: {dict(request.headers)}")
+        logger.info(f"🌐 ProgramFeaturesView.POST: Request content type: {request.content_type}")
+        logger.info(f"🌐 ProgramFeaturesView.POST: Request user: {getattr(request, 'user', 'Anonymous')}")
+        logger.info(f"🌐 ProgramFeaturesView.POST: Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
+        logger.info(f"📝 ProgramFeaturesView.POST: Raw request data: {request.data}")
         
-        if not request.data:
-            return Response(
-                {"detail": "Features data is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Log feature types being updated
+        if isinstance(request.data, dict) and 'features' in request.data:
+            feature_types = list(request.data['features'].keys()) if isinstance(request.data['features'], dict) else []
+            logger.info(f"🎯 ProgramFeaturesView.POST: Feature types being updated: {feature_types}")
+        
+        # Validate the request payload
+        logger.info(f"🔍 ProgramFeaturesView.POST: Validating request payload with ProgramFeaturesRequestSerializer")
+        serializer = ProgramFeaturesRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"❌ ProgramFeaturesView.POST: Validation failed for program_id: {program_id}")
+            logger.error(f"❌ ProgramFeaturesView.POST: Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        logger.info(f"✅ ProgramFeaturesView.POST: Validation passed, proceeding with update")
         
         try:
+            logger.info(f"🔄 ProgramFeaturesView.POST: Calling YelpService.update_program_features for {program_id}")
             data = YelpService.update_program_features(program_id, request.data)
-            logger.info(f"Program features updated successfully for program_id: {program_id}")
+            logger.info(f"✅ ProgramFeaturesView.POST: Successfully updated features for program_id: {program_id}")
+            logger.info(f"📊 ProgramFeaturesView.POST: Response data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
             return Response(data)
         except requests.HTTPError as e:
             if e.response.status_code == 404:
@@ -275,25 +344,40 @@ class ProgramFeaturesView(APIView):
             logger.error(f"HTTP error updating program features for {program_id}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Error updating program features for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.POST: Unexpected error for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.POST: Exception type: {type(e).__name__}")
+            logger.error(f"❌ ProgramFeaturesView.POST: Exception args: {e.args}")
+            import traceback
+            logger.error(f"❌ ProgramFeaturesView.POST: Full traceback: {traceback.format_exc()}")
             raise
+    
     
     def delete(self, request, program_id):
         """Delete/disable specific features for a program"""
-        logger.info(f"Deleting program features for program_id: {program_id}")
-        logger.info(f"Features to delete: {request.data}")
+        logger.info(f"🌐 ProgramFeaturesView.DELETE: Incoming delete request for program_id: {program_id}")
+        logger.info(f"🌐 ProgramFeaturesView.DELETE: Request method: {request.method}")
+        logger.info(f"🌐 ProgramFeaturesView.DELETE: Request headers: {dict(request.headers)}")
+        logger.info(f"🌐 ProgramFeaturesView.DELETE: Request user: {getattr(request, 'user', 'Anonymous')}")
+        logger.info(f"🌐 ProgramFeaturesView.DELETE: Request IP: {request.META.get('REMOTE_ADDR', 'Unknown')}")
+        logger.info(f"📝 ProgramFeaturesView.DELETE: Raw request data: {request.data}")
         
-        # Валідуємо, що передано список фіч для видалення
-        features_list = request.data.get('features', [])
-        if not features_list or not isinstance(features_list, list):
-            return Response(
-                {"detail": "features list is required and must be an array"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Validate the request payload
+        logger.info(f"🔍 ProgramFeaturesView.DELETE: Validating request payload with ProgramFeaturesDeleteSerializer")
+        serializer = ProgramFeaturesDeleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Validation failed for program_id: {program_id}")
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        features_list = serializer.validated_data['features']
+        logger.info(f"🗑️ ProgramFeaturesView.DELETE: Features to delete (validated): {features_list}")
+        logger.info(f"✅ ProgramFeaturesView.DELETE: Validation passed, proceeding with deletion")
         
         try:
+            logger.info(f"🔄 ProgramFeaturesView.DELETE: Calling YelpService.delete_program_features for {program_id}")
             data = YelpService.delete_program_features(program_id, features_list)
-            logger.info(f"Program features deleted successfully for program_id: {program_id}")
+            logger.info(f"✅ ProgramFeaturesView.DELETE: Successfully deleted features for program_id: {program_id}")
+            logger.info(f"📊 ProgramFeaturesView.DELETE: Response data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
             return Response(data)
         except requests.HTTPError as e:
             if e.response.status_code == 404:
@@ -315,7 +399,11 @@ class ProgramFeaturesView(APIView):
             logger.error(f"HTTP error deleting program features for {program_id}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Error deleting program features for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Unexpected error for program_id {program_id}: {e}")
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Exception type: {type(e).__name__}")
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Exception args: {e.args}")
+            import traceback
+            logger.error(f"❌ ProgramFeaturesView.DELETE: Full traceback: {traceback.format_exc()}")
             raise
 
 
@@ -332,3 +420,216 @@ class SyncStatusView(APIView):
             'last_full_sync': None,
             'last_incremental_sync': None,
         })
+
+
+# ============= Portfolio API Views =============
+
+class PortfolioProjectDetailView(APIView):
+    """Portfolio project detail view (GET, PUT, DELETE)"""
+    
+    def get(self, request, program_id, project_id):
+        """Get portfolio project details"""
+        logger.info(f"Getting portfolio project {project_id} for program {program_id}")
+        try:
+            data = YelpService.get_portfolio_project(program_id, project_id)
+            logger.info(f"Portfolio project retrieved successfully")
+            return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Project not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            logger.error(f"HTTP error getting portfolio project: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting portfolio project: {e}")
+            raise
+    
+    def put(self, request, program_id, project_id):
+        """Update portfolio project"""
+        logger.info(f"Updating portfolio project {project_id} for program {program_id}")
+        
+        # Validate the request payload
+        serializer = PortfolioProjectSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            data = YelpService.update_portfolio_project(
+                program_id, project_id, serializer.validated_data
+            )
+            logger.info(f"Portfolio project updated successfully")
+            return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Project not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                try:
+                    error_data = e.response.json()
+                    return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+                except:
+                    return Response(
+                        {"detail": "Invalid project data"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            logger.error(f"HTTP error updating portfolio project: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error updating portfolio project: {e}")
+            raise
+    
+    def delete(self, request, program_id, project_id):
+        """Delete portfolio project"""
+        logger.info(f"Deleting portfolio project {project_id} for program {program_id}")
+        try:
+            YelpService.delete_portfolio_project(program_id, project_id)
+            logger.info(f"Portfolio project deleted successfully")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Project not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            logger.error(f"HTTP error deleting portfolio project: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting portfolio project: {e}")
+            raise
+
+
+class PortfolioProjectCreateView(APIView):
+    """Create new portfolio project"""
+    
+    def post(self, request, program_id):
+        """Create a new portfolio project draft"""
+        logger.info(f"Creating new portfolio project for program {program_id}")
+        try:
+            data = YelpService.create_portfolio_project(program_id)
+            logger.info(f"Portfolio project created successfully: {data.get('project_id')}")
+            
+            # Create response using serializer
+            response_serializer = PortfolioProjectCreateResponseSerializer(data=data)
+            if response_serializer.is_valid():
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(data, status=status.HTTP_201_CREATED)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Program not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                try:
+                    error_data = e.response.json()
+                    return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+                except:
+                    return Response(
+                        {"detail": "Invalid program"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            logger.error(f"HTTP error creating portfolio project: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error creating portfolio project: {e}")
+            raise
+
+
+class PortfolioPhotoListView(APIView):
+    """Portfolio photos list view (GET, POST)"""
+    
+    def get(self, request, program_id, project_id):
+        """Get all photos for a portfolio project"""
+        logger.info(f"Getting photos for project {project_id} in program {program_id}")
+        try:
+            data = YelpService.get_portfolio_photos(program_id, project_id)
+            logger.info(f"Portfolio photos retrieved successfully: {len(data)} photos")
+            
+            # Validate and serialize the response
+            serializer = PortfolioPhotoSerializer(data=data, many=True)
+            if serializer.is_valid():
+                return Response(serializer.data)
+            else:
+                # Return raw data if serialization fails
+                return Response(data)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Project not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            logger.error(f"HTTP error getting portfolio photos: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting portfolio photos: {e}")
+            raise
+    
+    def post(self, request, program_id, project_id):
+        """Upload a photo to a portfolio project"""
+        logger.info(f"Uploading photo to project {project_id} in program {program_id}")
+        
+        # Validate the request payload
+        serializer = PortfolioPhotoUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            data = YelpService.upload_portfolio_photo(
+                program_id, project_id, serializer.validated_data
+            )
+            logger.info(f"Portfolio photo uploaded successfully: {data.get('photo_id')}")
+            
+            # Create response using serializer
+            response_serializer = PortfolioPhotoUploadResponseSerializer(data=data)
+            if response_serializer.is_valid():
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(data, status=status.HTTP_201_CREATED)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Project not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            elif e.response.status_code == 400:
+                try:
+                    error_data = e.response.json()
+                    return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+                except:
+                    return Response(
+                        {"detail": "Invalid photo data"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            logger.error(f"HTTP error uploading portfolio photo: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error uploading portfolio photo: {e}")
+            raise
+
+
+class PortfolioPhotoDetailView(APIView):
+    """Portfolio photo detail view (DELETE)"""
+    
+    def delete(self, request, program_id, project_id, photo_id):
+        """Delete a photo from a portfolio project"""
+        logger.info(f"Deleting photo {photo_id} from project {project_id} in program {program_id}")
+        try:
+            YelpService.delete_portfolio_photo(program_id, project_id, photo_id)
+            logger.info(f"Portfolio photo deleted successfully")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                return Response(
+                    {"detail": "Photo not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            logger.error(f"HTTP error deleting portfolio photo: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting portfolio photo: {e}")
+            raise

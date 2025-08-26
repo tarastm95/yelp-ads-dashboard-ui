@@ -16,6 +16,11 @@ from .views import (
     PartnerProgramInfoView,
     ProgramFeaturesView,
     SyncStatusView,
+    # Portfolio API Views
+    PortfolioProjectDetailView,
+    PortfolioProjectCreateView,
+    PortfolioPhotoListView,
+    PortfolioPhotoDetailView,
 )
 
 urlpatterns = [
@@ -39,6 +44,12 @@ urlpatterns = [
     path('reseller/business_programs/<str:business_id>', BusinessProgramsView.as_view()),
     path('reseller/program_info/<str:program_id>', PartnerProgramInfoView.as_view()),
     path('sync/status', SyncStatusView.as_view()),
+
+    # Portfolio API endpoints
+    path('program/<str:program_id>/portfolio/v1', PortfolioProjectCreateView.as_view()),
+    path('program/<str:program_id>/portfolio/<str:project_id>/v1', PortfolioProjectDetailView.as_view()),
+    path('program/<str:program_id>/portfolio/<str:project_id>/photos/v1', PortfolioPhotoListView.as_view()),
+    path('program/<str:program_id>/portfolio/<str:project_id>/photos/<str:photo_id>/v1', PortfolioPhotoDetailView.as_view()),
 
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),

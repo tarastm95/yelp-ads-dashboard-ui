@@ -219,17 +219,61 @@ class YelpService:
 
     @classmethod
     def pause_program(cls, program_id):
+        logger.info(f"🔄 YelpService.pause_program: Starting pause for program_id '{program_id}'")
         url = f'{cls.PARTNER_BASE}/program/{program_id}/pause/v1'
-        resp = requests.post(url, auth=cls._get_partner_auth())
-        resp.raise_for_status()
-        return {'status': resp.status_code}
+        logger.info(f"🌐 YelpService.pause_program: Request URL: {url}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.pause_program: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.pause_program: Making POST request to pause program...")
+            resp = requests.post(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.pause_program: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.pause_program: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.pause_program: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            logger.info(f"✅ YelpService.pause_program: Successfully paused program {program_id}")
+            return {'status': resp.status_code}
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.pause_program: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.pause_program: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.pause_program: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.pause_program: Unexpected error for {program_id}: {e}")
+            raise
 
     @classmethod
     def resume_program(cls, program_id):
+        logger.info(f"🔄 YelpService.resume_program: Starting resume for program_id '{program_id}'")
         url = f'{cls.PARTNER_BASE}/program/{program_id}/resume/v1'
-        resp = requests.post(url, auth=cls._get_partner_auth())
-        resp.raise_for_status()
-        return {'status': resp.status_code}
+        logger.info(f"🌐 YelpService.resume_program: Request URL: {url}")
+        
+        # Логуємо автентифікацію
+        auth_creds = cls._get_partner_auth()
+        logger.info(f"🔐 YelpService.resume_program: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
+        
+        try:
+            logger.info(f"📤 YelpService.resume_program: Making POST request to resume program...")
+            resp = requests.post(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.resume_program: Response status code: {resp.status_code}")
+            logger.info(f"📥 YelpService.resume_program: Response headers: {dict(resp.headers)}")
+            logger.info(f"📥 YelpService.resume_program: Raw response text: {resp.text}")
+            
+            resp.raise_for_status()
+            logger.info(f"✅ YelpService.resume_program: Successfully resumed program {program_id}")
+            return {'status': resp.status_code}
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.resume_program: HTTP Error for {program_id}: {e}")
+            logger.error(f"❌ YelpService.resume_program: Response status: {e.response.status_code}")
+            logger.error(f"❌ YelpService.resume_program: Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.resume_program: Unexpected error for {program_id}: {e}")
+            raise
 
     @classmethod
     def get_program_status(cls, program_id):
@@ -479,13 +523,34 @@ class YelpService:
         url = f'{cls.PARTNER_BASE}/program/{program_id}/features/v1'
         logger.info(f"🌐 YelpService.update_program_features: Request URL: {url}")
         
+        # Витягуємо features контент з wrapper'а (Django serializer надсилає {"features": {...}})
+        # Але Yelp API очікує тільки контент всередині features
+        if 'features' in features_payload:
+            yelp_payload = features_payload['features']
+            logger.info(f"📦 YelpService.update_program_features: Extracted features from wrapper: {yelp_payload}")
+        else:
+            yelp_payload = features_payload
+            logger.info(f"📦 YelpService.update_program_features: No wrapper found, using payload as-is: {yelp_payload}")
+        
         # Логуємо автентифікацію
         auth_creds = cls._get_partner_auth()
         logger.info(f"🔐 YelpService.update_program_features: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
         
         try:
+            # Додаємо явний Content-Type header
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
             logger.info(f"📤 YelpService.update_program_features: Making POST request to Yelp API...")
-            resp = requests.post(url, json=features_payload, auth=auth_creds)
+            logger.info(f"📋 YelpService.update_program_features: Request headers: {headers}")
+            
+            # Логуємо точний JSON що відправляється до Yelp API
+            import json
+            json_data = json.dumps(yelp_payload, ensure_ascii=False, indent=2)
+            logger.info(f"📄 YelpService.update_program_features: Exact JSON being sent to Yelp API: {json_data}")
+            
+            resp = requests.post(url, json=yelp_payload, auth=auth_creds, headers=headers)
             logger.info(f"📥 YelpService.update_program_features: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.update_program_features: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.update_program_features: Raw response text: {resp.text}")
@@ -546,5 +611,211 @@ class YelpService:
             raise
         except Exception as e:
             logger.error(f"❌ YelpService.delete_program_features: Unexpected error for {program_id}: {e}")
+            raise
+
+    # ============= Portfolio API Methods =============
+    
+    @classmethod
+    def get_portfolio_project(cls, program_id, project_id):
+        """Get portfolio project details."""
+        logger.info(f"🎨 YelpService.get_portfolio_project: Getting project '{project_id}' for program '{program_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/v1'
+        logger.info(f"🌐 YelpService.get_portfolio_project: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            logger.info(f"📤 YelpService.get_portfolio_project: Making GET request...")
+            resp = requests.get(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.get_portfolio_project: Response status: {resp.status_code}")
+            logger.info(f"📥 YelpService.get_portfolio_project: Response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.get_portfolio_project: Successfully retrieved project {project_id}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.get_portfolio_project: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.get_portfolio_project: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def update_portfolio_project(cls, program_id, project_id, project_data):
+        """Update an existing portfolio project."""
+        logger.info(f"🎨 YelpService.update_portfolio_project: Updating project '{project_id}' for program '{program_id}'")
+        logger.info(f"📝 YelpService.update_portfolio_project: Project data: {project_data}")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/v1'
+        logger.info(f"🌐 YelpService.update_portfolio_project: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            
+            logger.info(f"📤 YelpService.update_portfolio_project: Making PUT request...")
+            resp = requests.put(url, json=project_data, auth=auth_creds, headers=headers)
+            logger.info(f"📥 YelpService.update_portfolio_project: Response status: {resp.status_code}")
+            logger.info(f"📥 YelpService.update_portfolio_project: Response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.update_portfolio_project: Successfully updated project {project_id}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.update_portfolio_project: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.update_portfolio_project: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def create_portfolio_project(cls, program_id):
+        """Create a new portfolio project draft."""
+        logger.info(f"🎨 YelpService.create_portfolio_project: Creating new project for program '{program_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/v1'
+        logger.info(f"🌐 YelpService.create_portfolio_project: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            logger.info(f"📤 YelpService.create_portfolio_project: Making POST request...")
+            resp = requests.post(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.create_portfolio_project: Response status: {resp.status_code}")
+            logger.info(f"📥 YelpService.create_portfolio_project: Response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.create_portfolio_project: Successfully created project: {data.get('project_id')}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.create_portfolio_project: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.create_portfolio_project: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def delete_portfolio_project(cls, program_id, project_id):
+        """Delete a portfolio project."""
+        logger.info(f"🗑️ YelpService.delete_portfolio_project: Deleting project '{project_id}' for program '{program_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/v1'
+        logger.info(f"🌐 YelpService.delete_portfolio_project: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            logger.info(f"📤 YelpService.delete_portfolio_project: Making DELETE request...")
+            resp = requests.delete(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.delete_portfolio_project: Response status: {resp.status_code}")
+            
+            resp.raise_for_status()
+            logger.info(f"✅ YelpService.delete_portfolio_project: Successfully deleted project {project_id}")
+            return {'status': 'deleted'}
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.delete_portfolio_project: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.delete_portfolio_project: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def upload_portfolio_photo(cls, program_id, project_id, photo_data):
+        """Upload a photo to a portfolio project."""
+        logger.info(f"📸 YelpService.upload_portfolio_photo: Uploading photo for project '{project_id}' in program '{program_id}'")
+        logger.info(f"📝 YelpService.upload_portfolio_photo: Photo data: {photo_data}")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/photos/v1'
+        logger.info(f"🌐 YelpService.upload_portfolio_photo: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            
+            logger.info(f"📤 YelpService.upload_portfolio_photo: Making POST request...")
+            resp = requests.post(url, json=photo_data, auth=auth_creds, headers=headers)
+            logger.info(f"📥 YelpService.upload_portfolio_photo: Response status: {resp.status_code}")
+            logger.info(f"📥 YelpService.upload_portfolio_photo: Response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.upload_portfolio_photo: Successfully uploaded photo: {data.get('photo_id')}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.upload_portfolio_photo: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.upload_portfolio_photo: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def get_portfolio_photos(cls, program_id, project_id):
+        """Get all photos for a portfolio project."""
+        logger.info(f"📸 YelpService.get_portfolio_photos: Getting photos for project '{project_id}' in program '{program_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/photos/v1'
+        logger.info(f"🌐 YelpService.get_portfolio_photos: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            logger.info(f"📤 YelpService.get_portfolio_photos: Making GET request...")
+            resp = requests.get(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.get_portfolio_photos: Response status: {resp.status_code}")
+            logger.info(f"📥 YelpService.get_portfolio_photos: Response text: {resp.text}")
+            
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"✅ YelpService.get_portfolio_photos: Successfully retrieved {len(data)} photos")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.get_portfolio_photos: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.get_portfolio_photos: Unexpected error: {e}")
+            raise
+
+    @classmethod
+    def delete_portfolio_photo(cls, program_id, project_id, photo_id):
+        """Delete a photo from a portfolio project."""
+        logger.info(f"🗑️ YelpService.delete_portfolio_photo: Deleting photo '{photo_id}' from project '{project_id}'")
+        url = f'{cls.PARTNER_BASE}/program/{program_id}/portfolio/{project_id}/photos/{photo_id}/v1'
+        logger.info(f"🌐 YelpService.delete_portfolio_photo: Request URL: {url}")
+        
+        auth_creds = cls._get_partner_auth()
+        
+        try:
+            logger.info(f"📤 YelpService.delete_portfolio_photo: Making DELETE request...")
+            resp = requests.delete(url, auth=auth_creds)
+            logger.info(f"📥 YelpService.delete_portfolio_photo: Response status: {resp.status_code}")
+            
+            resp.raise_for_status()
+            logger.info(f"✅ YelpService.delete_portfolio_photo: Successfully deleted photo {photo_id}")
+            return {'status': 'deleted'}
+        except requests.HTTPError as e:
+            logger.error(f"❌ YelpService.delete_portfolio_photo: HTTP Error: {e}")
+            logger.error(f"❌ Response status: {e.response.status_code}")
+            logger.error(f"❌ Response text: {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ YelpService.delete_portfolio_photo: Unexpected error: {e}")
             raise
 

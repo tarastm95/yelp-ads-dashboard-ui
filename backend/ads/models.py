@@ -130,3 +130,116 @@ class ProgramSyncLog(models.Model):
     
     def __str__(self):
         return f"{self.sync_type} sync {self.started_at} - {self.status}"
+
+
+class ProgramFeature(models.Model):
+    """Store program feature configurations"""
+    
+    FEATURE_TYPES = [
+        ('LINK_TRACKING', 'Link Tracking'),
+        ('NEGATIVE_KEYWORD_TARGETING', 'Negative Keyword Targeting'),
+        ('STRICT_CATEGORY_TARGETING', 'Strict Category Targeting'),
+        ('AD_SCHEDULING', 'Ad Scheduling'),
+        ('CUSTOM_LOCATION_TARGETING', 'Custom Location Targeting'),
+        ('AD_GOAL', 'Ad Goal'),
+        ('CALL_TRACKING', 'Call Tracking'),
+        ('BUSINESS_HIGHLIGHTS', 'Business Highlights'),
+        ('VERIFIED_LICENSE', 'Verified License'),
+        ('CUSTOM_RADIUS_TARGETING', 'Custom Radius Targeting'),
+        ('CUSTOM_AD_TEXT', 'Custom Ad Text'),
+        ('CUSTOM_AD_PHOTO', 'Custom Ad Photo'),
+        ('BUSINESS_LOGO', 'Business Logo'),
+        ('YELP_PORTFOLIO', 'Yelp Portfolio'),
+    ]
+    
+    program_id = models.CharField(max_length=100, db_index=True)
+    feature_type = models.CharField(max_length=50, choices=FEATURE_TYPES)
+    configuration = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['program_id', 'feature_type']
+        indexes = [
+            models.Index(fields=['program_id']),
+            models.Index(fields=['feature_type']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.program_id} - {self.feature_type}"
+
+
+class PortfolioProject(models.Model):
+    """Portfolio projects for Yelp programs"""
+    
+    CALL_TO_ACTION_CHOICES = [
+        ('WEBSITE', 'Website'),
+        ('CALL', 'Call'),
+        ('BOOK_APPOINTMENT', 'Book Appointment'),
+        ('GET_QUOTE', 'Get Quote'),
+        ('LEARN_MORE', 'Learn More'),
+    ]
+    
+    COST_CHOICES = [
+        ('UNDER_100', 'Under $100'),
+        ('100_500', '$100 - $500'),
+        ('500_1000', '$500 - $1,000'),
+        ('1000_5000', '$1,000 - $5,000'),
+        ('5000_PLUS', '$5,000+'),
+    ]
+    
+    DURATION_CHOICES = [
+        ('UNDER_1_WEEK', 'Under 1 week'),
+        ('1_2_WEEKS', '1-2 weeks'),
+        ('2_4_WEEKS', '2-4 weeks'),
+        ('1_3_MONTHS', '1-3 months'),
+        ('3_PLUS_MONTHS', '3+ months'),
+    ]
+    
+    project_id = models.CharField(max_length=100, unique=True, db_index=True)
+    program_id = models.CharField(max_length=100, db_index=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    call_to_action = models.CharField(max_length=50, choices=CALL_TO_ACTION_CHOICES)
+    service_offerings = models.JSONField(default=list, blank=True)  # Up to 4 offerings
+    cost = models.CharField(max_length=20, choices=COST_CHOICES, null=True, blank=True)
+    duration = models.CharField(max_length=20, choices=DURATION_CHOICES, null=True, blank=True)
+    completion_year = models.IntegerField(null=True, blank=True)
+    completion_month = models.IntegerField(null=True, blank=True)
+    published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['program_id']),
+            models.Index(fields=['project_id']),
+            models.Index(fields=['published']),
+        ]
+    
+    def __str__(self):
+        return f"{self.project_id} - {self.name}"
+
+
+class PortfolioPhoto(models.Model):
+    """Photos for portfolio projects"""
+    
+    photo_id = models.CharField(max_length=100, unique=True, db_index=True)
+    project = models.ForeignKey(PortfolioProject, on_delete=models.CASCADE, related_name='photos')
+    photo_url = models.URLField(null=True, blank=True)
+    biz_photo_id = models.CharField(max_length=100, null=True, blank=True)
+    caption = models.TextField(blank=True)
+    is_before_photo = models.BooleanField(default=False)
+    is_cover_photo = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['project']),
+            models.Index(fields=['is_cover_photo']),
+        ]
+    
+    def __str__(self):
+        return f"{self.photo_id} - {self.project.name}"

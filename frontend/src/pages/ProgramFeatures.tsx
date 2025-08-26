@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import FeatureEditorManager, { FeatureType } from '../components/FeatureEditors/FeatureEditorManager';
 import { 
   useGetProgramFeaturesQuery, 
   useUpdateProgramFeaturesMutation,
@@ -12,7 +13,7 @@ import {
 import { 
   Loader2, Settings, Save, Trash2, Info, 
   Globe, Phone, Camera, MapPin, Clock, 
-  Target, Shield, Star, Award, Link
+  Target, Shield, Star, Award, Link, FolderOpen
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -189,8 +190,11 @@ const FEATURE_DESCRIPTIONS = {
 
 const ProgramFeatures: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
+  const navigate = useNavigate();
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [selectedDeactivatedFeatures, setSelectedDeactivatedFeatures] = useState<string[]>([]);
+  const [editingFeature, setEditingFeature] = useState<FeatureType | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
   
   const { data, isLoading, error, refetch } = useGetProgramFeaturesQuery(programId!, {
     skip: !programId,
@@ -240,14 +244,16 @@ const ProgramFeatures: React.FC = () => {
 
   const handleTestUpdate = async () => {
     try {
+      // Спробуємо найпростіший payload з правильним wrapper
       const testFeatures = {
         features: {
           CUSTOM_RADIUS_TARGETING: {
-            feature_type: 'CUSTOM_RADIUS_TARGETING',
             custom_radius: 25,
           },
         },
       };
+
+      console.log('🧪 Test payload:', testFeatures);
 
       await updateFeatures({
         program_id: programId,
@@ -321,31 +327,88 @@ const ProgramFeatures: React.FC = () => {
     );
   };
 
-  // Дефолтні значення для активації функцій
+  // Дефолтні значення для активації функцій згідно з Yelp API специфікацією
   const getDefaultFeatureValue = (featureType: string) => {
     switch (featureType) {
       case 'CUSTOM_RADIUS_TARGETING':
-        return { feature_type: 'CUSTOM_RADIUS_TARGETING', custom_radius: 25 };
+        // Радіус в милях (1-60), null означає неактивна
+        return { custom_radius: 25 };
+        
       case 'CALL_TRACKING':
-        return { feature_type: 'CALL_TRACKING', enabled: true, businesses: [] };
+        // CALL_TRACKING вимагає business_id і metered_phone_number (string|null)
+        const existingBusinessId = features.CALL_TRACKING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
+        return { 
+          enabled: true, 
+          businesses: [{ 
+            business_id: existingBusinessId,
+            metered_phone_number: null // За специфікацією це обов'язкове поле
+          }] 
+        };
+        
       case 'LINK_TRACKING':
-        return { feature_type: 'LINK_TRACKING', website: 'https://example.com/track', menu: null, call_to_action: null };
+        // Всі поля мають бути null для деактивації, або містити значення
+        return { 
+          website: 'https://example.com/track',
+          menu: null,
+          call_to_action: null
+        };
+        
       case 'CUSTOM_LOCATION_TARGETING':
-        return { feature_type: 'CUSTOM_LOCATION_TARGETING', businesses: [] };
+        // Вимагає business_id і локації (до 25 на бізнес, тільки США)
+        const existingBusinessIdForLocation = features.CUSTOM_LOCATION_TARGETING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
+        return { 
+          businesses: [{ 
+            business_id: existingBusinessIdForLocation, 
+            locations: ['New York, NY'] 
+          }] 
+        };
+        
       case 'NEGATIVE_KEYWORD_TARGETING':
-        return { feature_type: 'NEGATIVE_KEYWORD_TARGETING', blocked_keywords: ['spam', 'fake'] };
+        // blocked_keywords порожній = деактивована функція
+        return { 
+          blocked_keywords: ['spam', 'fake'],
+          suggested_keywords: [] // Тільки для читання, ігнорується в POST
+        };
+        
       case 'STRICT_CATEGORY_TARGETING':
-        return { feature_type: 'STRICT_CATEGORY_TARGETING', enabled: true };
+        return { enabled: true };
+        
       case 'AD_SCHEDULING':
-        return { feature_type: 'AD_SCHEDULING', uses_opening_hours: true };
+        return { uses_opening_hours: true };
+        
       case 'CUSTOM_AD_TEXT':
-        return { feature_type: 'CUSTOM_AD_TEXT', custom_text: 'Активована функція' };
-      case 'CUSTOM_AD_PHOTO':
-        return { feature_type: 'CUSTOM_AD_PHOTO', custom_photo_id: 'default_photo_id' };
+        // Тільки одне поле може бути встановлене, мін. 15 символів, макс 1500
+        return { 
+          custom_text: 'Custom promotional text for this business',
+          custom_review_id: null
+        };
+        
       case 'AD_GOAL':
-        return { feature_type: 'AD_GOAL', ad_goal: 'WEBSITE_CLICKS' };
+        // Має бути одним з: DEFAULT, CALLS, WEBSITE_CLICKS
+        return { ad_goal: 'WEBSITE_CLICKS' };
+        
+      case 'BUSINESS_HIGHLIGHTS':
+        // POST використовує business_highlights, а не active_business_highlights
+        return { business_highlights: [] }; // Треба реальні значення
+        
+      case 'VERIFIED_LICENSE':
+        // Не можна відправляти порожній список, пропустимо
+        return null; // Буде відфільтровано
+        
+      case 'CUSTOM_AD_PHOTO':
+        // Потрібен реальний photo_id
+        return null; // Буде відфільтровано
+        
+      case 'BUSINESS_LOGO':
+        // Потрібен публічний URL зображення
+        return null; // Буде відфільтровано
+        
+      case 'YELP_PORTFOLIO':
+        // Потрібні реальні project_id
+        return null; // Буде відфільтровано
+        
       default:
-        return { feature_type: featureType };
+        return null; // Буде відфільтровано
     }
   };
 
@@ -365,10 +428,23 @@ const ProgramFeatures: React.FC = () => {
       // Створюємо payload з дефолтними значеннями для активації
       const featuresPayload = {
         features: selectedDeactivatedFeatures.reduce((acc, featureType) => {
-          acc[featureType] = getDefaultFeatureValue(featureType);
+          const defaultValue = getDefaultFeatureValue(featureType);
+          if (defaultValue !== null) {
+            acc[featureType] = defaultValue;
+          }
           return acc;
         }, {} as any)
       };
+
+      // Перевіряємо чи є валідні функції для активації
+      if (Object.keys(featuresPayload.features).length === 0) {
+        toast({
+          title: 'Неможливо активувати',
+          description: 'Вибрані функції потребують додаткових даних (фото ID, URL, тощо)',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       console.log('📝 Activation payload:', featuresPayload);
 
@@ -392,6 +468,41 @@ const ProgramFeatures: React.FC = () => {
       toast({
         title: 'Помилка активації',
         description: error.data?.detail || 'Не вдалося активувати функції',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditFeature = (featureType: string) => {
+    setEditingFeature(featureType as FeatureType);
+    setShowEditor(true);
+  };
+
+  const handleSaveFeature = async (featureType: FeatureType, featureData: any) => {
+    try {
+      console.log('🔧 Saving feature:', featureType, 'with data:', featureData);
+      
+      await updateFeatures({
+        program_id: programId!,
+        features: {
+          features: {
+            [featureType]: featureData
+          }
+        }
+      }).unwrap();
+
+      setShowEditor(false);
+      setEditingFeature(null);
+
+      toast({
+        title: 'Функцію оновлено',
+        description: `Налаштування ${featureType.replace(/_/g, ' ')} збережено успішно`,
+      });
+    } catch (error: any) {
+      console.error('❌ Save feature error:', error);
+      toast({
+        title: 'Помилка збереження',
+        description: error.data?.detail || 'Не вдалося зберегти налаштування',
         variant: 'destructive',
       });
     }
@@ -421,6 +532,7 @@ const ProgramFeatures: React.FC = () => {
       case 'CUSTOM_AD_PHOTO':
         return !!featureData.custom_photo_id;
       case 'AD_GOAL':
+        // AD_GOAL завжди присутня, активна якщо не DEFAULT
         return featureData.ad_goal !== 'DEFAULT';
       case 'BUSINESS_LOGO':
         return !!featureData.business_logo_url;
@@ -510,6 +622,39 @@ const ProgramFeatures: React.FC = () => {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Feature Action Buttons */}
+          <div className="mt-4 space-y-2">
+            {/* Edit Feature Button */}
+            {isPresent && (
+              <Button 
+                onClick={() => handleEditFeature(featureType)}
+                className="w-full flex items-center gap-2"
+                variant="outline"
+              >
+                <Settings className="w-4 h-4" />
+                {isActive ? 'Налаштувати фічу' : 'Налаштувати та активувати'}
+              </Button>
+            )}
+
+            {/* Special Portfolio Management Button */}
+            {featureType === 'YELP_PORTFOLIO' && (
+              <Button 
+                onClick={() => navigate(`/portfolio/${programId}`)}
+                className="w-full flex items-center gap-2"
+                variant="outline"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Керувати портфоліо
+              </Button>
+            )}
+          </div>
+
+          {featureType === 'YELP_PORTFOLIO' && (
+            <p className="text-xs text-gray-500 mt-1 text-center">
+              Створюйте, редагуйте проєкти та завантажуйте фото
+            </p>
           )}
 
           {isPresent && featureData && (
@@ -777,6 +922,19 @@ const ProgramFeatures: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Feature Editor Dialog */}
+      <FeatureEditorManager
+        featureType={editingFeature}
+        featureData={editingFeature ? features?.[editingFeature] : undefined}
+        isOpen={showEditor}
+        onClose={() => {
+          setShowEditor(false);
+          setEditingFeature(null);
+        }}
+        onSave={handleSaveFeature}
+        isLoading={isUpdating}
+      />
     </div>
   );
 };

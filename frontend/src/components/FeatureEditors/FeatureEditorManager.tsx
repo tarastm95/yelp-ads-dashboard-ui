@@ -1,0 +1,295 @@
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import LinkTrackingEditor from './LinkTrackingEditor';
+import AdGoalEditor from './AdGoalEditor';
+import NegativeKeywordEditor from './NegativeKeywordEditor';
+import CustomRadiusEditor from './CustomRadiusEditor';
+import CustomAdTextEditor from './CustomAdTextEditor';
+import CustomLocationEditor from './CustomLocationEditor';
+import CallTrackingEditor from './CallTrackingEditor';
+import BusinessLogoEditor from './BusinessLogoEditor';
+import CustomAdPhotoEditor from './CustomAdPhotoEditor';
+import YelpPortfolioEditor from './YelpPortfolioEditor';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
+
+export type FeatureType = 
+  | 'LINK_TRACKING'
+  | 'AD_GOAL'
+  | 'NEGATIVE_KEYWORD_TARGETING'
+  | 'CUSTOM_RADIUS_TARGETING'
+  | 'CUSTOM_AD_TEXT'
+  | 'STRICT_CATEGORY_TARGETING'
+  | 'AD_SCHEDULING'
+  | 'CUSTOM_LOCATION_TARGETING'
+  | 'CALL_TRACKING'
+  | 'BUSINESS_HIGHLIGHTS'
+  | 'VERIFIED_LICENSE'
+  | 'CUSTOM_AD_PHOTO'
+  | 'BUSINESS_LOGO'
+  | 'YELP_PORTFOLIO';
+
+interface FeatureEditorManagerProps {
+  featureType: FeatureType | null;
+  featureData?: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (featureType: FeatureType, data: any) => void;
+  isLoading?: boolean;
+}
+
+const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
+  featureType,
+  featureData,
+  isOpen,
+  onClose,
+  onSave,
+  isLoading = false
+}) => {
+  const handleSave = (data: any) => {
+    if (featureType) {
+      onSave(featureType, data);
+    }
+  };
+
+  const renderEditor = () => {
+    if (!featureType) return null;
+
+    switch (featureType) {
+      case 'LINK_TRACKING':
+        return (
+          <LinkTrackingEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'AD_GOAL':
+        return (
+          <AdGoalEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'NEGATIVE_KEYWORD_TARGETING':
+        return (
+          <NegativeKeywordEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'CUSTOM_RADIUS_TARGETING':
+        return (
+          <CustomRadiusEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'CUSTOM_AD_TEXT':
+        return (
+          <CustomAdTextEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'CUSTOM_LOCATION_TARGETING':
+        return (
+          <CustomLocationEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'CALL_TRACKING':
+        return (
+          <CallTrackingEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'BUSINESS_LOGO':
+        return (
+          <BusinessLogoEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'CUSTOM_AD_PHOTO':
+        return (
+          <CustomAdPhotoEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'YELP_PORTFOLIO':
+        return (
+          <YelpPortfolioEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      // Для простих фіч створимо простий редактор
+      case 'STRICT_CATEGORY_TARGETING':
+        return (
+          <SimpleToggleEditor
+            featureType={featureType}
+            title="Точне таргетування категорій"
+            description="Показувати рекламу тільки в точній категорії вашого бізнесу"
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'AD_SCHEDULING':
+        return (
+          <SimpleToggleEditor
+            featureType={featureType}
+            title="Планування реклами"
+            description="Показувати рекламу тільки в години роботи бізнесу"
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+            fieldName="uses_opening_hours"
+          />
+        );
+
+      default:
+        return (
+          <Card className="w-full max-w-2xl">
+            <CardContent className="p-6 text-center">
+              <AlertTriangle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Редактор в розробці</h3>
+              <p className="text-gray-600 mb-4">
+                Графічний редактор для {featureType} ще розробляється.
+              </p>
+              <p className="text-sm text-gray-500">
+                Поки що ви можете налаштувати цю фічу через JSON-формат в головному інтерфейсі.
+              </p>
+            </CardContent>
+          </Card>
+        );
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-fit max-h-[90vh] overflow-y-auto" aria-describedby="feature-editor-description">
+        <DialogHeader>
+          <DialogTitle>
+            Налаштування фічі: {featureType?.replace(/_/g, ' ')}
+          </DialogTitle>
+        </DialogHeader>
+        <div id="feature-editor-description" className="sr-only">
+          Графічний редактор для налаштування програмних функцій Yelp Ads
+        </div>
+        <div className="mt-4">
+          {renderEditor()}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Простий редактор для toggle-фіч
+interface SimpleToggleEditorProps {
+  featureType: string;
+  title: string;
+  description: string;
+  data?: any;
+  onSave: (data: any) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+  fieldName?: string;
+}
+
+const SimpleToggleEditor: React.FC<SimpleToggleEditorProps> = ({
+  featureType,
+  title,
+  description,
+  data,
+  onSave,
+  onCancel,
+  isLoading = false,
+  fieldName = 'enabled'
+}) => {
+  const isEnabled = data?.[fieldName] || false;
+
+  const handleToggle = (enabled: boolean) => {
+    onSave({ [fieldName]: enabled });
+  };
+
+  return (
+    <Card className="w-full max-w-2xl">
+      <CardContent className="p-6">
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-gray-600 mb-6">{description}</p>
+        
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="toggle"
+              checked={isEnabled}
+              onChange={(e) => handleToggle(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="toggle" className="font-medium">
+              {isEnabled ? 'Увімкнено' : 'Вимкнено'}
+            </label>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="button"
+              onClick={() => handleToggle(!isEnabled)}
+              disabled={isLoading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isLoading ? '⏳ Збереження...' : `${isEnabled ? 'Вимкнути' : 'Увімкнути'} фічу`}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Скасувати
+            </button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default FeatureEditorManager;

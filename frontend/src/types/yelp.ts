@@ -118,6 +118,10 @@ export interface BusinessProgram {
   program_status: string;
   program_type: string;
   start_date: string;
+  businesses?: Array<{
+    yelp_business_id: string;
+    partner_business_id: string | null;
+  }>;
   program_metrics?: {
     budget: number;
     currency: string;

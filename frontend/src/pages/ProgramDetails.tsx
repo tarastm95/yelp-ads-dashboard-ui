@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGetProgramInfoQuery, usePauseProgramMutation, useResumeProgramMutation } from '../store/api/yelpApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Settings, FolderOpen, Camera, BarChart3 } from 'lucide-react';
 
 const ProgramDetails: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
@@ -70,9 +71,37 @@ const ProgramDetails: React.FC = () => {
             <p className="text-sm text-muted-foreground">Изменено</p>
             <p className="text-sm">{new Date(program.modified_date).toLocaleDateString()}</p>
           </div>
-          <div className="flex gap-2 pt-4">
-            <Button variant="outline" onClick={() => pauseProgram(program.program_id)}>Пауза</Button>
-            <Button variant="outline" onClick={() => resumeProgram(program.program_id)}>Возобновить</Button>
+          <div className="space-y-4 pt-4">
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate(`/program-features/${program.program_id}`)}
+                className="flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Функції програми
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate(`/portfolio/${program.program_id}`)}
+                className="flex items-center gap-2"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Портфоліо
+              </Button>
+            </div>
+            
+            {/* Program Controls */}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => pauseProgram(program.program_id)}>
+                Пауза
+              </Button>
+              <Button variant="outline" onClick={() => resumeProgram(program.program_id)}>
+                Возобновить
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

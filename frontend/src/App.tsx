@@ -11,12 +11,13 @@ import CreateProgram from './components/CreateProgram';
 import EditProgram from './components/EditProgram';
 import ProgramsList from './components/ProgramsList';
 import JobStatusMonitor from './components/JobStatusMonitor';
-import ApiTestPanel from './components/ApiTestPanel';
+
 import ProgramDetails from './pages/ProgramDetails';
 import BusinessProgramsInfo from './pages/BusinessProgramsInfo';
 import PartnerProgramInfo from './pages/PartnerProgramInfo';
 import ProgramStatus from './pages/ProgramStatus';
 import ProgramFeatures from './pages/ProgramFeatures';
+import PortfolioManager from './pages/PortfolioManager';
 import EditAdvancedProgram from './pages/EditAdvancedProgram';
 import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
@@ -40,9 +41,10 @@ const App = () => (
             <Route path="program-info/:programId" element={<PartnerProgramInfo />} />
             <Route path="program-status/:programId" element={<ProgramStatus />} />
             <Route path="program-features/:programId" element={<ProgramFeatures />} />
+            <Route path="portfolio/:programId" element={<PortfolioManager />} />
             <Route path="business-programs/:businessId" element={<BusinessProgramsInfo />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
-            <Route path="api-test" element={<ApiTestPanel />} />
+
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

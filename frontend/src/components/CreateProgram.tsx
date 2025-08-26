@@ -4,7 +4,7 @@ import { useCreateProgramMutation } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TEST_BUSINESS_IDS } from '@/constants/testData';
+
 import {
   Select,
   SelectTrigger,
@@ -133,21 +133,6 @@ const CreateProgram: React.FC = () => {
               placeholder="Введите зашифрованный business ID"
               required
             />
-            <div className="flex gap-2 mt-2">
-              <p className="text-sm text-gray-600">Тестові IDs:</p>
-              {TEST_BUSINESS_IDS.map((id, index) => (
-                <Button
-                  key={id}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleChange('business_id', id)}
-                  className="text-xs"
-                >
-                  Test #{index + 1}
-                </Button>
-              ))}
-            </div>
           </div>
 
           <div className="space-y-2">

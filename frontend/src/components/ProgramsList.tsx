@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   useGetProgramsQuery, 
   useTerminateProgramMutation,
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Search, X, Settings } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Search, X, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 
@@ -20,13 +20,105 @@ const ProgramsList: React.FC = () => {
   const [searchInput, setSearchInput] = useState(''); // Те що в полі вводу
   const [activeSearch, setActiveSearch] = useState(''); // Активний пошуковий запит
   const [isSearchMode, setIsSearchMode] = useState(false); // Чи зараз режим пошуку
+  const [isChangingPage, setIsChangingPage] = useState(false); // Стан переключення сторінки
+  
+  // Створюємо унікальний ключ для примусового оновлення
+  const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  
+  // Стан для швидкого переходу на сторінку
+  const [jumpToPage, setJumpToPage] = useState('');
+
+  // Функція для генерації номерів сторінок з еліпсисом
+  const generatePageNumbers = (currentPage: number, totalPages: number) => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 7; // Максимум видимих сторінок
+    
+    if (totalPages <= maxVisiblePages) {
+      // Якщо сторінок мало, показуємо всі
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Завжди показуємо першу сторінку
+      pages.push(1);
+      
+      // Визначаємо діапазон навколо поточної сторінки
+      let startPage = Math.max(2, currentPage - 2);
+      let endPage = Math.min(totalPages - 1, currentPage + 2);
+      
+      // Додаємо еліпсис після першої сторінки, якщо потрібно
+      if (startPage > 2) {
+        pages.push('...');
+      }
+      
+      // Додаємо сторінки навколо поточної
+      for (let i = startPage; i <= endPage; i++) {
+        if (i !== 1 && i !== totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      // Додаємо еліпсис перед останньою сторінкою, якщо потрібно
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+      
+      // Завжди показуємо останню сторінку
+      if (totalPages > 1) {
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
+  // Функція для переходу на сторінку
+  const goToPage = (page: number) => {
+    const newOffset = (page - 1) * limit;
+    setIsChangingPage(true);
+    setOffset(newOffset);
+    setForceRefreshKey(prev => prev + 1);
+  };
+
+  // Функція для швидкого переходу на сторінку
+  const handleJumpToPage = () => {
+    const pageNumber = parseInt(jumpToPage);
+    const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
+    
+    if (pageNumber && pageNumber >= 1 && pageNumber <= totalPages) {
+      goToPage(pageNumber);
+      setJumpToPage('');
+    }
+  };
   
   // Звичайні програми або пошук
   const { data, isLoading, error, refetch } = useGetProgramsQuery({ 
     offset: isSearchMode ? 0 : offset, 
     limit: isSearchMode ? 40 : limit, // Максимум 40 записів для пошуку
-    program_status: isSearchMode ? 'ALL' : programStatus 
+    program_status: isSearchMode ? 'ALL' : programStatus,
+    // Додаємо ключ для примусового оновлення
+    _forceKey: forceRefreshKey
   });
+
+  // Скидаємо стан переключення сторінки коли дані завантажилися або є помилка
+  useEffect(() => {
+    if (!isLoading) {
+      setIsChangingPage(false);
+    }
+  }, [isLoading]);
+
+  // Додатковий захист - скидаємо стан через таймаут якщо щось пішло не так
+  useEffect(() => {
+    if (isChangingPage) {
+      const timeoutId = setTimeout(() => {
+        setIsChangingPage(false);
+      }, 10000); // 10 секунд максимум
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [isChangingPage]);
   
   // Фільтруємо програми за активним пошуковим запитом
   const allPrograms = data?.programs || [];
@@ -124,7 +216,8 @@ const ProgramsList: React.FC = () => {
     );
   };
 
-  if (isLoading) {
+  // Показуємо основний лоадер тільки при першому завантаженні (не при переключенні сторінок)
+  if (isLoading && !isChangingPage) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -215,8 +308,11 @@ const ProgramsList: React.FC = () => {
               <select 
                 value={programStatus} 
                 onChange={(e) => {
+                  setIsChangingPage(true);
                   setProgramStatus(e.target.value);
                   setOffset(0); // Сброс к первой странице
+                  // Примусово оновлюємо дані через forceKey
+                  setForceRefreshKey(prev => prev + 1);
                 }}
                 className="ml-2 border rounded px-2 py-1"
               >
@@ -227,28 +323,8 @@ const ProgramsList: React.FC = () => {
                 <option value="ALL">ALL</option>
               </select>
             </div>
-            <div>
-              <label className="text-sm font-medium">На странице:</label>
-              <select 
-                value={limit} 
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setOffset(0); // Сброс к первой странице
-                }}
-                className="ml-2 border rounded px-2 py-1"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
+
           </div>
-          
-          {data?.total_count && (
-            <div className="text-sm text-gray-600">
-              Показано: {allPrograms.length} из {data.total_count}
-            </div>
-          )}
         </div>
       )}
 
@@ -265,7 +341,24 @@ const ProgramsList: React.FC = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Список программ */}
+          {/* Показуємо лоадер замість списку під час переключення сторінки */}
+          {(isLoading || isChangingPage) ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {isChangingPage ? 'Переключение страницы...' : 'Загрузка программ...'}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {isChangingPage 
+                    ? `Загружаем страницу ${Math.floor(offset / limit) + 1}...` 
+                    : 'Пожалуйста, подождите...'
+                  }
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Список программ */
           <div className="grid gap-4">
             {programs.map((program, index) => (
               <Card key={program.program_id || `program-${index}`}>
@@ -437,30 +530,201 @@ const ProgramsList: React.FC = () => {
               </Card>
             ))}
           </div>
+          )}
 
-          {/* Пагинация - только если не в режиме поиска */}
-          {!isSearchMode && (
-            <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
+          {/* Современная пагинация с номерами страниц */}
+          {!isSearchMode && !(isLoading || isChangingPage) && data?.total_count && (
+            <div className="flex flex-col items-center space-y-4 bg-gray-50 p-4 rounded">
+              {/* Информация о результатах и быстрая смена количества на странице */}
+              <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
+                <div className="text-sm text-gray-600 text-center sm:text-left">
+                  Показано {programs.length} из {data.total_count} программ
+                  <span className="hidden sm:inline"> (страница {Math.floor(offset / limit) + 1} из {Math.ceil(data.total_count / limit)})</span>
+                </div>
+                
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-gray-600">На странице:</span>
+                  {[10, 20, 50].map((pageSize) => (
+                    <Button
+                      key={pageSize}
+                      variant={limit === pageSize ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setIsChangingPage(true);
+                        setLimit(pageSize);
+                        setOffset(0);
+                        setForceRefreshKey(prev => prev + 1);
+                      }}
+                      className="h-7 px-2 text-xs"
+                    >
+                      {pageSize}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Индикатор прогресса пагинации */}
+              {(() => {
+                const currentPage = Math.floor(offset / limit) + 1;
+                const totalPages = Math.ceil(data.total_count / limit);
+                const progress = (currentPage / totalPages) * 100;
+                
+                if (totalPages > 1) {
+                  return (
+                    <div className="w-full max-w-md">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Страница {currentPage}</span>
+                        <span>из {totalPages}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
+              {/* Пагинация */}
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                {(() => {
+                  const currentPage = Math.floor(offset / limit) + 1;
+                  const totalPages = Math.ceil(data.total_count / limit);
+                  
+                  if (totalPages <= 1) return null;
+                  
+                  return (
+                    <>
+                      {/* Первая страница */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(1)}
+                        disabled={currentPage === 1}
+                        className="px-2"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      {/* Предыдущая страница */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      {/* Быстрый переход -5 страниц (только на десктопе и если есть много страниц) */}
+                      {totalPages > 10 && currentPage > 6 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => goToPage(Math.max(1, currentPage - 5))}
+                          className="px-2 text-xs hidden sm:inline-flex"
+                          title="На 5 страниц назад"
+                        >
+                          -5
+                        </Button>
+                      )}
+                      
+                      {/* Номера страниц */}
+                      {generatePageNumbers(currentPage, totalPages).map((page, index) => (
+                        <div key={index}>
+                          {page === '...' ? (
+                            <span className="px-3 py-1 text-gray-500">...</span>
+                          ) : (
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(page as number)}
+                              className="min-w-[2.5rem]"
+                            >
+                              {page}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {/* Быстрый переход +5 страниц (только на десктопе и если есть много страниц) */}
+                      {totalPages > 10 && currentPage < totalPages - 5 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => goToPage(Math.min(totalPages, currentPage + 5))}
+                          className="px-2 text-xs hidden sm:inline-flex"
+                          title="На 5 страниц вперед"
+                        >
+                          +5
+                        </Button>
+                      )}
+                      
+                      {/* Следующая страница */}
               <Button
                 variant="outline"
-                onClick={() => setOffset(Math.max(0, offset - limit))}
-                disabled={offset === 0}
-              >
-                Предыдущая страница
+                        size="sm"
+                        onClick={() => goToPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-2"
+                      >
+                        <ChevronRight className="h-4 w-4" />
               </Button>
               
-              <span className="text-sm text-gray-600">
-                Страница {Math.floor(offset / limit) + 1}
-                {data?.total_count && ` из ${Math.ceil(data.total_count / limit)}`}
-              </span>
+                      {/* Последняя страница */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-2"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </>
+                  );
+                })()}
+              </div>
               
+                            {/* Швидкий перехід на сторінку */}
+              {(() => {
+                const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
+                if (totalPages > 10) {
+                  return (
+                    <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2 text-sm">
+                      <span className="text-gray-600">Перейти на страницу:</span>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={totalPages}
+                          value={jumpToPage}
+                          onChange={(e) => setJumpToPage(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleJumpToPage();
+                            }
+                          }}
+                          className="w-20 h-8 text-center"
+                          placeholder="№"
+                        />
               <Button
-                variant="outline"
-                onClick={() => setOffset(offset + limit)}
-                disabled={programs.length < limit}
-              >
-                Следующая страница
+                          size="sm"
+                          onClick={handleJumpToPage}
+                          disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
+                        >
+                          Перейти
               </Button>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </div>

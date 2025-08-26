@@ -17,6 +17,47 @@ import {
   ProgramFeaturesUpdateRequest,
 } from '../../types/yelp';
 
+// Portfolio API types
+export interface PortfolioProject {
+  project_id: string;
+  name: string;
+  description: string;
+  call_to_action: 'WEBSITE' | 'CALL' | 'BOOK_APPOINTMENT' | 'GET_QUOTE' | 'LEARN_MORE';
+  service_offerings: string[];
+  cost?: 'UNDER_100' | '100_500' | '500_1000' | '1000_5000' | '5000_PLUS';
+  duration?: 'UNDER_1_WEEK' | '1_2_WEEKS' | '2_4_WEEKS' | '1_3_MONTHS' | '3_PLUS_MONTHS';
+  completion_year?: number;
+  completion_month?: number;
+  published: boolean;
+}
+
+export interface PortfolioPhoto {
+  photo_id: string;
+  photo_url?: string;
+  biz_photo_id?: string;
+  caption: string;
+  is_before_photo: boolean;
+  is_cover_photo: boolean;
+}
+
+export interface PortfolioProjectCreateRequest {
+  name: string;
+  description: string;
+  call_to_action: PortfolioProject['call_to_action'];
+  service_offerings: string[];
+  cost?: PortfolioProject['cost'];
+  duration?: PortfolioProject['duration'];
+  completion_year?: number;
+  completion_month?: number;
+}
+
+export interface PortfolioPhotoUploadRequest {
+  photo_url?: string;
+  biz_photo_id?: string;
+  is_before_photo: boolean;
+  caption: string;
+}
+
 const baseQuery = fetchBaseQuery({
   baseUrl: '/api', // Проксировать через бекенд
   prepareHeaders: (headers, { getState }) => {
@@ -33,7 +74,7 @@ const baseQuery = fetchBaseQuery({
 export const yelpApi = createApi({
   reducerPath: 'yelpApi',
   baseQuery,
-  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures'],
+  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto'],
   endpoints: (builder) => ({
     // 1. Создать новый рекламный продукт
     createProgram: builder.mutation<{ job_id: string }, CreateProgramRequest>({
@@ -87,12 +128,19 @@ export const yelpApi = createApi({
     }),
 
     // 5. Получить информацию о продуктах
-    getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string }>({
-      query: ({ offset = 0, limit = 20, program_status = 'CURRENT' } = {}) => ({
+    getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string; _forceKey?: number }>({
+      query: ({ offset = 0, limit = 20, program_status = 'CURRENT', _forceKey } = {}) => ({
         url: '/reseller/programs',
-        params: { offset, limit, program_status },
+        params: { offset, limit, program_status }, // _forceKey не відправляємо на сервер
       }),
+      // Відключаємо кешування для пагінації - кожен запит має бути свіжим
+      keepUnusedDataFor: 0,
+      // Простіші теги без складної логіки
       providesTags: ['Program'],
+      // Кожен набір параметрів - окремий ключ запиту, включаючи forceKey
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        return `${endpointName}_${queryArgs.offset}_${queryArgs.limit}_${queryArgs.program_status}_${queryArgs._forceKey || 0}`;
+      },
     }),
 
     getProgramInfo: builder.query<Program, string>({
@@ -199,6 +247,95 @@ export const yelpApi = createApi({
         'Program', // Also invalidate program data as features affect program state
       ],
     }),
+
+    // Portfolio API endpoints
+    createPortfolioProject: builder.mutation<{ project_id: string }, string>({
+      query: (program_id) => ({
+        url: `/program/${program_id}/portfolio/v1`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, program_id) => [
+        { type: 'PortfolioProject', id: program_id },
+        'PortfolioProject',
+      ],
+    }),
+
+    getPortfolioProject: builder.query<PortfolioProject, { program_id: string; project_id: string }>({
+      query: ({ program_id, project_id }) => `/program/${program_id}/portfolio/${project_id}/v1`,
+      providesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioProject', id: `${program_id}-${project_id}` },
+        { type: 'PortfolioProject', id: program_id },
+      ],
+    }),
+
+    updatePortfolioProject: builder.mutation<PortfolioProject, { 
+      program_id: string; 
+      project_id: string; 
+      data: PortfolioProjectCreateRequest 
+    }>({
+      query: ({ program_id, project_id, data }) => ({
+        url: `/program/${program_id}/portfolio/${project_id}/v1`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioProject', id: `${program_id}-${project_id}` },
+        { type: 'PortfolioProject', id: program_id },
+        'PortfolioProject',
+      ],
+    }),
+
+    deletePortfolioProject: builder.mutation<void, { program_id: string; project_id: string }>({
+      query: ({ program_id, project_id }) => ({
+        url: `/program/${program_id}/portfolio/${project_id}/v1`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioProject', id: `${program_id}-${project_id}` },
+        { type: 'PortfolioProject', id: program_id },
+        'PortfolioProject',
+        'PortfolioPhoto', // Photos also get deleted
+      ],
+    }),
+
+    getPortfolioPhotos: builder.query<PortfolioPhoto[], { program_id: string; project_id: string }>({
+      query: ({ program_id, project_id }) => `/program/${program_id}/portfolio/${project_id}/photos/v1`,
+      providesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioPhoto', id: `${program_id}-${project_id}` },
+        'PortfolioPhoto',
+      ],
+    }),
+
+    uploadPortfolioPhoto: builder.mutation<{ photo_id: string }, { 
+      program_id: string; 
+      project_id: string; 
+      data: PortfolioPhotoUploadRequest 
+    }>({
+      query: ({ program_id, project_id, data }) => ({
+        url: `/program/${program_id}/portfolio/${project_id}/photos/v1`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioPhoto', id: `${program_id}-${project_id}` },
+        'PortfolioPhoto',
+      ],
+    }),
+
+    deletePortfolioPhoto: builder.mutation<void, { 
+      program_id: string; 
+      project_id: string; 
+      photo_id: string 
+    }>({
+      query: ({ program_id, project_id, photo_id }) => ({
+        url: `/program/${program_id}/portfolio/${project_id}/photos/${photo_id}/v1`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { program_id, project_id }) => [
+        { type: 'PortfolioPhoto', id: `${program_id}-${project_id}` },
+        'PortfolioPhoto',
+      ],
+    }),
   }),
 });
 
@@ -224,4 +361,12 @@ export const {
   useGetProgramFeaturesQuery,
   useUpdateProgramFeaturesMutation,
   useDeleteProgramFeaturesMutation,
+  // Portfolio API hooks
+  useCreatePortfolioProjectMutation,
+  useGetPortfolioProjectQuery,
+  useUpdatePortfolioProjectMutation,
+  useDeletePortfolioProjectMutation,
+  useGetPortfolioPhotosQuery,
+  useUploadPortfolioPhotoMutation,
+  useDeletePortfolioPhotoMutation,
 } = yelpApi;
