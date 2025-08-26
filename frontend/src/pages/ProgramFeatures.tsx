@@ -545,7 +545,7 @@ const ProgramFeatures: React.FC = () => {
       case 'SERVICE_OFFERINGS_TARGETING':
         return featureData.enabled_service_offerings?.length > 0 || false;
       default:
-        return true; // За замовчуванням вважаємо активною якщо дані є
+        return true; // Default to active if data exists
     }
   };
 
@@ -602,20 +602,20 @@ const ProgramFeatures: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600 mb-3">
-            {description?.description || 'Опис недоступний'}
+            {description?.description || 'Description unavailable'}
           </p>
-          
+
           {description?.validation && (
             <div className="mb-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
               <p className="text-xs text-yellow-800">
-                <strong>Валідація:</strong> {description.validation}
+                <strong>Validation:</strong> {description.validation}
               </p>
             </div>
           )}
 
           {description?.fields && (
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Поля:</h4>
+              <h4 className="text-sm font-semibold">Fields:</h4>
               {Object.entries(description.fields).map(([field, fieldDesc]) => (
                 <div key={field} className="text-xs">
                   <code className="bg-gray-100 px-1 rounded">{field}</code>: {fieldDesc}
@@ -703,7 +703,7 @@ const ProgramFeatures: React.FC = () => {
               <p className="font-mono text-xs break-all">{data?.program_id}</p>
             </div>
             <div>
-              <strong>Тип програми:</strong>
+              <strong>Program Type:</strong>
               <p>{data?.program_type}</p>
             </div>
           </div>
@@ -829,42 +829,42 @@ const ProgramFeatures: React.FC = () => {
         <TabsContent value="documentation" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Yelp Program Features API - Документація</CardTitle>
+              <CardTitle>Yelp Program Features API - Documentation</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h3 className="font-semibold mb-2">📋 Основні ендпоінти:</h3>
+                <h3 className="font-semibold mb-2">📋 Key Endpoints:</h3>
                 <div className="space-y-2 text-sm">
-                  <div><Badge variant="outline">GET</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Отримати стан функцій</div>
-                  <div><Badge variant="outline">POST</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Створити/оновити функції</div>
-                  <div><Badge variant="outline">DELETE</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Видалити/вимкнути функції</div>
+                  <div><Badge variant="outline">GET</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Retrieve feature status</div>
+                  <div><Badge variant="outline">POST</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Create/update features</div>
+                  <div><Badge variant="outline">DELETE</Badge> <code>/program/{'{program_id}'}/features/v1</code> - Delete/deactivate features</div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">🔧 Поведінка API:</h3>
+                <h3 className="font-semibold mb-2">🔧 API Behavior:</h3>
                 <ul className="text-sm space-y-1">
-                  <li>• GET повертає тільки підтримувані програмою типи функцій</li>
-                  <li>• POST може <strong>активувати</strong> та оновлювати будь-яку підмножину функцій за раз</li>
-                  <li>• DELETE <strong>деактивує</strong> функції (встановлює null/порожні значення)</li>
-                  <li>• Якщо програма не підтримує тип функції - повертається помилка</li>
-                  <li>• Відповідь завжди ідентична GET (поточний стан функцій)</li>
+                  <li>• GET returns only feature types supported by the program</li>
+                  <li>• POST can <strong>activate</strong> and update any subset of features at once</li>
+                  <li>• DELETE <strong>deactivates</strong> features (sets null/empty values)</li>
+                  <li>• If the program doesn't support a feature type, an error is returned</li>
+                  <li>• Response is always identical to GET (current feature state)</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">⚠️ Важливі обмеження:</h3>
+                <h3 className="font-semibold mb-2">⚠️ Important Limitations:</h3>
                 <ul className="text-sm space-y-1">
-                  <li>• <code>CUSTOM_AD_TEXT</code>: тільки одне поле з custom_text або custom_review_id</li>
-                  <li>• <code>CUSTOM_LOCATION_TARGETING</code>: максимум 25 локацій на бізнес, тільки США</li>
-                  <li>• <code>CUSTOM_RADIUS_TARGETING</code>: 1-60 миль або null</li>
-                  <li>• <code>AD_GOAL</code>: тільки DEFAULT, CALLS, WEBSITE_CLICKS</li>
-                  <li>• <code>BUSINESS_LOGO</code>: публічний URL з типом jpeg/png/gif/tiff</li>
+                  <li>• <code>CUSTOM_AD_TEXT</code>: only one field, either custom_text or custom_review_id</li>
+                  <li>• <code>CUSTOM_LOCATION_TARGETING</code>: maximum 25 locations per business, US only</li>
+                  <li>• <code>CUSTOM_RADIUS_TARGETING</code>: 1-60 miles or null</li>
+                  <li>• <code>AD_GOAL</code>: only DEFAULT, CALLS, WEBSITE_CLICKS</li>
+                  <li>• <code>BUSINESS_LOGO</code>: public URL with type jpeg/png/gif/tiff</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">🔗 Джерела:</h3>
+                <h3 className="font-semibold mb-2">🔗 Resources:</h3>
                 <div className="space-y-1 text-sm">
                   <a 
                     href="https://docs.developer.yelp.com/reference/retrieve-program-feature" 
@@ -895,17 +895,17 @@ const ProgramFeatures: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Тестові дії */}
+          {/* Test Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Тестові дії</CardTitle>
+              <CardTitle>Test Actions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  Тестування API функцій програми:
+                  Testing the program features API:
                 </p>
-                <Button 
+                <Button
                   onClick={handleTestUpdate}
                   disabled={isUpdating}
                   className="w-full"
@@ -915,7 +915,7 @@ const ProgramFeatures: React.FC = () => {
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
-                  Тест POST: встановити радіус 25 миль
+                  Test POST: set radius to 25 miles
                 </Button>
               </div>
             </CardContent>
