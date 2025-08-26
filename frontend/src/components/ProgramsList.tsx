@@ -138,7 +138,7 @@ const ProgramsList: React.FC = () => {
         title: successMessage,
         description: `Program ID: ${programId}`,
       });
-      refetch(); // Обновляем список программ
+      refetch(); // Refresh programs list
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
       toast({
@@ -218,7 +218,7 @@ const ProgramsList: React.FC = () => {
 
 
 
-      {/* Фільтри та пагінація */}
+      {/* Filters and pagination */}
       <div>
         <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
           <div className="flex gap-4 items-center">
@@ -229,8 +229,8 @@ const ProgramsList: React.FC = () => {
                 onChange={(e) => {
                   setIsChangingPage(true);
                   setProgramStatus(e.target.value);
-                  setOffset(0); // Сброс к первой странице
-                  // Примусово оновлюємо дані через forceKey
+                  setOffset(0); // Reset to first page
+                  // Force update data via forceKey
                   setForceRefreshKey(prev => prev + 1);
                 }}
                 className="ml-2 border rounded px-2 py-1"
@@ -257,7 +257,7 @@ const ProgramsList: React.FC = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Показуємо лоадер замість списку під час переключення сторінки */}
+          {/* Show loader instead of list during page switching */}
           {(isLoading || isChangingPage) ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
@@ -274,7 +274,7 @@ const ProgramsList: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Список программ */
+            /* Programs list */
           <div className="grid gap-4">
             {programs.map((program, index) => (
               <Card key={program.program_id || `program-${index}`}>
@@ -343,7 +343,7 @@ const ProgramsList: React.FC = () => {
                     )}
 
                     <div className="grid grid-cols-2 gap-2 pt-3">
-                      {/* EDIT - редагувати програму */}
+                      {/* EDIT - edit program */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -355,7 +355,7 @@ const ProgramsList: React.FC = () => {
                         Edit
                       </Button>
 
-                      {/* TERMINATE - завершити програму */}
+                      {/* TERMINATE - terminate program */}
                       <Button
                         size="sm"
                         variant="destructive"
@@ -379,7 +379,7 @@ const ProgramsList: React.FC = () => {
                         }
                       </Button>
 
-                      {/* PAUSE/RESUME - пауза/відновлення програми */}
+                      {/* PAUSE/RESUME - pause/resume program */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -407,7 +407,7 @@ const ProgramsList: React.FC = () => {
                         {program.program_pause_status === 'PAUSED' ? 'Resume' : 'Pause'}
                       </Button>
 
-                      {/* INFO - переглянути інформацію про програму */}
+                      {/* INFO - view program information */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -418,7 +418,7 @@ const ProgramsList: React.FC = () => {
                         Details
                       </Button>
 
-                      {/* FEATURES - Функції програми */}
+                      {/* FEATURES - Program features */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -430,7 +430,7 @@ const ProgramsList: React.FC = () => {
                         Features
                       </Button>
 
-                      {/* STATUS - Переглянути статус */}
+                      {/* STATUS - View status */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -448,10 +448,10 @@ const ProgramsList: React.FC = () => {
           </div>
           )}
 
-          {/* Современная пагинация с номерами страниц */}
+          {/* Modern pagination with page numbers */}
           {!(isLoading || isChangingPage) && data?.total_count && (
             <div className="flex flex-col items-center space-y-4 bg-gray-50 p-4 rounded">
-              {/* Информация о результатах и быстрая смена количества на странице */}
+              {/* Results info and quick page size change */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
                 <div className="text-sm text-gray-600 text-center sm:text-left">
                   Showing {programs.length} of {data.total_count} programs
@@ -459,7 +459,7 @@ const ProgramsList: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-gray-600">На странице:</span>
+                  <span className="text-gray-600">Per page:</span>
                   {[10, 20, 50].map((pageSize) => (
                     <Button
                       key={pageSize}
@@ -479,7 +479,7 @@ const ProgramsList: React.FC = () => {
                 </div>
               </div>
               
-              {/* Индикатор прогресса пагинации */}
+              {/* Pagination progress indicator */}
               {(() => {
                 const currentPage = Math.floor(offset / limit) + 1;
                 const totalPages = Math.ceil(data.total_count / limit);
@@ -504,7 +504,7 @@ const ProgramsList: React.FC = () => {
                 return null;
               })()}
               
-              {/* Пагинация */}
+              {/* Pagination */}
               <div className="flex flex-wrap items-center justify-center gap-1">
                 {(() => {
                   const currentPage = Math.floor(offset / limit) + 1;
@@ -514,7 +514,7 @@ const ProgramsList: React.FC = () => {
                   
                   return (
                     <>
-                      {/* Первая страница */}
+                      {/* First page */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -525,7 +525,7 @@ const ProgramsList: React.FC = () => {
                         <ChevronsLeft className="h-4 w-4" />
                       </Button>
                       
-                      {/* Предыдущая страница */}
+                      {/* Previous page */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -536,7 +536,7 @@ const ProgramsList: React.FC = () => {
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
                       
-                      {/* Быстрый переход -5 страниц (только на десктопе и если есть много страниц) */}
+                      {/* Quick jump -5 pages (only on desktop if many pages) */}
                       {totalPages > 10 && currentPage > 6 && (
                         <Button
                           variant="ghost"
@@ -549,7 +549,7 @@ const ProgramsList: React.FC = () => {
                         </Button>
                       )}
                       
-                      {/* Номера страниц */}
+                      {/* Page numbers */}
                       {generatePageNumbers(currentPage, totalPages).map((page, index) => (
                         <div key={index}>
                           {page === '...' ? (
@@ -567,7 +567,7 @@ const ProgramsList: React.FC = () => {
                         </div>
                       ))}
                       
-                      {/* Быстрый переход +5 страниц (только на десктопе и если есть много страниц) */}
+                      {/* Quick jump +5 pages (only on desktop if many pages) */}
                       {totalPages > 10 && currentPage < totalPages - 5 && (
                         <Button
                           variant="ghost"
@@ -580,7 +580,7 @@ const ProgramsList: React.FC = () => {
                         </Button>
                       )}
                       
-                      {/* Следующая страница */}
+                      {/* Next page */}
               <Button
                 variant="outline"
                         size="sm"
@@ -591,7 +591,7 @@ const ProgramsList: React.FC = () => {
                         <ChevronRight className="h-4 w-4" />
               </Button>
               
-                      {/* Последняя страница */}
+                      {/* Last page */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -606,7 +606,7 @@ const ProgramsList: React.FC = () => {
                 })()}
               </div>
               
-                            {/* Швидкий перехід на сторінку */}
+                            {/* Quick page jump */}
               {(() => {
                 const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
                 if (totalPages > 10) {

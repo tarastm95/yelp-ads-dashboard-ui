@@ -182,7 +182,7 @@ const CreateProgram: React.FC = () => {
                 <Label htmlFor="is_autobid">Automatic bidding (Autobid)</Label>
               </div>
 
-              {/* Max bid тільки якщо НЕ автобід */}
+              {/* Max bid only if NOT autobid */}
               {!formData.is_autobid && (
                 <div className="space-y-2">
                   <Label htmlFor="max_bid">Max Bid (USD in cents)</Label>

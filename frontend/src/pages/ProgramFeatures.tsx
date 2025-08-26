@@ -17,37 +17,37 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-// Детальні описи всіх типів Program Features згідно документації Yelp
+// Detailed descriptions of all Program Features types according to Yelp documentation
 const FEATURE_DESCRIPTIONS = {
   LINK_TRACKING: {
     icon: Link,
-    title: 'Відстеження посилань',
-    description: 'Налаштування параметрів відстеження для веб-сайту, меню та CTA кнопок',
+    title: 'Link Tracking',
+    description: 'Configure tracking parameters for website, menu and CTA buttons',
     fields: {
-      website: 'URL або параметри відстеження для посилання на веб-сайт',
-      menu: 'URL або параметри відстеження для посилання на меню',
-      url: 'URL або параметри відстеження для CTA кнопки'
+      website: 'URL or tracking parameters for website link',
+      menu: 'URL or tracking parameters for menu link',
+      url: 'URL or tracking parameters for CTA button'
     },
-    validation: 'Усі поля можуть бути null для вимкнення відстеження'
+    validation: 'All fields can be null to disable tracking'
   },
 
   NEGATIVE_KEYWORD_TARGETING: {
     icon: Target,
-    title: 'Негативні ключові слова',
-    description: 'Управління ключовими словами, за якими ваша реклама НЕ повинна показуватися',
+    title: 'Negative Keyword Targeting',
+    description: 'Manage keywords for which your ads should NOT be shown',
     fields: {
-      suggested_keywords: 'Список рекомендованих ключових слів (до 25, тільки для довідки)',
-      blocked_keywords: 'Список заблокованих ключових слів (можна додавати власні)'
+      suggested_keywords: 'List of suggested keywords (up to 25, reference only)',
+      blocked_keywords: 'List of blocked keywords (you can add your own)'
     },
-    validation: 'Рекомендовані слова - тільки довідкові, реклама може показуватися за словами, не включеними в список'
+    validation: 'Suggested words are reference only, ads may show for words not included in the list'
   },
 
   STRICT_CATEGORY_TARGETING: {
     icon: Shield,
-    title: 'Строге таргетування за категоріями',
-    description: 'Включення/вимкнення строгого таргетування за бізнес-категоріями',
+    title: 'Strict Category Targeting',
+    description: 'Enable/disable strict targeting by business categories',
     fields: {
-      enabled: 'Увімкнути строге таргетування (true/false)'
+      enabled: 'Enable strict targeting (true/false)'
     },
     validation: 'Логічне значення для увімкнення/вимкнення функції'
   },
@@ -207,7 +207,7 @@ const ProgramFeatures: React.FC = () => {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-red-500">Program ID не знайден в URL</p>
+          <p className="text-red-500">Program ID not found in URL</p>
         </CardContent>
       </Card>
     );
@@ -217,7 +217,7 @@ const ProgramFeatures: React.FC = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Завантаження функцій програми...</span>
+        <span className="ml-2">Loading program features...</span>
       </div>
     );
   }
@@ -226,12 +226,12 @@ const ProgramFeatures: React.FC = () => {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-red-500 mb-2">Помилка завантаження функцій програми</p>
+          <p className="text-red-500 mb-2">Error loading program features</p>
           <p className="text-sm text-gray-600">
-            {error && 'status' in error && `HTTP ${error.status}: ${error.data?.detail || 'Невідома помилка'}`}
+            {error && 'status' in error && `HTTP ${error.status}: ${error.data?.detail || 'Unknown error'}`}
           </p>
           <Button onClick={() => refetch()} className="mt-4">
-            Повторити
+            Retry
           </Button>
         </CardContent>
       </Card>
@@ -261,13 +261,13 @@ const ProgramFeatures: React.FC = () => {
       }).unwrap();
 
       toast({
-        title: 'Функції оновлені',
-        description: 'Функції програми успішно оновлені',
+        title: 'Features Updated',
+        description: 'Program features updated successfully',
       });
     } catch (error: any) {
       toast({
-        title: 'Помилка оновлення',
-        description: error.data?.detail || 'Не вдалося оновити функції',
+        title: 'Update Error',
+        description: error.data?.detail || 'Failed to update features',
         variant: 'destructive',
       });
     }
@@ -276,8 +276,8 @@ const ProgramFeatures: React.FC = () => {
   const handleDeleteSelected = async () => {
     if (selectedFeatures.length === 0) {
       toast({
-        title: 'Нічого не вибрано',
-        description: 'Виберіть функції для деактивації',
+        title: 'Nothing Selected',
+        description: 'Select features to deactivate',
         variant: 'destructive',
       });
       return;
@@ -298,14 +298,14 @@ const ProgramFeatures: React.FC = () => {
 
       setSelectedFeatures([]);
       toast({
-        title: 'Функції деактивовані',
-        description: `Yelp API деактивував ${selectedFeatures.length} функцій`,
+        title: 'Features Deactivated',
+        description: `Yelp API deactivated ${selectedFeatures.length} features`,
       });
     } catch (error: any) {
       console.error('❌ Delete error:', error);
       toast({
-        title: 'Помилка деактивації',
-        description: error.data?.detail || 'Не вдалося деактивувати функції',
+        title: 'Deactivation Error',
+        description: error.data?.detail || 'Failed to deactivate features',
         variant: 'destructive',
       });
     }
@@ -584,17 +584,17 @@ const ProgramFeatures: React.FC = () => {
             <div className="flex items-center space-x-2">
               {isActive && (
                 <Badge variant="default" className="bg-green-100 text-green-800">
-                  Активна
+                  Active
                 </Badge>
               )}
               {isPresent && !isActive && (
                 <Badge variant="outline" className="border-orange-300 text-orange-700">
-                  Деактивована {isDeactivatedSelected ? '(вибрана)' : ''}
+                  Deactivated {isDeactivatedSelected ? '(selected)' : ''}
                 </Badge>
               )}
               {!isPresent && (
                 <Badge variant="secondary">
-                  Недоступна
+                  Unavailable
                 </Badge>
               )}
             </div>
@@ -634,7 +634,7 @@ const ProgramFeatures: React.FC = () => {
                 variant="outline"
               >
                 <Settings className="w-4 h-4" />
-                {isActive ? 'Налаштувати фічу' : 'Налаштувати та активувати'}
+                {isActive ? 'Configure Feature' : 'Configure and Activate'}
               </Button>
             )}
 
@@ -646,21 +646,21 @@ const ProgramFeatures: React.FC = () => {
                 variant="outline"
               >
                 <FolderOpen className="w-4 h-4" />
-                Керувати портфоліо
+                Manage Portfolio
               </Button>
             )}
           </div>
 
           {featureType === 'YELP_PORTFOLIO' && (
             <p className="text-xs text-gray-500 mt-1 text-center">
-              Створюйте, редагуйте проєкти та завантажуйте фото
+              Create, edit projects and upload photos
             </p>
           )}
 
           {isPresent && featureData && (
             <details className="mt-3">
               <summary className="text-sm font-medium cursor-pointer">
-                Поточні дані {isActive ? '(активна)' : '(деактивована)'}
+                Current Data {isActive ? '(active)' : '(deactivated)'}
               </summary>
               <pre className={`text-xs p-2 rounded mt-2 overflow-auto ${
                 isActive ? 'bg-green-50' : 'bg-orange-50'
@@ -683,18 +683,18 @@ const ProgramFeatures: React.FC = () => {
             Program Features API
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Управління функціями програми {programId}
+            Program Features Management {programId}
           </p>
         </div>
         <Button onClick={() => refetch()} variant="outline">
-          Оновити
+          Refresh
         </Button>
       </div>
 
-      {/* Інформація про програму */}
+      {/* Program Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Інформація про програму</CardTitle>
+          <CardTitle>Program Information</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -712,9 +712,9 @@ const ProgramFeatures: React.FC = () => {
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active">Всі функції програми ({featureKeys.length})</TabsTrigger>
-          <TabsTrigger value="available">Всі доступні типи ({availableFeatureTypes.length})</TabsTrigger>
-          <TabsTrigger value="documentation">Документація API</TabsTrigger>
+          <TabsTrigger value="active">All Program Features ({featureKeys.length})</TabsTrigger>
+          <TabsTrigger value="available">All Available Types ({availableFeatureTypes.length})</TabsTrigger>
+          <TabsTrigger value="documentation">API Documentation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -723,7 +723,7 @@ const ProgramFeatures: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center">
                   <p className="text-sm">
-                    Вибрано {selectedFeatures.length} активних функцій для деактивації
+                    Selected {selectedFeatures.length} active features for deactivation
                   </p>
                   <div className="space-x-2">
                     <Button 
@@ -731,7 +731,7 @@ const ProgramFeatures: React.FC = () => {
                       variant="outline"
                       size="sm"
                     >
-                      Скасувати
+                      Cancel
                     </Button>
                     <Button 
                       onClick={handleDeleteSelected}
@@ -744,7 +744,7 @@ const ProgramFeatures: React.FC = () => {
                       ) : (
                         <Trash2 className="w-4 h-4 mr-2" />
                       )}
-                      Деактивувати
+                      Deactivate
                     </Button>
                   </div>
                 </div>
@@ -757,7 +757,7 @@ const ProgramFeatures: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center">
                   <p className="text-sm">
-                    Вибрано {selectedDeactivatedFeatures.length} деактивованих функцій для активації
+                    Selected {selectedDeactivatedFeatures.length} deactivated features for activation
                   </p>
                   <div className="space-x-2">
                     <Button 
@@ -765,7 +765,7 @@ const ProgramFeatures: React.FC = () => {
                       variant="outline"
                       size="sm"
                     >
-                      Скасувати
+                      Cancel
                     </Button>
                     <Button 
                       onClick={handleActivateSelected}
@@ -779,7 +779,7 @@ const ProgramFeatures: React.FC = () => {
                       ) : (
                         <Save className="w-4 h-4 mr-2" />
                       )}
-                      Активувати
+                      Activate
                     </Button>
                   </div>
                 </div>
@@ -791,11 +791,11 @@ const ProgramFeatures: React.FC = () => {
             <div className="text-center py-8">
               <Settings className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-lg font-medium text-gray-600 mb-2">
-                Немає активних функцій
+                No active features
               </p>
               <p className="text-sm text-gray-500">
-                Для цієї програми типу {data?.program_type} функції не підтримуються
-                або поки не налаштовані.
+                Features for this {data?.program_type} program type are not supported
+                or not yet configured.
               </p>
             </div>
           ) : (
@@ -813,7 +813,7 @@ const ProgramFeatures: React.FC = () => {
 
         <TabsContent value="available" className="space-y-4">
           <p className="text-sm text-gray-600 mb-4">
-            Всі типи функцій, підтримувані Yelp Program Features API:
+            All feature types supported by Yelp Program Features API:
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {availableFeatureTypes.map((featureType) => (

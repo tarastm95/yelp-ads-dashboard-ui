@@ -105,12 +105,12 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
             />
             <div>
               <Label htmlFor="call-tracking-enabled" className="text-base font-medium">
-                Увімкнути відстеження дзвінків
+                Enable Call Tracking
               </Label>
               <p className="text-sm text-gray-600">
                 {enabled 
-                  ? 'Відстеження дзвінків активне для всієї кампанії' 
-                  : 'Відстеження дзвінків вимкнено'
+                  ? 'Call tracking is active for the entire campaign' 
+                  : 'Call tracking is disabled'
                 }
               </p>
             </div>

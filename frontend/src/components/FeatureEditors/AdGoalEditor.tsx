@@ -40,22 +40,22 @@ const AdGoalEditor: React.FC<AdGoalEditorProps> = ({
   const goalOptions = [
     {
       value: 'DEFAULT' as const,
-      label: 'Стандартна оптимізація',
-      description: 'Yelp автоматично оптимізує доставку та CTA під загальну ефективність',
+      label: 'Standard Optimization',
+      description: 'Yelp automatically optimizes delivery and CTA for overall effectiveness',
       icon: BarChart3,
       color: 'text-blue-600'
     },
     {
       value: 'CALLS' as const,
-      label: 'Максимум дзвінків',
-      description: 'CTA змінюється на "Call business" для максимізації телефонних дзвінків',
+      label: 'Maximize Calls',
+      description: 'CTA changes to "Call business" to maximize phone calls',
       icon: Phone,
       color: 'text-green-600'
     },
     {
       value: 'WEBSITE_CLICKS' as const,
-      label: 'Максимум переходів на сайт',
-      description: 'CTA стає "Visit website" для прямих переходів на зовнішній сайт',
+      label: 'Maximize Website Clicks',
+      description: 'CTA becomes "Visit website" for direct clicks to external site',
       icon: Globe,
       color: 'text-purple-600'
     }
@@ -66,13 +66,13 @@ const AdGoalEditor: React.FC<AdGoalEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5" />
-          Налаштування цілі реклами
+          Ad Goal Settings
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label className="text-base font-medium">Оберіть ціль вашої рекламної кампанії:</Label>
+            <Label className="text-base font-medium">Choose your advertising campaign goal:</Label>
             <RadioGroup
               value={selectedGoal}
               onValueChange={(value) => setSelectedGoal(value as AdGoalData['ad_goal'])}
@@ -102,25 +102,25 @@ const AdGoalEditor: React.FC<AdGoalEditorProps> = ({
           </div>
 
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">ℹ️ Важливо знати:</h4>
+            <h4 className="text-sm font-medium mb-2">ℹ️ Important to know:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>Стандартна оптимізація:</strong> Yelp автоматично оптимізує доставку та CTA під загальну ефективність</li>
-              <li>• <strong>Максимум дзвінків:</strong> Зазвичай підходить для сервісних бізнесів (салони, ремонт, медицина)</li>
-              <li>• <strong>Максимум переходів:</strong> Зазвичай підходить для e-commerce та інформаційних сайтів</li>
-              <li>• Якщо налаштовано Link Tracking, при виборі "Переходи на сайт" використовується трекінговий URL</li>
-              <li>• Ціль можна змінювати в процесі кампанії залежно від потреб</li>
-              <li>• Зміна цілі може вплинути на тип кліків, CTA та показники реклами</li>
+              <li>• <strong>Standard Optimization:</strong> Yelp automatically optimizes delivery and CTA for overall effectiveness</li>
+              <li>• <strong>Maximize Calls:</strong> Usually suitable for service businesses (salons, repairs, medical)</li>
+              <li>• <strong>Maximize Clicks:</strong> Usually suitable for e-commerce and informational websites</li>
+              <li>• If Link Tracking is configured, choosing "Website Clicks" will use tracking URL</li>
+              <li>• Goals can be changed during the campaign as needed</li>
+              <li>• Changing goals may affect click types, CTA and ad metrics</li>
             </ul>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти ціль
+              Save Goal
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

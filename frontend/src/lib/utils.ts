@@ -103,16 +103,16 @@ const errorMap: Record<string, { title: string; description: string; actionRequi
 
   // General errors
   'PROGRAM_NOT_FOUND': {
-    title: 'Програма не знайдена',
-    description: 'Програма з вказаним ідентифікатором не знайдена в вашому акаунті.',
+    title: 'Program Not Found',
+    description: 'Program with the specified identifier was not found in your account.',
     actionRequired: true
   }
 };
 
 export function getYelpErrorInfo(errorCode: string) {
   return errorMap[errorCode] || {
-    title: 'Невідома помилка',
-    description: `Код помилки: ${errorCode}. Зверніться до служби підтримки.`,
+    title: 'Unknown Error',
+    description: `Error code: ${errorCode}. Please contact support.`,
     actionRequired: true
   };
 }
@@ -121,8 +121,8 @@ export function formatErrorForToast(error: any): { title: string; description: s
   // Handle validation error for program not found specifically
   if (error?.data?.detail?.includes?.('Program with the specified identifier was not found')) {
     return {
-      title: 'Програма не знайдена',
-      description: 'Програма з цим ID не існує або була видалена. Перевірте список програм та спробуйте ще раз.'
+      title: 'Program Not Found',
+      description: 'Program with this ID does not exist or was deleted. Check the programs list and try again.'
     };
   }
 
@@ -133,7 +133,7 @@ export function formatErrorForToast(error: any): { title: string; description: s
       const errorInfo = getYelpErrorInfo(errorCode);
       return {
         title: errorInfo.title,
-        description: errorInfo.description + (errorInfo.actionRequired ? ' 💡 Зверніться до служби підтримки з деталями помилки' : '')
+        description: errorInfo.description + (errorInfo.actionRequired ? ' 💡 Contact support with error details' : '')
       };
     }
   }
@@ -143,40 +143,40 @@ export function formatErrorForToast(error: any): { title: string; description: s
     switch (error.status) {
       case 400:
         return {
-          title: 'Неправильний запит',
-          description: 'Перевірте правильність введених даних'
+          title: 'Bad Request',
+          description: 'Please check the entered data'
         };
       case 401:
         return {
-          title: 'Помилка автентифікації',
-          description: 'Перевірте ваші облікові дані'
+          title: 'Authentication Error',
+          description: 'Please check your credentials'
         };
       case 403:
         return {
-          title: 'Доступ заборонено',
-          description: 'У вас немає прав для виконання цієї операції'
+          title: 'Access Forbidden',
+          description: 'You do not have permission to perform this operation'
         };
       case 404:
         return {
-          title: 'Не знайдено',
-          description: 'Запитуваний ресурс не знайдено'
+          title: 'Not Found',
+          description: 'The requested resource was not found'
         };
       case 500:
         return {
-          title: 'Помилка сервера',
-          description: 'Внутрішня помилка сервера. Спробуйте пізніше'
+          title: 'Server Error',
+          description: 'Internal server error. Please try again later'
         };
       default:
         return {
-          title: `Помилка ${error.status}`,
-          description: error.data?.detail || 'Невідома помилка сервера'
+          title: `Error ${error.status}`,
+          description: error.data?.detail || 'Unknown server error'
         };
     }
   }
 
   // Fallback for any other errors
   return {
-    title: 'Помилка',
-    description: error?.message || error?.data?.detail || 'Сталася невідома помилка'
+    title: 'Error',
+    description: error?.message || error?.data?.detail || 'An unknown error occurred'
   };
 }
