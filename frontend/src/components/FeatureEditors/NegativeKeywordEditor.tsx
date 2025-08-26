@@ -78,7 +78,7 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5" />
-          Налаштування негативних ключових слів
+          Negative keyword settings
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -86,9 +86,9 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
           {/* Suggested Keywords */}
           {data?.suggested_keywords && data.suggested_keywords.length > 0 && (
             <div>
-              <Label className="text-base font-medium">Рекомендовані ключові слова (від Yelp)</Label>
+              <Label className="text-base font-medium">Recommended keywords (from Yelp)</Label>
               <p className="text-sm text-gray-600 mb-3">
-                Це слова, по яких ваша реклама може показуватись. Натисніть, щоб заблокувати:
+                These are keywords your ads may show for. Click to block:
               </p>
               <div className="flex flex-wrap gap-2">
                 {data.suggested_keywords.map((keyword) => (
@@ -108,13 +108,13 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
 
           {/* Add Single Keyword */}
           <div>
-            <Label htmlFor="newKeyword">Додати ключове слово для блокування</Label>
+            <Label htmlFor="newKeyword">Add keyword to block</Label>
             <div className="flex gap-2 mt-2">
               <Input
                 id="newKeyword"
                 value={newKeyword}
                 onChange={(e) => setNewKeyword(e.target.value)}
-                placeholder="Наприклад: cheap, free, competitor_name"
+                placeholder="e.g., cheap, free, competitor_name"
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
               />
               <Button type="button" onClick={addKeyword} disabled={!newKeyword.trim()}>
@@ -125,28 +125,28 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
 
           {/* Bulk Add Keywords */}
           <div>
-            <Label htmlFor="bulkKeywords">Додати кілька слів одночасно</Label>
+            <Label htmlFor="bulkKeywords">Add multiple keywords at once</Label>
             <Textarea
               id="bulkKeywords"
               value={bulkKeywords}
               onChange={(e) => setBulkKeywords(e.target.value)}
-              placeholder="Введіть слова через кому або з нового рядка:&#10;cheap, free, discount&#10;competitor1&#10;competitor2"
+              placeholder="Enter words separated by commas or new lines:&#10;cheap, free, discount&#10;competitor1&#10;competitor2"
               rows={3}
               className="mt-2"
             />
             <Button type="button" onClick={addBulkKeywords} disabled={!bulkKeywords.trim()} className="mt-2">
               <Plus className="w-4 h-4 mr-2" />
-              Додати всі
+              Add all
             </Button>
           </div>
 
           {/* Current Blocked Keywords */}
           <div>
             <Label className="text-base font-medium">
-              Заблоковані ключові слова ({blockedKeywords.length})
+              Blocked keywords ({blockedKeywords.length})
             </Label>
             <p className="text-sm text-gray-600 mb-3">
-              Реклама НЕ буде показуватись при пошуку цих слів:
+              Ads will NOT be shown for these keywords:
             </p>
             {blockedKeywords.length > 0 ? (
               <div className="flex flex-wrap gap-2 p-3 bg-red-50 rounded-lg">
@@ -164,28 +164,28 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 italic">Жодне слово не заблоковано</p>
+              <p className="text-gray-500 italic">No keywords blocked</p>
             )}
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Поради по негативним словам:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 Tips for negative keywords:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Блокуйте слова, що не підходять вашому бізнесу (cheap, free для преміум-сервісів)</li>
-              <li>• Додавайте назви конкурентів, щоб не витрачати бюджет на їх клієнтів</li>
-              <li>• Блокуйте загальні слова, що не конвертують (jobs, careers для ресторану)</li>
-              <li>• Регулярно переглядайте та оновлюйте список</li>
+              <li>• Block terms that don't fit your business (cheap, free for premium services)</li>
+              <li>• Add competitor names to avoid spending budget on their customers</li>
+              <li>• Block generic terms that don't convert (jobs, careers for a restaurant)</li>
+              <li>• Regularly review and update the list</li>
             </ul>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти налаштування
+              Save settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

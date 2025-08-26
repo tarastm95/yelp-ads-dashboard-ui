@@ -60,8 +60,8 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
     // Validation
     if (uploadMethod === 'url' && !uploadData.photo_url?.trim()) {
       toast({
-        title: 'Помилка валідації',
-        description: 'URL фото є обов\'язковим',
+        title: 'Validation error',
+        description: 'Photo URL is required',
         variant: 'destructive',
       });
       return;
@@ -69,8 +69,8 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
 
     if (uploadMethod === 'biz_photo' && !uploadData.biz_photo_id?.trim()) {
       toast({
-        title: 'Помилка валідації',
-        description: 'ID бізнес-фото є обов\'язковим',
+        title: 'Validation error',
+        description: 'Business photo ID is required',
         variant: 'destructive',
       });
       return;
@@ -78,8 +78,8 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
 
     if (!uploadData.caption.trim()) {
       toast({
-        title: 'Помилка валідації',
-        description: 'Підпис до фото є обов\'язковим',
+        title: 'Validation error',
+        description: 'Photo caption is required',
         variant: 'destructive',
       });
       return;
@@ -104,8 +104,8 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
       }).unwrap();
 
       toast({
-        title: 'Фото завантажено',
-        description: `Фото ${result.photo_id} успішно додано до проєкту`,
+        title: 'Photo uploaded',
+        description: `Photo ${result.photo_id} successfully added to project`,
       });
 
       // Reset form
@@ -122,15 +122,15 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
     } catch (error: any) {
       console.error('❌ Upload photo error:', error);
       toast({
-        title: 'Помилка завантаження',
-        description: error.data?.detail || 'Не вдалося завантажити фото',
+        title: 'Upload error',
+        description: error.data?.detail || 'Failed to upload photo',
         variant: 'destructive',
       });
     }
   };
 
   const handleDelete = async (photo: PortfolioPhoto) => {
-    if (!confirm(`Ви впевнені, що хочете видалити фото "${photo.caption}"?`)) {
+    if (!confirm(`Are you sure you want to delete photo "${photo.caption}"?`)) {
       return;
     }
 
@@ -142,16 +142,16 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
       }).unwrap();
 
       toast({
-        title: 'Фото видалено',
-        description: 'Фото успішно видалено з проєкту',
+        title: 'Photo deleted',
+        description: 'Photo successfully removed from project',
       });
 
       refetch();
     } catch (error: any) {
       console.error('❌ Delete photo error:', error);
       toast({
-        title: 'Помилка видалення',
-        description: error.data?.detail || 'Не вдалося видалити фото',
+        title: 'Deletion error',
+        description: error.data?.detail || 'Failed to delete photo',
         variant: 'destructive',
       });
     }
@@ -161,7 +161,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="ml-2">Завантаження фотогалереї...</span>
+        <span className="ml-2">Loading photo gallery...</span>
       </div>
     );
   }
@@ -169,10 +169,10 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
   if (error) {
     return (
       <div className="text-center p-8">
-        <h3 className="text-lg font-semibold text-red-600">Помилка завантаження</h3>
-        <p className="text-gray-600 mt-2">Не вдалося завантажити фотогалерею</p>
+        <h3 className="text-lg font-semibold text-red-600">Loading error</h3>
+        <p className="text-gray-600 mt-2">Failed to load photo gallery</p>
         <Button onClick={() => refetch()} className="mt-4">
-          Спробувати знову
+          Try again
         </Button>
       </div>
     );
@@ -184,10 +184,10 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Camera className="w-5 h-5" />
-            Фотогалерея проєкту
+            Project photo gallery
           </h3>
           <p className="text-sm text-gray-600">
-            {photos.length} фото у галереї
+            {photos.length} photos in gallery
           </p>
         </div>
 
@@ -195,21 +195,21 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              Додати фото
+              Add photo
             </Button>
           </DialogTrigger>
           
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Завантажити фото</DialogTitle>
+              <DialogTitle>Upload photo</DialogTitle>
               <DialogDescription>
-                Додайте нове фото до проєкту портфоліо
+                Add a new photo to the portfolio project
               </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
-                <Label>Спосіб завантаження</Label>
+                <Label>Upload method</Label>
                 <div className="flex gap-4 mt-2">
                   <label className="flex items-center gap-2">
                     <input
@@ -217,7 +217,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                       checked={uploadMethod === 'url'}
                       onChange={() => setUploadMethod('url')}
                     />
-                    Зовнішній URL
+                    External URL
                   </label>
                   <label className="flex items-center gap-2">
                     <input
@@ -225,14 +225,14 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                       checked={uploadMethod === 'biz_photo'}
                       onChange={() => setUploadMethod('biz_photo')}
                     />
-                    Бізнес-фото Yelp
+                    Yelp business photo
                   </label>
                 </div>
               </div>
 
               {uploadMethod === 'url' ? (
                 <div>
-                  <Label htmlFor="photo_url">URL фото</Label>
+                  <Label htmlFor="photo_url">Photo URL</Label>
                   <Input
                     id="photo_url"
                     type="url"
@@ -248,7 +248,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                 </div>
               ) : (
                 <div>
-                  <Label htmlFor="biz_photo_id">ID бізнес-фото</Label>
+                  <Label htmlFor="biz_photo_id">Business photo ID</Label>
                   <Input
                     id="biz_photo_id"
                     value={uploadData.biz_photo_id}
@@ -264,7 +264,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
               )}
 
               <div>
-                <Label htmlFor="caption">Підпис</Label>
+                <Label htmlFor="caption">Caption</Label>
                 <Textarea
                   id="caption"
                   value={uploadData.caption}
@@ -272,7 +272,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                     ...prev, 
                     caption: e.target.value 
                   }))}
-                  placeholder="Опис фото"
+                  placeholder="Photo description"
                   required
                 />
               </div>
@@ -286,7 +286,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                     is_before_photo: checked 
                   }))}
                 />
-                <Label htmlFor="is_before">Це фото "До" робіт</Label>
+                <Label htmlFor="is_before">This is a "Before" photo</Label>
               </div>
 
               <div className="flex justify-end gap-2">
@@ -295,7 +295,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                   variant="outline" 
                   onClick={() => setShowUploadDialog(false)}
                 >
-                  Скасувати
+                  Cancel
                 </Button>
                 <Button type="submit" disabled={isUploading}>
                   {isUploading ? (
@@ -303,7 +303,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                   ) : (
                     <Upload className="w-4 h-4 mr-2" />
                   )}
-                  Завантажити
+                  Upload
                 </Button>
               </div>
             </form>
@@ -315,13 +315,13 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
         <Card>
           <CardContent className="text-center py-12">
             <ImageIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Фотогалерея порожня</h3>
+            <h3 className="text-lg font-semibold mb-2">Photo gallery is empty</h3>
             <p className="text-gray-600 mb-4">
-              Ще немає жодного фото в цьому проєкті
+              There are no photos in this project yet
             </p>
             <Button onClick={() => setShowUploadDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Додати перше фото
+              Add first photo
             </Button>
           </CardContent>
         </Card>
@@ -347,7 +347,7 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                   <div className="text-center">
                     <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                     <p className="text-sm text-gray-500">
-                      {photo.biz_photo_id ? `Бізнес-фото: ${photo.biz_photo_id}` : 'Фото недоступне'}
+                      {photo.biz_photo_id ? `Business photo: ${photo.biz_photo_id}` : 'Photo not available'}
                     </p>
                   </div>
                 </div>
@@ -355,13 +355,13 @@ const PortfolioPhotoGallery: React.FC<PortfolioPhotoGalleryProps> = ({
                 {photo.is_cover_photo && (
                   <Badge className="absolute top-2 left-2 bg-yellow-500">
                     <Star className="w-3 h-3 mr-1" />
-                    Обкладинка
+                    Cover
                   </Badge>
                 )}
 
                 {photo.is_before_photo && (
                   <Badge className="absolute top-2 right-2 bg-blue-500">
-                    До
+                    Before
                   </Badge>
                 )}
 

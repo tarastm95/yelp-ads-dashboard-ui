@@ -91,7 +91,7 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Phone className="w-5 h-5" />
-          Налаштування відстеження дзвінків
+          Call tracking settings
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -119,18 +119,18 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
           {enabled && (
             <div className="space-y-4">
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">📞 Як працює відстеження дзвінків:</h4>
+                <h4 className="text-sm font-medium mb-2">📞 How call tracking works:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• Yelp надає спеціальні номери телефонів для кожного бізнесу</li>
-                  <li>• Ці номери замінюють ваші звичайні номери в рекламі</li>
-                  <li>• Дзвінки переспрямовуються на ваш справжній номер</li>
-                  <li>• Звітність по дзвінках доступна в кабінеті Yelp</li>
-                  <li>• Налаштування впливає лише на цю CPC-програму</li>
-                  <li>• Номери можна задати також на рівні локації (Data Ingestion API)</li>
+                  <li>• Yelp provides special phone numbers for each business</li>
+                  <li>• These numbers replace your regular numbers in ads</li>
+                  <li>• Calls are forwarded to your real number</li>
+                  <li>• Call reporting is available in the Yelp dashboard</li>
+                  <li>• Setting affects only this CPC program</li>
+                  <li>• Numbers can also be set at the location level (Data Ingestion API)</li>
                 </ul>
               </div>
 
-              <Label className="text-base font-medium">Налаштування для бізнесів:</Label>
+              <Label className="text-base font-medium">Settings for businesses:</Label>
 
               {businesses.map((business, index) => (
                 <Card key={index} className="border-gray-200">
@@ -138,7 +138,7 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
                     <div className="flex items-center justify-between">
                       <h4 className="text-lg font-medium flex items-center gap-2">
                         <Building className="w-4 h-4" />
-                        Бізнес #{index + 1}
+                        Business #{index + 1}
                       </h4>
                       {businesses.length > 1 && (
                         <Button
@@ -155,7 +155,7 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
                   
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor={`business_id_${index}`}>ID бізнесу *</Label>
+                      <Label htmlFor={`business_id_${index}`}>Business ID *</Label>
                       <Input
                         id={`business_id_${index}`}
                         value={business.business_id}
@@ -166,13 +166,13 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
                     </div>
 
                     <div>
-                      <Label htmlFor={`phone_${index}`}>Номер для відстеження</Label>
+                      <Label htmlFor={`phone_${index}`}>Tracking number</Label>
                       <Input
                         id={`phone_${index}`}
                         type="tel"
                         value={business.metered_phone_number || ''}
                         onChange={(e) => updateBusiness(index, 'metered_phone_number', e.target.value)}
-                        placeholder="(555) 123-4567 або залиште порожнім"
+                        placeholder="(555) 123-4567 or leave blank"
                         onBlur={(e) => {
                           if (e.target.value) {
                             updateBusiness(index, 'metered_phone_number', formatPhoneNumber(e.target.value));
@@ -180,7 +180,7 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
                         }}
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        Опціонально. Якщо не вказано — для цього бізнесу в межах цієї CPC-програми номер трекінгу не застосовується
+                        Optional. If not provided, this business will not use call tracking within this CPC program
                       </p>
                     </div>
                   </CardContent>
@@ -189,30 +189,30 @@ const CallTrackingEditor: React.FC<CallTrackingEditorProps> = ({
 
               <Button type="button" onClick={addBusiness} variant="outline" className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
-                Додати ще один бізнес
+                Add another business
               </Button>
             </div>
           )}
 
           <div className="bg-green-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">📊 Переваги відстеження дзвінків:</h4>
+            <h4 className="text-sm font-medium mb-2">📊 Call tracking benefits:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>ROI-аналіз:</strong> можете аналізувати ефективність дзвінків від реклами</li>
-              <li>• <strong>Оптимізація:</strong> розумієте, які ключові слова генерують дзвінки</li>
-              <li>• <strong>Якість трафіку:</strong> відрізняєте платний трафік від органічного</li>
-              <li>• <strong>Конверсії:</strong> трекаєте всю воронку від кліка до дзвінка</li>
-              <li>• <strong>Звітність:</strong> call-tracking у Reporting API зараз не відображається</li>
+              <li>• <strong>ROI analysis:</strong> analyze effectiveness of calls from ads</li>
+              <li>• <strong>Optimization:</strong> understand which keywords generate calls</li>
+              <li>• <strong>Traffic quality:</strong> distinguish paid from organic traffic</li>
+              <li>• <strong>Conversions:</strong> track the funnel from click to call</li>
+              <li>• <strong>Reporting:</strong> call tracking is not currently shown in the Reporting API</li>
             </ul>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти налаштування
+              Save settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

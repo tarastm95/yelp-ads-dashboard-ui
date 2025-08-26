@@ -59,7 +59,7 @@ export interface PortfolioPhotoUploadRequest {
 }
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: '/api', // Проксировать через бекенд
+  baseUrl: '/api', // Proxy through backend
   prepareHeaders: (headers, { getState }) => {
     headers.set('Content-Type', 'application/json');
     const { auth } = (getState() as RootState);
@@ -76,7 +76,7 @@ export const yelpApi = createApi({
   baseQuery,
   tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto'],
   endpoints: (builder) => ({
-    // 1. Создать новый рекламный продукт
+    // 1. Create a new ad product
     createProgram: builder.mutation<{ job_id: string }, CreateProgramRequest>({
       query: (data) => ({
         url: '/reseller/program/create',
@@ -86,7 +86,7 @@ export const yelpApi = createApi({
       invalidatesTags: ['Program'],
     }),
 
-    // 2. Редактировать продукт
+    // 2. Edit product
     editProgram: builder.mutation<{ job_id: string }, { partner_program_id: string; data: EditProgramRequest }>({
       query: ({ partner_program_id, data }) => ({
         url: `/reseller/program/${partner_program_id}/edit`,
@@ -96,7 +96,7 @@ export const yelpApi = createApi({
       invalidatesTags: ['Program'],
     }),
 
-    // 3. Завершить продукт
+    // 3. Terminate product
     terminateProgram: builder.mutation<{ job_id: string }, string>({
       query: (partner_program_id) => ({
         url: `/reseller/program/${partner_program_id}/end`,
@@ -121,23 +121,23 @@ export const yelpApi = createApi({
       invalidatesTags: ['Program'],
     }),
 
-    // 4. Проверить статус задачи
+    // 4. Check job status
     getJobStatus: builder.query<JobStatus, string>({
       query: (id) => `/reseller/status/${id}`,
       providesTags: ['JobStatus'],
     }),
 
-    // 5. Получить информацию о продуктах
+    // 5. Get product information
     getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string; _forceKey?: number }>({
       query: ({ offset = 0, limit = 20, program_status = 'CURRENT', _forceKey } = {}) => ({
         url: '/reseller/programs',
-        params: { offset, limit, program_status }, // _forceKey не відправляємо на сервер
+        params: { offset, limit, program_status }, // do not send _forceKey to the server
       }),
-      // Відключаємо кешування для пагінації - кожен запит має бути свіжим
+      // Disable caching for pagination - each request must be fresh
       keepUnusedDataFor: 0,
-      // Простіші теги без складної логіки
+      // Simpler tags without complex logic
       providesTags: ['Program'],
-      // Кожен набір параметрів - окремий ключ запиту, включаючи forceKey
+      // Each parameter set is a separate query key, including forceKey
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         return `${endpointName}_${queryArgs.offset}_${queryArgs.limit}_${queryArgs.program_status}_${queryArgs._forceKey || 0}`;
       },
@@ -148,7 +148,7 @@ export const yelpApi = createApi({
       providesTags: ['Program'],
     }),
 
-    // 6. Получить зашифрованный business_id
+    // 6. Get encrypted business_id
     getBusinessMatches: builder.query<BusinessMatch[], { name: string; address1: string; city: string; state: string; country: string }>({
       query: (params) => ({
         url: '/businesses/matches',
@@ -156,17 +156,17 @@ export const yelpApi = createApi({
       }),
     }),
 
-    // Получить программы для Business ID
+    // Get programs for Business ID
     getBusinessPrograms: builder.query<BusinessProgramsResponse, string>({
       query: (business_id) => `/reseller/business_programs/${business_id}`,
     }),
 
-    // Получить информацию о программе по её ID
+    // Get program information by its ID
     getPartnerProgramInfo: builder.query<ProgramInfoResponse, string>({
       query: (program_id) => `/reseller/program_info/${program_id}`,
     }),
 
-    // 7. Обновить категории бизнеса
+    // 7. Update business categories
     updateBusinessCategories: builder.mutation<{ job_id: string }, BusinessUpdate[]>({
       query: (businesses) => ({
         url: '/batch/businesses/sync',
@@ -175,7 +175,7 @@ export const yelpApi = createApi({
       }),
     }),
 
-    // 8. Запросить отчеты
+    // 8. Request reports
     requestDailyReport: builder.mutation<
       { report_id: string },
       { business_id: string; start_date: string; end_date: string }

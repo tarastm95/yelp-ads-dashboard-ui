@@ -52,7 +52,7 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ImageIcon className="w-5 h-5" />
-          Налаштування власного фото для реклами
+          Custom ad photo settings
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -66,12 +66,12 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
             />
             <div>
               <Label htmlFor="photo-enabled" className="text-base font-medium">
-                Використовувати власне фото в рекламі
+                Use custom photo in ads
               </Label>
               <p className="text-sm text-gray-600">
-                {isEnabled 
-                  ? 'Ваше власне фото буде показуватись в рекламі замість автоматично обраного' 
-                  : 'Yelp автоматично обере найкраще фото для реклами'
+                {isEnabled
+                  ? 'Your custom photo will be shown in ads instead of the automatically selected one'
+                  : 'Yelp will automatically choose the best photo for ads'
                 }
               </p>
             </div>
@@ -81,7 +81,7 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
             <div className="space-y-4">
               {/* Photo ID Input */}
               <div>
-                <Label htmlFor="photoId">ID фото *</Label>
+                <Label htmlFor="photoId">Photo ID *</Label>
                 <Input
                   id="photoId"
                   value={photoId}
@@ -95,12 +95,12 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
                 
                 {photoId && !isValidPhotoId(photoId) && (
                   <p className="text-xs text-red-600 mt-1">
-                    ⚠️ ID фото має містити лише букви, цифри, дефіси та підкреслення (3-50 символів)
+                    ⚠️ Photo ID must contain only letters, numbers, hyphens, and underscores (3-50 characters)
                   </p>
                 )}
                 
                 <p className="text-xs text-gray-500 mt-1">
-                  Ідентифікатор фото, яке показувати в оголошенні. Щоб повернутися до авто-вибору — очистіть поле.
+                  Identifier of the photo to display in the ad. Clear the field to revert to automatic selection.
                 </p>
               </div>
 
@@ -108,39 +108,39 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
               <div className="bg-yellow-50 p-4 rounded-lg">
                 <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                   <Info className="w-4 h-4" />
-                  Як отримати ID фото:
+                  How to obtain the photo ID:
                 </h4>
                 <ul className="text-xs text-gray-600 space-y-2">
-                  <li>• <strong>Data Ingestion API:</strong> Після завантаження фото через API, ви отримуєте photo_id у статусі джобу — зберігайте та використовуйте їх</li>
-                  <li>• <strong>Офіційні API:</strong> Використовуйте ID, отримані від офіційних Yelp API ендпоїнтів</li>
-                  <li>• <strong>Бізнес-профіль:</strong> ID фото з вашого затвердженого бізнес-профілю на Yelp</li>
+                  <li>• <strong>Data Ingestion API:</strong> After uploading a photo via the API, you receive the photo_id in the job status—save and use it</li>
+                  <li>• <strong>Official APIs:</strong> Use IDs obtained from official Yelp API endpoints</li>
+                  <li>• <strong>Business profile:</strong> Photo ID from your verified Yelp business profile</li>
                 </ul>
                 <div className="mt-3 p-2 bg-blue-100 rounded border text-xs">
-                  <strong>Важливо:</strong> Використовуйте лише ID, отримані від офіційних Yelp API. Неофіційні методи не гарантуються.
+                  <strong>Important:</strong> Use only IDs obtained from official Yelp APIs. Unofficial methods are not guaranteed.
                 </div>
               </div>
 
               {/* Photo Requirements */}
               <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">📋 Вимоги до фото:</h4>
+                <h4 className="text-sm font-medium mb-2">📋 Photo requirements:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• Фото має бути вже завантажене у ваш Yelp-профіль</li>
-                  <li>• Високої якості та релевантне до вашого бізнесу</li>
-                  <li>• Відповідає Content Guidelines Yelp</li>
-                  <li>• Yelp може модерувати контент, що порушує правила</li>
-                  <li>• Використовуйте високу роздільну здатність (Yelp автоматично змінить розмір)</li>
+                  <li>• Photo must already be uploaded to your Yelp profile</li>
+                  <li>• High quality and relevant to your business</li>
+                  <li>• Complies with Yelp Content Guidelines</li>
+                  <li>• Yelp may moderate content that violates guidelines</li>
+                  <li>• Use high resolution (Yelp will resize automatically)</li>
                 </ul>
               </div>
 
               {/* Best Practices */}
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">💡 Поради для ефективної реклами:</h4>
+                <h4 className="text-sm font-medium mb-2">💡 Tips for effective advertising:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• <strong>Якість:</strong> Використовуйте яскраві, чіткі фото</li>
-                  <li>• <strong>Репрезентативність:</strong> Фото має показувати ваш продукт/послугу</li>
-                  <li>• <strong>Емоційність:</strong> Фото, що викликають позитивні емоції, працюють краще</li>
-                  <li>• <strong>Унікальність:</strong> Уникайте стокових фото</li>
-                  <li>• <strong>Актуальність:</strong> Використовуйте свіжі фото вашого бізнесу</li>
+                  <li>• <strong>Quality:</strong> Use bright, clear photos</li>
+                  <li>• <strong>Representativeness:</strong> The photo should showcase your product/service</li>
+                  <li>• <strong>Emotion:</strong> Photos that evoke positive emotions perform better</li>
+                  <li>• <strong>Uniqueness:</strong> Avoid stock photos</li>
+                  <li>• <strong>Relevance:</strong> Use up-to-date photos of your business</li>
                 </ul>
               </div>
 
@@ -149,12 +149,12 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                     <Eye className="w-4 h-4" />
-                    Вибране фото:
+                    Selected photo:
                   </h4>
                   <div className="flex items-center justify-between bg-white p-3 rounded border">
                     <div>
-                      <p className="text-sm font-medium">ID фото: <code className="bg-gray-100 px-2 py-1 rounded">{photoId}</code></p>
-                      <p className="text-xs text-gray-500">Це фото буде використовуватись в рекламі</p>
+                      <p className="text-sm font-medium">Photo ID: <code className="bg-gray-100 px-2 py-1 rounded">{photoId}</code></p>
+                      <p className="text-xs text-gray-500">This photo will be used in ads</p>
                     </div>
                     <Button
                       type="button"
@@ -166,7 +166,7 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
                       }}
                     >
                       <ExternalLink className="w-3 h-3 mr-1" />
-                      Переглянути на Yelp
+                      View on Yelp
                     </Button>
                   </div>
                 </div>
@@ -174,12 +174,12 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
 
               {/* Alternative Options */}
               <div className="bg-purple-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">🎯 Альтернативи:</h4>
+                <h4 className="text-sm font-medium mb-2">🎯 Alternatives:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• <strong>Автоматичний вибір:</strong> Yelp обере найкращі фото автоматично</li>
-                  <li>• <strong>A/B тестування:</strong> Спробуйте різні фото і порівняйте результати</li>
-                  <li>• <strong>Portfolio проекти:</strong> Створюйте креативи на основі ваших портфоліо (portfolio photo_id ≠ custom_photo_id)</li>
-                  <li>• <strong>Сезонність:</strong> Змінюйте фото відповідно до сезону чи акцій</li>
+                  <li>• <strong>Automatic selection:</strong> Yelp will choose the best photos automatically</li>
+                  <li>• <strong>A/B testing:</strong> Try different photos and compare results</li>
+                  <li>• <strong>Portfolio projects:</strong> Create creatives based on your portfolio (portfolio photo_id ≠ custom_photo_id)</li>
+                  <li>• <strong>Seasonality:</strong> Change photos according to season or promotions</li>
                 </ul>
               </div>
             </div>
@@ -192,11 +192,11 @@ const CustomAdPhotoEditor: React.FC<CustomAdPhotoEditorProps> = ({
               className="flex-1"
             >
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти налаштування фото
+              Save photo settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

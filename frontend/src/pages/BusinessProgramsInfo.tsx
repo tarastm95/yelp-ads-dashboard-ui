@@ -14,7 +14,7 @@ const BusinessProgramsInfo: React.FC = () => {
   });
 
   if (!businessId) {
-    return <p className="text-red-500">Business ID не указан</p>;
+    return <p className="text-red-500">Business ID not specified</p>;
   }
 
   if (isLoading) {
@@ -29,9 +29,9 @@ const BusinessProgramsInfo: React.FC = () => {
     return (
       <div className="space-y-4 max-w-2xl mx-auto">
         <Button variant="outline" onClick={() => navigate(-1)}>
-          Назад
+          Back
         </Button>
-        <p className="text-red-500">Ошибка загрузки данных</p>
+        <p className="text-red-500">Error loading data</p>
       </div>
     );
   }
@@ -39,7 +39,7 @@ const BusinessProgramsInfo: React.FC = () => {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <Button variant="outline" onClick={() => navigate(-1)}>
-        Назад
+        Back
       </Button>
       <BusinessProgramsView data={data} />
     </div>
