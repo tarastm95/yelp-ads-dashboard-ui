@@ -11,11 +11,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { username, password } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
 
-  // Перевіряємо чи є credentials (користувач авторизований)
+  // Check if credentials are present (user is authenticated)
   const isAuthenticated = username && password && username.trim() !== '' && password.trim() !== '';
 
   if (!isAuthenticated) {
-    // Зберігаємо поточний шлях для редіректу після логіну
+    // Save current path to redirect after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -12,22 +12,22 @@ import {
 const Index = () => {
   const features = [
     {
-      title: 'Создание программ',
-      description: 'Создавайте новые рекламные программы Yelp',
+      title: 'Program Creation',
+      description: 'Create new Yelp advertising programs',
       icon: Plus,
       path: '/create',
       color: 'bg-blue-500',
     },
     {
-      title: 'Управление программами',
-      description: 'Полный цикл Yelp Ads API: Create, Modify, Terminate, Status + Pause/Resume',
+      title: 'Program Management',
+      description: 'Full Yelp Ads API cycle: Create, Modify, Terminate, Status + Pause/Resume',
       icon: List,
       path: '/programs',
       color: 'bg-green-500',
     },
     {
-      title: 'Мониторинг задач',
-      description: 'Отслеживайте статус выполнения операций',
+      title: 'Task Monitoring',
+      description: 'Track the status of operations',
       icon: Clock,
       path: '/jobs',
       color: 'bg-red-500',
@@ -44,8 +44,8 @@ const Index = () => {
             Yelp Ads Campaign Manager
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Полнофункциональная панель управления рекламными кампаниями Yelp. 
-            Создавайте, управляйте и анализируйте ваши рекламные программы.
+            A full-featured dashboard for managing Yelp advertising campaigns.
+            Create, manage, and analyze your advertising programs.
           </p>
         </div>
 
@@ -67,7 +67,7 @@ const Index = () => {
                 <CardContent>
                   <Button asChild className="w-full">
                     <Link to={feature.path}>
-                      Перейти
+                      Go
                     </Link>
                   </Button>
                 </CardContent>
@@ -78,12 +78,12 @@ const Index = () => {
 
         {/* Quick Actions */}
         <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-4">Быстрые действия</h2>
+          <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <Button asChild size="lg">
               <Link to="/create">
                 <Plus className="mr-2 h-4 w-4" />
-                Создать программу
+                Create Program
               </Link>
             </Button>
           </div>
@@ -93,7 +93,7 @@ const Index = () => {
         <div className="mt-8 bg-gray-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-2">Yelp Ads API</h3>
           <p className="text-gray-600 mb-4">
-            Этот интерфейс использует официальный Yelp Ads API для управления рекламными кампаниями.
+            This interface uses the official Yelp Ads API to manage advertising campaigns.
           </p>
           <Button asChild variant="link">
             <a 
@@ -101,7 +101,7 @@ const Index = () => {
               target="_blank" 
               rel="noopener noreferrer"
             >
-              Документация API →
+              API Documentation →
             </a>
           </Button>
         </div>
