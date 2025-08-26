@@ -51,20 +51,20 @@ const ProgramStatusDialog: React.FC<ProgramStatusDialogProps> = ({ jobId }) => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Clock className="h-4 w-4 mr-1" /> Статус
+          <Clock className="h-4 w-4 mr-1" /> Status
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Статус задачи: {jobId}</DialogTitle>
+          <DialogTitle>Job Status: {jobId}</DialogTitle>
         </DialogHeader>
         {isLoading && (
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Загрузка...</span>
+            <span>Loading...</span>
           </div>
         )}
-        {error && <p className="text-red-500">Ошибка загрузки статуса</p>}
+        {error && <p className="text-red-500">Failed to load status</p>}
         {data && (
           <div className="space-y-4">
             <Badge className={getStatusColor(data.status)}>

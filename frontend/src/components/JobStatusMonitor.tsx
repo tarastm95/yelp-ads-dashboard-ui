@@ -16,7 +16,7 @@ const JobStatusMonitor: React.FC = () => {
     jobId,
     { 
       skip: !jobId || !shouldPoll,
-      pollingInterval: 5000, // Опрос каждые 5 секунд
+      pollingInterval: 5000, // Poll every 5 seconds
     }
   );
 
@@ -64,10 +64,10 @@ const JobStatusMonitor: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Мониторинг статуса задач
+            Task Status Monitoring
           </CardTitle>
           <CardDescription>
-            Отслеживайте выполнение операций Yelp API в реальном времени
+            Track Yelp API operations in real time
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -78,7 +78,7 @@ const JobStatusMonitor: React.FC = () => {
                 id="job_id"
                 value={jobId}
                 onChange={(e) => setJobId(e.target.value)}
-                placeholder="Введите ID программы для мониторинга"
+                placeholder="Enter program ID to monitor"
               />
             </div>
             <div className="flex gap-2">
@@ -86,14 +86,14 @@ const JobStatusMonitor: React.FC = () => {
                 onClick={handleStartMonitoring} 
                 disabled={!jobId.trim() || shouldPoll}
               >
-                Начать мониторинг
+                Start Monitoring
               </Button>
-              <Button 
+              <Button
                 variant="outline"
-                onClick={handleStopMonitoring} 
+                onClick={handleStopMonitoring}
                 disabled={!shouldPoll}
               >
-                Остановить
+                Stop
               </Button>
             </div>
           </div>
@@ -105,13 +105,13 @@ const JobStatusMonitor: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Статус задачи: {jobId}
+              Task Status: {jobId}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {jobStatus ? (
               <div className="space-y-4">
-                {/* Додаємо debug інформацію */}
+                {/* Adding debug information */}
                 <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
                   <strong>Debug:</strong> status = "{jobStatus.status}", type = {typeof jobStatus.status}
                 </div>
@@ -126,7 +126,7 @@ const JobStatusMonitor: React.FC = () => {
 
                 {jobStatus.status === 'COMPLETED' && jobStatus.business_results && (
                   <div>
-                    <h4 className="font-semibold mb-2">Результат:</h4>
+                    <h4 className="font-semibold mb-2">Result:</h4>
                     <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto">
                       {JSON.stringify(jobStatus.business_results, null, 2)}
                     </pre>
@@ -135,7 +135,7 @@ const JobStatusMonitor: React.FC = () => {
 
                 {jobStatus.status === 'FAILED' && (
                   <div>
-                    <h4 className="font-semibold mb-2 text-red-600">Ошибка:</h4>
+                    <h4 className="font-semibold mb-2 text-red-600">Error:</h4>
                     <pre className="text-red-600 bg-red-50 p-3 rounded">
                       {JSON.stringify(jobStatus.business_results ?? {}, null, 2)}
                     </pre>
@@ -145,14 +145,14 @@ const JobStatusMonitor: React.FC = () => {
                 {(jobStatus.status === 'PENDING' || jobStatus.status === 'IN_PROGRESS') && (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Задача выполняется... Обновление каждые 5 секунд</span>
+                    <span>Task running... Refreshing every 5 seconds</span>
                   </div>
                 )}
               </div>
             ) : error ? (
-              <p className="text-red-500">Ошибка получения статуса задачи</p>
+              <p className="text-red-500">Failed to get task status</p>
             ) : (
-              <p className="text-muted-foreground">Загрузка статуса...</p>
+              <p className="text-muted-foreground">Loading status...</p>
             )}
           </CardContent>
         </Card>
