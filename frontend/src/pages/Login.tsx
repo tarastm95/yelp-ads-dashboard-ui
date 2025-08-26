@@ -63,7 +63,7 @@ const Login: React.FC = () => {
     
     try {
       // Send credentials to the backend for storage
-      const response = await fetch('http://localhost:8000/api/auth/save-credentials', {
+      const response = await fetch('/api/auth/save-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

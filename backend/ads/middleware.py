@@ -71,8 +71,17 @@ class SimpleCorsMiddleware:
     
     def _add_cors_headers(self, response):
         """Add CORS headers to response."""
-        response["Access-Control-Allow-Origin"] = "http://localhost:8080"
+        # Allow multiple origins for development and production
+        allowed_origins = [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080", 
+            "http://72.60.66.164:8080",
+            "http://72.60.66.164"
+        ]
+        
+        # For simplicity, we'll use * for now (not recommended for production with credentials)
+        response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Allow-Credentials"] = "false"  # Must be false when using *
         response["Access-Control-Max-Age"] = "86400"  # 24 hours
