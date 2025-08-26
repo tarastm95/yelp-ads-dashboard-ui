@@ -16,6 +16,7 @@ import {
   Target, Shield, Star, Award, Link, FolderOpen
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { formatFeatureType } from '@/lib/utils';
 
 // Detailed descriptions of all Program Features types according to Yelp documentation
 const FEATURE_DESCRIPTIONS = {
@@ -496,7 +497,7 @@ const ProgramFeatures: React.FC = () => {
 
       toast({
         title: 'Feature Updated',
-        description: `Settings for ${featureType.replace(/_/g, ' ')} saved successfully`,
+        description: `Settings for ${formatFeatureType(featureType)} saved successfully`,
       });
     } catch (error: any) {
       console.error('❌ Save feature error:', error);
