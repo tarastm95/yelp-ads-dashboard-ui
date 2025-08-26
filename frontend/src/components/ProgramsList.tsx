@@ -17,50 +17,50 @@ const ProgramsList: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(20);
   const [programStatus, setProgramStatus] = useState('CURRENT');
-  const [isChangingPage, setIsChangingPage] = useState(false); // Стан переключення сторінки
+  const [isChangingPage, setIsChangingPage] = useState(false); // Page switching state
   
-  // Створюємо унікальний ключ для примусового оновлення
+  // Create a unique key to force refresh
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
   
-  // Стан для швидкого переходу на сторінку
+  // State for quick page jump
   const [jumpToPage, setJumpToPage] = useState('');
 
-  // Функція для генерації номерів сторінок з еліпсисом
+  // Generate page numbers with ellipsis
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
     const pages: (number | string)[] = [];
-    const maxVisiblePages = 7; // Максимум видимих сторінок
+    const maxVisiblePages = 7; // Max visible pages
     
     if (totalPages <= maxVisiblePages) {
-      // Якщо сторінок мало, показуємо всі
+      // Show all if few pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Завжди показуємо першу сторінку
+      // Always show first page
       pages.push(1);
       
-      // Визначаємо діапазон навколо поточної сторінки
+      // Determine range around current page
       let startPage = Math.max(2, currentPage - 2);
       let endPage = Math.min(totalPages - 1, currentPage + 2);
       
-      // Додаємо еліпсис після першої сторінки, якщо потрібно
+      // Add ellipsis after first page if needed
       if (startPage > 2) {
         pages.push('...');
       }
       
-      // Додаємо сторінки навколо поточної
+      // Add pages around current
       for (let i = startPage; i <= endPage; i++) {
         if (i !== 1 && i !== totalPages) {
           pages.push(i);
         }
       }
       
-      // Додаємо еліпсис перед останньою сторінкою, якщо потрібно
+      // Add ellipsis before last page if needed
       if (endPage < totalPages - 1) {
         pages.push('...');
       }
       
-      // Завжди показуємо останню сторінку
+      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
@@ -69,7 +69,7 @@ const ProgramsList: React.FC = () => {
     return pages;
   };
 
-  // Функція для переходу на сторінку
+  // Navigate to page
   const goToPage = (page: number) => {
     const newOffset = (page - 1) * limit;
     setIsChangingPage(true);
@@ -77,7 +77,7 @@ const ProgramsList: React.FC = () => {
     setForceRefreshKey(prev => prev + 1);
   };
 
-  // Функція для швидкого переходу на сторінку
+  // Handle quick page jump
   const handleJumpToPage = () => {
     const pageNumber = parseInt(jumpToPage);
     const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
@@ -88,28 +88,28 @@ const ProgramsList: React.FC = () => {
     }
   };
   
-  // Звичайні програми
+  // Regular programs
   const { data, isLoading, error, refetch } = useGetProgramsQuery({ 
     offset: offset, 
     limit: limit,
     program_status: programStatus,
-    // Додаємо ключ для примусового оновлення
+    // Add force refresh key
     _forceKey: forceRefreshKey
   });
 
-  // Скидаємо стан переключення сторінки коли дані завантажилися або є помилка
+  // Reset page switching state when data loaded or error
   useEffect(() => {
     if (!isLoading) {
       setIsChangingPage(false);
     }
   }, [isLoading]);
 
-  // Додатковий захист - скидаємо стан через таймаут якщо щось пішло не так
+  // Additional safety: reset state after timeout if something wrong
   useEffect(() => {
     if (isChangingPage) {
       const timeoutId = setTimeout(() => {
         setIsChangingPage(false);
-      }, 10000); // 10 секунд максимум
+      }, 10000); // max 10 seconds
       
       return () => {
         clearTimeout(timeoutId);
@@ -117,7 +117,7 @@ const ProgramsList: React.FC = () => {
     }
   }, [isChangingPage]);
   
-  // Отримуємо програми з API
+  // Get programs from API
   const programs = data?.programs || [];
   const navigate = useNavigate();
   const [terminateProgram] = useTerminateProgramMutation();
@@ -159,7 +159,7 @@ const ProgramsList: React.FC = () => {
     handleAction(
       () => terminateProgram(programId).unwrap(),
       programId,
-      "Программа завершается",
+      "Program is terminating",
       "terminate"
     );
   };
@@ -168,7 +168,7 @@ const ProgramsList: React.FC = () => {
     handleAction(
       () => pauseProgram(programId).unwrap(),
       programId,
-      "Программа приостановлена",
+      "Program paused",
       "pause"
     );
   };
@@ -177,12 +177,12 @@ const ProgramsList: React.FC = () => {
     handleAction(
       () => resumeProgram(programId).unwrap(),
       programId,
-      "Программа возобновлена",
+      "Program resumed",
       "resume"
     );
   };
 
-  // Показуємо основний лоадер тільки при першому завантаженні (не при переключенні сторінок)
+  // Show main loader only on initial load (not during page switch)
   if (isLoading && !isChangingPage) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -195,9 +195,9 @@ const ProgramsList: React.FC = () => {
     return (
       <Card className="w-full max-w-2xl mx-auto">
         <CardContent className="pt-6">
-          <p className="text-red-500">Ошибка загрузки программ</p>
+          <p className="text-red-500">Error loading programs</p>
           <p className="text-sm text-gray-600 mt-2">
-            {error && 'status' in error && `HTTP ${error.status}: ${error.data?.error?.message || 'Неизвестная ошибка'}`}
+            {error && 'status' in error && `HTTP ${error.status}: ${error.data?.error?.message || 'Unknown error'}`}
           </p>
         </CardContent>
       </Card>
@@ -208,12 +208,12 @@ const ProgramsList: React.FC = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Рекламные программы</h2>
+          <h2 className="text-2xl font-bold">Advertising Programs</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Управление программами через Yelp Advertising API
+            Manage programs via Yelp Advertising API
           </p>
         </div>
-        <Button onClick={() => navigate('/create')}>Создать программу</Button>
+        <Button onClick={() => navigate('/create')}>Create Program</Button>
       </div>
 
 
@@ -223,7 +223,7 @@ const ProgramsList: React.FC = () => {
         <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
           <div className="flex gap-4 items-center">
             <div>
-              <label className="text-sm font-medium">Статус:</label>
+              <label className="text-sm font-medium">Status:</label>
               <select 
                 value={programStatus} 
                 onChange={(e) => {
@@ -251,7 +251,7 @@ const ProgramsList: React.FC = () => {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Нет программ со статусом "{programStatus}". Попробуйте изменить фильтр или создать новую программу.
+              No programs with status "{programStatus}". Try adjusting the filter or create a new program.
             </p>
           </CardContent>
         </Card>
@@ -263,12 +263,12 @@ const ProgramsList: React.FC = () => {
               <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
               <div className="text-center">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {isChangingPage ? 'Переключение страницы...' : 'Загрузка программ...'}
+                  {isChangingPage ? 'Switching page...' : 'Loading programs...'}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
                   {isChangingPage 
-                    ? `Загружаем страницу ${Math.floor(offset / limit) + 1}...` 
-                    : 'Пожалуйста, подождите...'
+                    ? `Loading page ${Math.floor(offset / limit) + 1}...`
+                    : 'Please wait...'
                   }
                 </p>
               </div>
@@ -352,7 +352,7 @@ const ProgramsList: React.FC = () => {
                         disabled={!program.program_id}
                       >
                         <Edit className="w-4 h-4 mr-1" />
-                        Редактировать
+                        Edit
                       </Button>
 
                       {/* TERMINATE - завершити програму */}
@@ -375,7 +375,7 @@ const ProgramsList: React.FC = () => {
                           <Trash2 className="w-4 h-4 mr-1" />
                         )}
                         {program.program_status === 'INACTIVE' || program.program_status === 'TERMINATED' || program.program_status === 'EXPIRED' ? 
-                          'Неактивна' : 'Завершить'
+                          'Inactive' : 'Terminate'
                         }
                       </Button>
 
@@ -404,7 +404,7 @@ const ProgramsList: React.FC = () => {
                         ) : (
                           <Square className="w-4 h-4 mr-1" />
                         )}
-                        {program.program_pause_status === 'PAUSED' ? 'Возобновить' : 'Приостановить'}
+                        {program.program_pause_status === 'PAUSED' ? 'Resume' : 'Pause'}
                       </Button>
 
                       {/* INFO - переглянути інформацію про програму */}
@@ -415,7 +415,7 @@ const ProgramsList: React.FC = () => {
                         onClick={() => navigate(`/program-info/${program.program_id}`)}
                         disabled={!program.program_id}
                       >
-                        Подробности
+                        Details
                       </Button>
 
                       {/* FEATURES - Функції програми */}
@@ -427,7 +427,7 @@ const ProgramsList: React.FC = () => {
                         disabled={!program.program_id}
                       >
                         <Settings className="w-4 h-4 mr-1" />
-                        Функции
+                        Features
                       </Button>
 
                       {/* STATUS - Переглянути статус */}
@@ -438,7 +438,7 @@ const ProgramsList: React.FC = () => {
                         onClick={() => navigate(`/program-status/${program.program_id}`)}
                         disabled={!program.program_id}
                       >
-                        Статус программы
+                        Program Status
                       </Button>
                     </div>
                   </div>
@@ -454,8 +454,8 @@ const ProgramsList: React.FC = () => {
               {/* Информация о результатах и быстрая смена количества на странице */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
                 <div className="text-sm text-gray-600 text-center sm:text-left">
-                  Показано {programs.length} из {data.total_count} программ
-                  <span className="hidden sm:inline"> (страница {Math.floor(offset / limit) + 1} из {Math.ceil(data.total_count / limit)})</span>
+                  Showing {programs.length} of {data.total_count} programs
+                  <span className="hidden sm:inline"> (page {Math.floor(offset / limit) + 1} of {Math.ceil(data.total_count / limit)})</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm">
@@ -489,8 +489,8 @@ const ProgramsList: React.FC = () => {
                   return (
                     <div className="w-full max-w-md">
                       <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Страница {currentPage}</span>
-                        <span>из {totalPages}</span>
+                        <span>Page {currentPage}</span>
+                        <span>of {totalPages}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -543,7 +543,7 @@ const ProgramsList: React.FC = () => {
                           size="sm"
                           onClick={() => goToPage(Math.max(1, currentPage - 5))}
                           className="px-2 text-xs hidden sm:inline-flex"
-                          title="На 5 страниц назад"
+                          title="Back 5 pages"
                         >
                           -5
                         </Button>
@@ -574,7 +574,7 @@ const ProgramsList: React.FC = () => {
                           size="sm"
                           onClick={() => goToPage(Math.min(totalPages, currentPage + 5))}
                           className="px-2 text-xs hidden sm:inline-flex"
-                          title="На 5 страниц вперед"
+                          title="Forward 5 pages"
                         >
                           +5
                         </Button>
@@ -612,7 +612,7 @@ const ProgramsList: React.FC = () => {
                 if (totalPages > 10) {
                   return (
                     <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2 text-sm">
-                      <span className="text-gray-600">Перейти на страницу:</span>
+                      <span className="text-gray-600">Go to page:</span>
                       <div className="flex items-center space-x-2">
                         <Input
                           type="number"
@@ -626,14 +626,14 @@ const ProgramsList: React.FC = () => {
                             }
                           }}
                           className="w-20 h-8 text-center"
-                          placeholder="№"
+                          placeholder="#"
                         />
                         <Button
                           size="sm"
                           onClick={handleJumpToPage}
                           disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
                         >
-                          Перейти
+                          Go
                         </Button>
                       </div>
                     </div>

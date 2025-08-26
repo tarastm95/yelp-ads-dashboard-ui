@@ -51,7 +51,7 @@ const CreateProgram: React.FC = () => {
     e.preventDefault();
     
     try {
-      // Базові параметри для всіх типів програм
+      // Basic parameters for all program types
       const baseParams = {
         business_id: formData.business_id,
         program_name: formData.program_name,
@@ -60,7 +60,7 @@ const CreateProgram: React.FC = () => {
         promotion_code: formData.promotion_code || undefined,
       } as any;
 
-      // Додаємо CPC-специфічні параметри тільки для CPC програм
+      // Add CPC-specific parameters only for CPC programs
       const isCPCProgram = formData.program_name === 'CPC';
       
       const payload = isCPCProgram ? {
@@ -71,18 +71,18 @@ const CreateProgram: React.FC = () => {
         pacing_method: formData.pacing_method || undefined,
         fee_period: formData.fee_period || undefined,
         ad_categories: formData.ad_categories ? formData.ad_categories.split(',').map(c=>c.trim()).filter(Boolean) : undefined,
-        // max_bid тільки якщо не автобід
+        // max_bid only if not autobid
         ...(formData.is_autobid ? {} : { max_bid: parseFloat(formData.max_bid) })
       } : baseParams;
 
       const result = await createProgram(payload).unwrap();
 
       toast({
-        title: "Программа создается",
+        title: "Program being created",
         description: `Job ID: ${result.job_id}`,
       });
 
-      // Сброс формы
+      // Reset form
       setFormData({
         business_id: '',
         program_name: '',
@@ -116,10 +116,10 @@ const CreateProgram: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
-          Создать рекламную программу
+          Create Advertising Program
         </CardTitle>
         <CardDescription>
-          Заполните форму для создания новой рекламной программы Yelp
+          Fill out the form to create a new Yelp advertising program
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -130,7 +130,7 @@ const CreateProgram: React.FC = () => {
               id="business_id"
               value={formData.business_id}
               onChange={(e) => handleChange('business_id', e.target.value)}
-              placeholder="Введите зашифрованный business ID"
+              placeholder="Enter encrypted business ID"
               required
             />
           </div>
@@ -154,11 +154,11 @@ const CreateProgram: React.FC = () => {
             </Select>
           </div>
 
-          {/* CPC-специфічні поля показуємо тільки для CPC програм */}
+          {/* CPC-specific fields only for CPC programs */}
           {formData.program_name === 'CPC' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="budget">Budget (USD в центах)</Label>
+                <Label htmlFor="budget">Budget (USD in cents)</Label>
                 <Input
                   id="budget"
                   type="number"
@@ -167,9 +167,9 @@ const CreateProgram: React.FC = () => {
                   placeholder="20000 (= $200.00)"
                   required
                 />
-                <p className="text-sm text-gray-500">
-                  Введіть суму в центах: $200.00 = 20000
-                </p>
+                  <p className="text-sm text-gray-500">
+                    Enter amount in cents: $200.00 = 20000
+                  </p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -179,13 +179,13 @@ const CreateProgram: React.FC = () => {
                   checked={formData.is_autobid}
                   onChange={(e) => handleChange('is_autobid', e.target.checked)}
                 />
-                <Label htmlFor="is_autobid">Автоматичне бідування (Autobid)</Label>
+                <Label htmlFor="is_autobid">Automatic bidding (Autobid)</Label>
               </div>
 
               {/* Max bid тільки якщо НЕ автобід */}
               {!formData.is_autobid && (
                 <div className="space-y-2">
-                  <Label htmlFor="max_bid">Max Bid (USD в центах)</Label>
+                  <Label htmlFor="max_bid">Max Bid (USD in cents)</Label>
                   <Input
                     id="max_bid"
                     type="number"
@@ -195,7 +195,7 @@ const CreateProgram: React.FC = () => {
                     required
                   />
                   <p className="text-sm text-gray-500">
-                    Введіть суму в центах: $5.00 = 500
+                    Enter amount in cents: $5.00 = 500
                   </p>
                 </div>
               )}
@@ -248,12 +248,12 @@ const CreateProgram: React.FC = () => {
             </>
           )}
 
-          {/* Інформаційне повідомлення для не-CPC програм */}
+          {/* Info message for non-CPC programs */}
           {formData.program_name && formData.program_name !== 'CPC' && (
             <div className="bg-blue-50 border border-blue-200 rounded p-3">
               <p className="text-sm text-blue-700">
-                <strong>{formData.program_name}</strong> програма не потребує budget та bid параметрів. 
-                Тільки business_id, дати початку та кінця.
+                <strong>{formData.program_name}</strong> program does not require budget and bid parameters.
+                Only business_id and start/end dates.
               </p>
             </div>
           )}
@@ -293,10 +293,10 @@ const CreateProgram: React.FC = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Создание...
+                Creating...
               </>
             ) : (
-              'Создать программу'
+              'Create Program'
             )}
           </Button>
         </form>

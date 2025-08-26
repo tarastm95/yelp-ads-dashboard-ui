@@ -32,11 +32,11 @@ const Layout: React.FC = () => {
   };
 
   const navigation = [
-    { name: 'Главная', href: '/', icon: Home },
-    { name: 'Создать программу', href: '/create', icon: Plus },
-    { name: 'Программы', href: '/programs', icon: List },
-    { name: 'Расширенное редактирование', href: '/edit-advanced', icon: Edit },
-    { name: 'Мониторинг задач', href: '/jobs', icon: Clock },
+    { name: 'Home', href: '/', icon: Home },
+    { name: 'Create Program', href: '/create', icon: Plus },
+    { name: 'Programs', href: '/programs', icon: List },
+    { name: 'Advanced Editing', href: '/edit-advanced', icon: Edit },
+    { name: 'Task Monitor', href: '/jobs', icon: Clock },
   ];
 
   return (
@@ -116,7 +116,7 @@ const Layout: React.FC = () => {
                   size="sm"
                   onClick={handleLogout}
                   className="text-gray-400 hover:text-gray-600"
-                  title="Выход"
+                  title="Logout"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>

@@ -16,19 +16,19 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Отримуємо поточний стан авторизації
+  // Get current authentication state
   const { username: currentUsername, password: currentPassword } = useSelector((state: RootState) => state.auth);
   
-  // Отримуємо шлях звідки користувач прийшов
+  // Get the path the user came from
   const from = location.state?.from?.pathname || '/';
 
-  // Перевіряємо чи користувач уже авторизований
+  // Check if the user is already authenticated
   useEffect(() => {
     const isAuthenticated = currentUsername && currentPassword && 
                            currentUsername.trim() !== '' && currentPassword.trim() !== '';
     
     if (isAuthenticated) {
-      // Якщо вже авторизований, перенаправляємо на головну сторінку
+      // If already authenticated, redirect to the origin page
       navigate(from, { replace: true });
     }
   }, [currentUsername, currentPassword, navigate, from]);
@@ -52,8 +52,8 @@ const Login: React.FC = () => {
     
     if (!username.trim() || !password.trim()) {
       toast({
-        title: "Ошибка",
-        description: "Пожалуйста, заполните все поля",
+        title: "Error",
+        description: "Please fill in all fields",
         variant: "destructive",
       });
       return;
@@ -62,7 +62,7 @@ const Login: React.FC = () => {
     setLoading(true);
     
     try {
-      // Отправляем credentials на backend для сохранения
+      // Send credentials to the backend for storage
       const response = await fetch('http://localhost:8000/api/auth/save-credentials', {
         method: 'POST',
         headers: {
@@ -77,21 +77,21 @@ const Login: React.FC = () => {
 
       const result = await response.json();
       
-      // Сохраняем в Redux и localStorage
+      // Save to Redux and localStorage
       dispatch(setCredentials({ username, password }));
       
       toast({
-        title: "Успешно",
-        description: `Credentials сохранены для пользователя: ${username}`,
+        title: "Success",
+        description: `Credentials saved for user: ${username}`,
       });
       
-      // Перенаправляємо на сторінку звідки прийшов користувач або на головну
+      // Redirect to the originating page or home
       navigate(from, { replace: true });
     } catch (error) {
       console.error('Login error:', error);
       toast({
-        title: "Ошибка входа",
-        description: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        title: "Login error",
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -104,10 +104,10 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Вход в систему
+            Sign In
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Введите ваши Yelp API credentials
+            Enter your Yelp API credentials
           </p>
         </div>
         
@@ -115,20 +115,20 @@ const Login: React.FC = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Логин (Yelp API Key)
+                Login (Yelp API Key)
               </Label>
               <Input 
                 id="username" 
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)}
                 className="mt-1"
-                placeholder="Введите ваш Yelp API Key"
+                placeholder="Enter your Yelp API Key"
                 required
               />
             </div>
             <div>
               <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Пароль (Yelp API Secret)
+                Password (Yelp API Secret)
               </Label>
               <Input 
                 id="password" 
@@ -136,14 +136,14 @@ const Login: React.FC = () => {
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1"
-                placeholder="Введите ваш Yelp API Secret"
+                placeholder="Enter your Yelp API Secret"
                 required
               />
             </div>
           </div>
           
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Сохранение...' : 'Войти'}
+            {loading ? 'Saving...' : 'Sign In'}
           </Button>
         </form>
         
@@ -154,7 +154,7 @@ const Login: React.FC = () => {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-50 text-gray-500">
-                Credentials будут сохранены для использования с Yelp API
+                Credentials will be stored for use with the Yelp API
               </span>
             </div>
           </div>
