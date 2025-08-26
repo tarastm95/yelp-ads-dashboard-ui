@@ -44,7 +44,7 @@ const EditProgram: React.FC = () => {
       }).unwrap();
 
       toast({
-        title: 'Программа обновляется',
+        title: 'Program updating',
         description: `Job ID: ${result.job_id}`,
       });
 
@@ -60,14 +60,14 @@ const EditProgram: React.FC = () => {
   };
 
   if (!programId) {
-    return <p className="text-red-500">Program ID не указан</p>;
+    return <p className="text-red-500">Program ID not provided</p>;
   }
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">Редактировать программу</CardTitle>
-        <CardDescription>Измените параметры рекламной программы</CardDescription>
+        <CardTitle className="flex items-center gap-2">Edit Program</CardTitle>
+        <CardDescription>Modify advertising program parameters</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -93,10 +93,10 @@ const EditProgram: React.FC = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Сохранение...
+                Saving...
               </>
             ) : (
-              'Сохранить'
+              'Save'
             )}
           </Button>
         </form>
