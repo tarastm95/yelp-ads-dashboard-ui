@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Search, X, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 
@@ -17,9 +17,6 @@ const ProgramsList: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(20);
   const [programStatus, setProgramStatus] = useState('CURRENT');
-  const [searchInput, setSearchInput] = useState(''); // Те що в полі вводу
-  const [activeSearch, setActiveSearch] = useState(''); // Активний пошуковий запит
-  const [isSearchMode, setIsSearchMode] = useState(false); // Чи зараз режим пошуку
   const [isChangingPage, setIsChangingPage] = useState(false); // Стан переключення сторінки
   
   // Створюємо унікальний ключ для примусового оновлення
@@ -91,11 +88,11 @@ const ProgramsList: React.FC = () => {
     }
   };
   
-  // Звичайні програми або пошук
+  // Звичайні програми
   const { data, isLoading, error, refetch } = useGetProgramsQuery({ 
-    offset: isSearchMode ? 0 : offset, 
-    limit: isSearchMode ? 40 : limit, // Максимум 40 записів для пошуку
-    program_status: isSearchMode ? 'ALL' : programStatus,
+    offset: offset, 
+    limit: limit,
+    program_status: programStatus,
     // Додаємо ключ для примусового оновлення
     _forceKey: forceRefreshKey
   });
@@ -120,39 +117,8 @@ const ProgramsList: React.FC = () => {
     }
   }, [isChangingPage]);
   
-  // Фільтруємо програми за активним пошуковим запитом
-  const allPrograms = data?.programs || [];
-  const programs = isSearchMode && activeSearch
-    ? allPrograms.filter(program => 
-        program.program_id?.toLowerCase().includes(activeSearch.toLowerCase()) ||
-        program.program_type?.toLowerCase().includes(activeSearch.toLowerCase()) ||
-        program.yelp_business_id?.toLowerCase().includes(activeSearch.toLowerCase())
-      )
-    : allPrograms;
-
-  // Функція для запуску пошуку
-  const handleSearch = () => {
-    if (searchInput.trim()) {
-      setActiveSearch(searchInput.trim());
-      setIsSearchMode(true);
-      setOffset(0);
-    }
-  };
-
-  // Функція для очищення пошуку
-  const handleClearSearch = () => {
-    setSearchInput('');
-    setActiveSearch('');
-    setIsSearchMode(false);
-    setOffset(0);
-  };
-
-  // Обробка Enter в полі пошуку
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
+  // Отримуємо програми з API
+  const programs = data?.programs || [];
   const navigate = useNavigate();
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
@@ -250,57 +216,10 @@ const ProgramsList: React.FC = () => {
         <Button onClick={() => navigate('/create')}>Создать программу</Button>
       </div>
 
-      {/* Пошук */}
-      <div className="bg-blue-50 p-4 rounded">
-        <div className="flex gap-2 items-center">
-          <Search className="h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Введите Program ID, тип программы или Business ID для поиска..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyPress={handleSearchKeyPress}
-            className="flex-1"
-          />
-          <Button
-            onClick={handleSearch}
-            disabled={!searchInput.trim() || isLoading}
-            className="whitespace-nowrap"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Search className="h-4 w-4 mr-1" />
-            )}
-            Искать
-          </Button>
-          {isSearchMode && (
-            <Button
-              variant="outline"
-              onClick={handleClearSearch}
-              className="whitespace-nowrap"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Очистить
-            </Button>
-          )}
-        </div>
-        {isSearchMode && (
-          <div className="mt-2 flex flex-col gap-1">
-            <p className="text-sm text-blue-700 font-medium">
-              🔍 Поиск по всем статусам: "{activeSearch}"
-            </p>
-            <p className="text-sm text-gray-600">
-              Найдено: {programs.length} программ из {allPrograms.length} (первые 40 программ)
-            </p>
-            <p className="text-xs text-amber-600">
-              ⚠️ Поиск ограничен первыми 40 программами Yelp API. Если не нашли нужную программу, уточните запрос.
-            </p>
-          </div>
-        )}
-      </div>
+
 
       {/* Фільтри та пагінація */}
-      {!isSearchMode && (
+      <div>
         <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
           <div className="flex gap-4 items-center">
             <div>
@@ -326,16 +245,13 @@ const ProgramsList: React.FC = () => {
 
           </div>
         </div>
-      )}
+      </div>
 
       {programs.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              {isSearchMode 
-                ? `Программы по запросу "${activeSearch}" не найдены среди всех ${allPrograms.length} программ. Попробуйте изменить поисковый запрос.`
-                : `Нет программ со статусом "${programStatus}". Попробуйте изменить фильтр или создать новую программу.`
-              }
+              Нет программ со статусом "{programStatus}". Попробуйте изменить фильтр или создать новую программу.
             </p>
           </CardContent>
         </Card>
@@ -533,7 +449,7 @@ const ProgramsList: React.FC = () => {
           )}
 
           {/* Современная пагинация с номерами страниц */}
-          {!isSearchMode && !(isLoading || isChangingPage) && data?.total_count && (
+          {!(isLoading || isChangingPage) && data?.total_count && (
             <div className="flex flex-col items-center space-y-4 bg-gray-50 p-4 rounded">
               {/* Информация о результатах и быстрая смена количества на странице */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
@@ -712,13 +628,13 @@ const ProgramsList: React.FC = () => {
                           className="w-20 h-8 text-center"
                           placeholder="№"
                         />
-              <Button
+                        <Button
                           size="sm"
                           onClick={handleJumpToPage}
                           disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
                         >
                           Перейти
-              </Button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -728,8 +644,7 @@ const ProgramsList: React.FC = () => {
             </div>
           )}
         </div>
-      )}
-    </div>
+      </div>
   );
 };
 
