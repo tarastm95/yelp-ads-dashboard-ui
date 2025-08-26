@@ -23,12 +23,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'corsheaders',
     'ads',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'ads.middleware.SimpleCorsMiddleware',  # Наш простий CORS middleware
     'django.middleware.security.SecurityMiddleware',
     'ads.middleware.RequestLoggingMiddleware',  # Додаємо логування запитів
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -140,13 +139,4 @@ LOGGING = {
     },
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-# For development, you can also use:
-# CORS_ALLOW_ALL_ORIGINS = True  # Only for development!
+# CORS налаштування тепер в ads.middleware.SimpleCorsMiddleware
