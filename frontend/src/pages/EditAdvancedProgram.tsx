@@ -62,15 +62,15 @@ const EditAdvancedProgram: React.FC = () => {
       }).unwrap();
 
       toast({
-        title: 'Программа обновляется',
+        title: 'Program updating',
         description: `Job ID: ${result.job_id}`,
       });
 
       navigate('/programs');
     } catch (error) {
       toast({
-        title: 'Ошибка редактирования программы',
-        description: 'Проверьте введенные данные',
+        title: 'Program edit error',
+        description: 'Check the entered data',
         variant: 'destructive',
       });
     }
@@ -87,9 +87,9 @@ const EditAdvancedProgram: React.FC = () => {
     return (
       <Card className="w-full max-w-sm mx-auto">
         <CardHeader>
-          <CardTitle>Укажите Program ID</CardTitle>
+          <CardTitle>Enter Program ID</CardTitle>
           <CardDescription>
-            Введите идентификатор программы для редактирования
+            Enter the program ID to edit
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -103,7 +103,7 @@ const EditAdvancedProgram: React.FC = () => {
               />
             </div>
             <Button type="submit" className="w-full">
-              Загрузить
+              Load
             </Button>
           </form>
         </CardContent>
@@ -114,8 +114,8 @@ const EditAdvancedProgram: React.FC = () => {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">Расширенное редактирование</CardTitle>
-        <CardDescription>Измените параметры CPC-программы</CardDescription>
+        <CardTitle className="flex items-center gap-2">Advanced editing</CardTitle>
+        <CardDescription>Modify CPC program parameters</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -161,10 +161,10 @@ const EditAdvancedProgram: React.FC = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Сохранение...
+                Saving...
               </>
             ) : (
-              'Сохранить'
+              'Save'
             )}
           </Button>
         </form>

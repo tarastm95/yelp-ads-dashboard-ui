@@ -75,38 +75,38 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Link className="w-5 h-5" />
-          Налаштування відстеження посилань
+          Link tracking settings
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="website">URL веб-сайту</Label>
+            <Label htmlFor="website">Website URL</Label>
             <Input
               id="website"
               type="url"
               value={formData.website || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-              placeholder="https://mysite.com?utm_source=yelp або utm_source=yelp&utm_medium=cpc"
+              placeholder="https://mysite.com?utm_source=yelp or utm_source=yelp&utm_medium=cpc"
               className={!validateUrl(formData.website || '') ? 'border-red-500' : ''}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Повний URL або тільки UTM-параметри для трекінгу переходів на веб-сайт
+              Full URL or just UTM parameters to track website visits
             </p>
           </div>
 
           <div>
-            <Label htmlFor="menu">URL меню</Label>
+            <Label htmlFor="menu">Menu URL</Label>
             <Input
               id="menu"
               type="url"
               value={formData.menu || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, menu: e.target.value }))}
-              placeholder="https://mysite.com/menu?utm_source=yelp або utm_source=yelp&utm_medium=cpc"
+              placeholder="https://mysite.com/menu?utm_source=yelp or utm_source=yelp&utm_medium=cpc"
               className={!validateUrl(formData.menu || '') ? 'border-red-500' : ''}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Повний URL або тільки UTM-параметри для трекінгу переходів до меню
+              Full URL or just UTM parameters to track visits to the menu
             </p>
           </div>
 
@@ -117,43 +117,43 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
               type="url"
               value={formData.call_to_action || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, call_to_action: e.target.value }))}
-              placeholder="https://mysite.com/contact?utm_source=yelp або utm_source=yelp&utm_medium=cpc"
+              placeholder="https://mysite.com/contact?utm_source=yelp or utm_source=yelp&utm_medium=cpc"
               className={!validateUrl(formData.call_to_action || '') ? 'border-red-500' : ''}
             />
             <p className="text-xs text-gray-500 mt-1">
-              URL для Call-to-Action кнопки. Використовується коли AD_GOAL = WEBSITE_CLICKS
+              URL for the Call-to-Action button. Used when AD_GOAL = WEBSITE_CLICKS
             </p>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Як працює відстеження:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 How tracking works:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>Порожнє поле:</strong> використовуємо стандартний зовнішній URL (без трекінгу)</li>
-              <li>• <strong>Повний URL:</strong> https://mysite.com/page?utm_source=yelp</li>
-              <li>• <strong>Тільки параметри:</strong> utm_source=yelp&utm_medium=cpc (Yelp додасть до існуючого URL)</li>
-              <li>• <strong>Зв'язок з AD_GOAL:</strong> якщо AD_GOAL = WEBSITE_CLICKS і налаштовано call_to_action, використовується трекінг-URL</li>
-              <li>• <strong>Всі поля null:</strong> фіча вважається вимкненою</li>
+              <li>• <strong>Empty field:</strong> use standard external URL (no tracking)</li>
+              <li>• <strong>Full URL:</strong> https://mysite.com/page?utm_source=yelp</li>
+              <li>• <strong>Parameters only:</strong> utm_source=yelp&utm_medium=cpc (Yelp will append to existing URL)</li>
+              <li>• <strong>Relation to AD_GOAL:</strong> if AD_GOAL = WEBSITE_CLICKS and call_to_action is set, tracking URL is used</li>
+              <li>• <strong>All fields null:</strong> feature is considered disabled</li>
             </ul>
           </div>
 
           <div className="bg-yellow-50 p-3 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">🎯 Важливо знати:</h4>
+            <h4 className="text-sm font-medium mb-2">🎯 Important to know:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Link tracking застосовується до <strong>CPC-трафіку</strong> з реклами Yelp</li>
-              <li>• Базові URL для органічного трафіку задаються через Data Ingestion API</li>
-              <li>• Поле <code>call_to_action</code> (не url) відповідає за CTA кнопку</li>
-              <li>• Приклад "тільки параметри": {`{"LINK_TRACKING": {"website": "utm_source=yelp&utm_medium=cpc"}}`}</li>
+              <li>• Link tracking applies to <strong>CPC traffic</strong> from Yelp ads</li>
+              <li>• Base URLs for organic traffic are set via the Data Ingestion API</li>
+              <li>• The <code>call_to_action</code> field (not url) controls the CTA button</li>
+              <li>• Example "parameters only": {`{"LINK_TRACKING": {"website": "utm_source=yelp&utm_medium=cpc"}}`}</li>
             </ul>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти налаштування
+              Save settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

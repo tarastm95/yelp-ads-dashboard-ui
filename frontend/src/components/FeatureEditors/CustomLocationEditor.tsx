@@ -116,18 +116,18 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          Налаштування географічного таргетування
+          Geographic targeting settings
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">📍 Як це працює:</h4>
+            <h4 className="text-sm font-medium mb-2">📍 How it works:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Реклама показуватиметься тільки в вказаних локаціях</li>
-              <li>• Можна використовувати ZIP-коди, міста, райони, округи, штати</li>
-              <li>• Тільки локації в США</li>
-              <li>• Максимум 25 локацій на бізнес</li>
+              <li>• Ads will be shown only in specified locations</li>
+              <li>• You can use ZIP codes, cities, neighborhoods, counties, states</li>
+              <li>• Only locations in the US</li>
+              <li>• Maximum 25 locations per business</li>
             </ul>
           </div>
 
@@ -137,7 +137,7 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Building className="w-4 h-4" />
-                    Бізнес #{businessIndex + 1}
+                    Business #{businessIndex + 1}
                   </CardTitle>
                   {businesses.length > 1 && (
                     <Button
@@ -155,7 +155,7 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
               <CardContent className="space-y-4">
                 {/* Business ID */}
                 <div>
-                  <Label htmlFor={`business_id_${businessIndex}`}>ID бізнесу *</Label>
+                  <Label htmlFor={`business_id_${businessIndex}`}>Business ID *</Label>
                   <Input
                     id={`business_id_${businessIndex}`}
                     value={business.business_id}
@@ -167,7 +167,7 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
 
                 {/* Locations */}
                 <div>
-                  <Label>Локації ({business.locations.length}/25)</Label>
+                  <Label>Locations ({business.locations.length}/25)</Label>
                   
                   {/* Quick Add */}
                   <LocationQuickAdd 
@@ -186,7 +186,7 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
                   {/* Current Locations */}
                   {business.locations.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-sm font-medium mb-2">Додані локації:</p>
+                      <p className="text-sm font-medium mb-2">Added locations:</p>
                       <div className="flex flex-wrap gap-2 p-3 bg-green-50 rounded-lg max-h-40 overflow-y-auto">
                         {business.locations.map((location, locationIndex) => (
                           <Badge key={locationIndex} variant="secondary" className="bg-green-100 text-green-800">
@@ -211,26 +211,26 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
           {/* Add Business Button */}
           <Button type="button" onClick={addBusiness} variant="outline" className="w-full">
             <Plus className="w-4 h-4 mr-2" />
-            Додати ще один бізнес
+            Add another business
           </Button>
 
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Приклади локацій:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 Examples of locations:</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600">
               <div>
-                <p className="font-medium">ZIP-коди:</p>
+                <p className="font-medium">ZIP codes:</p>
                 <p>90210, 10001, 60601</p>
               </div>
               <div>
-                <p className="font-medium">Міста:</p>
+                <p className="font-medium">Cities:</p>
                 <p>New York, Los Angeles, Chicago</p>
               </div>
               <div>
-                <p className="font-medium">Райони:</p>
+                <p className="font-medium">Neighborhoods:</p>
                 <p>Manhattan, Brooklyn, Hollywood</p>
               </div>
               <div>
-                <p className="font-medium">Округи/Штати:</p>
+                <p className="font-medium">Counties/States:</p>
                 <p>Los Angeles County, California</p>
               </div>
             </div>
@@ -239,11 +239,11 @@ const CustomLocationEditor: React.FC<CustomLocationEditorProps> = ({
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти налаштування
+              Save settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>
@@ -287,7 +287,7 @@ const LocationQuickAdd: React.FC<LocationQuickAddProps> = ({
         <Input
           value={newLocation}
           onChange={(e) => setNewLocation(e.target.value)}
-          placeholder="Введіть ZIP-код, місто, район або штат"
+          placeholder="Enter ZIP code, city, neighborhood, or state"
           disabled={disabled}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
         />
@@ -303,7 +303,7 @@ const LocationQuickAdd: React.FC<LocationQuickAddProps> = ({
 
       {!disabled && (
         <div>
-          <p className="text-xs text-gray-500 mb-2">Популярні локації (натисніть для додавання):</p>
+          <p className="text-xs text-gray-500 mb-2">Popular locations (click to add):</p>
           <div className="flex flex-wrap gap-1">
             {suggestions.slice(0, 15).map((suggestion) => (
               <Badge
@@ -345,12 +345,12 @@ const BulkLocationAdd: React.FC<BulkLocationAddProps> = ({ onAdd, disabled }) =>
 
   return (
     <div className="mt-3">
-      <Label htmlFor="bulkLocations">Додати кілька локацій одночасно</Label>
+      <Label htmlFor="bulkLocations">Add multiple locations at once</Label>
       <Textarea
         id="bulkLocations"
         value={bulkText}
         onChange={(e) => setBulkText(e.target.value)}
-        placeholder="Введіть локації через кому або з нового рядка:&#10;90210, 10001, 60601&#10;New York&#10;Los Angeles&#10;Chicago"
+        placeholder="Enter locations separated by commas or new lines:&#10;90210, 10001, 60601&#10;New York&#10;Los Angeles&#10;Chicago"
         rows={3}
         className="mt-2"
         disabled={disabled}
@@ -363,7 +363,7 @@ const BulkLocationAdd: React.FC<BulkLocationAddProps> = ({ onAdd, disabled }) =>
         size="sm"
       >
         <Plus className="w-4 h-4 mr-2" />
-        Додати всі локації
+        Add all locations
       </Button>
     </div>
   );

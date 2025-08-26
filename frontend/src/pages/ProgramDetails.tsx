@@ -19,7 +19,7 @@ const ProgramDetails: React.FC = () => {
   } = useGetProgramInfoQuery(programId || '', { skip: !programId });
 
   if (!programId) {
-    return <p className="text-red-500">Program ID не указан</p>;
+    return <p className="text-red-500">Program ID not specified</p>;
   }
 
   if (isLoading) {
@@ -34,7 +34,7 @@ const ProgramDetails: React.FC = () => {
     return (
       <Card className="w-full max-w-2xl mx-auto">
         <CardContent className="pt-6">
-          <p className="text-red-500">Ошибка загрузки данных программы</p>
+          <p className="text-red-500">Error loading program data</p>
         </CardContent>
       </Card>
     );
@@ -43,7 +43,7 @@ const ProgramDetails: React.FC = () => {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <Button variant="outline" onClick={() => navigate(-1)}>
-        Назад
+        Back
       </Button>
       <Card>
         <CardHeader>
@@ -56,19 +56,19 @@ const ProgramDetails: React.FC = () => {
             <p className="font-mono text-sm">{program.business_id || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Статус</p>
+            <p className="text-sm text-muted-foreground">Status</p>
             <p className="font-medium">{program.status}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Бюджет</p>
+            <p className="text-sm text-muted-foreground">Budget</p>
             <p className="font-medium">${program.budget_amount ?? 'N/A'}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Создано</p>
+            <p className="text-sm text-muted-foreground">Created</p>
             <p className="text-sm">{new Date(program.created_date).toLocaleDateString()}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Изменено</p>
+            <p className="text-sm text-muted-foreground">Modified</p>
             <p className="text-sm">{new Date(program.modified_date).toLocaleDateString()}</p>
           </div>
           <div className="space-y-4 pt-4">
@@ -80,7 +80,7 @@ const ProgramDetails: React.FC = () => {
                 className="flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
-                Функції програми
+                Program features
               </Button>
               
               <Button 
@@ -89,17 +89,17 @@ const ProgramDetails: React.FC = () => {
                 className="flex items-center gap-2"
               >
                 <FolderOpen className="w-4 h-4" />
-                Портфоліо
+                Portfolio
               </Button>
             </div>
             
             {/* Program Controls */}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => pauseProgram(program.program_id)}>
-                Пауза
+                Pause
               </Button>
               <Button variant="outline" onClick={() => resumeProgram(program.program_id)}>
-                Возобновить
+                Resume
               </Button>
             </div>
           </div>

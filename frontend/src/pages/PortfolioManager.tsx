@@ -33,8 +33,8 @@ const PortfolioManager: React.FC = () => {
     return (
       <div className="container mx-auto p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Program ID не знайдено</h1>
-          <p className="text-gray-600 mt-2">Неможливо завантажити портфоліо без ID програми</p>
+          <h1 className="text-2xl font-bold text-red-600">Program ID not found</h1>
+          <p className="text-gray-600 mt-2">Cannot load portfolio without program ID</p>
         </div>
       </div>
     );
@@ -44,8 +44,8 @@ const PortfolioManager: React.FC = () => {
     try {
       const result = await createProject(programId).unwrap();
       toast({
-        title: 'Проєкт створено',
-        description: `Новий проєкт ${result.project_id} створено успішно`,
+        title: 'Project created',
+        description: `New project ${result.project_id} created successfully`,
       });
       
       // Set the new project as selected and open editor
@@ -54,43 +54,43 @@ const PortfolioManager: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Create project error:', error);
       toast({
-        title: 'Помилка створення проєкту',
-        description: error.data?.detail || 'Не вдалося створити проєкт',
+        title: 'Project creation error',
+        description: error.data?.detail || 'Failed to create project',
         variant: 'destructive',
       });
     }
   };
 
   const formatDate = (year?: number, month?: number) => {
-    if (!year) return 'Не вказано';
+    if (!year) return 'Not specified';
     if (!month) return year.toString();
     const monthNames = [
-      'Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
-      'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return `${monthNames[month - 1]} ${year}`;
   };
 
   const formatCost = (cost?: string) => {
     const costMap = {
-      'UNDER_100': 'Менше $100',
+      UNDER_100: 'Under $100',
       '100_500': '$100 - $500',
       '500_1000': '$500 - $1,000',
       '1000_5000': '$1,000 - $5,000',
       '5000_PLUS': '$5,000+',
     };
-    return cost ? costMap[cost as keyof typeof costMap] || cost : 'Не вказано';
+    return cost ? costMap[cost as keyof typeof costMap] || cost : 'Not specified';
   };
 
   const formatDuration = (duration?: string) => {
     const durationMap = {
-      'UNDER_1_WEEK': 'Менше тижня',
-      '1_2_WEEKS': '1-2 тижні',
-      '2_4_WEEKS': '2-4 тижні',
-      '1_3_MONTHS': '1-3 місяці',
-      '3_PLUS_MONTHS': '3+ місяці',
+      UNDER_1_WEEK: 'Less than a week',
+      '1_2_WEEKS': '1-2 weeks',
+      '2_4_WEEKS': '2-4 weeks',
+      '1_3_MONTHS': '1-3 months',
+      '3_PLUS_MONTHS': '3+ months',
     };
-    return duration ? durationMap[duration as keyof typeof durationMap] || duration : 'Не вказано';
+    return duration ? durationMap[duration as keyof typeof durationMap] || duration : 'Not specified';
   };
 
   return (
@@ -100,10 +100,10 @@ const PortfolioManager: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <FolderOpen className="w-8 h-8" />
-              Портфоліо програми
+              Program portfolio
             </h1>
             <p className="text-gray-600 mt-1">
-              Керування проєктами портфоліо для програми {programId}
+              Manage portfolio projects for program {programId}
             </p>
           </div>
           
@@ -117,7 +117,7 @@ const PortfolioManager: React.FC = () => {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            Створити проєкт
+            Create project
           </Button>
         </div>
       </div>
@@ -126,9 +126,9 @@ const PortfolioManager: React.FC = () => {
         <Card>
           <CardContent className="text-center py-12">
             <FolderOpen className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Портфоліо порожнє</h3>
+            <h3 className="text-lg font-semibold mb-2">Portfolio is empty</h3>
             <p className="text-gray-600 mb-4">
-              Ще немає жодного проєкту в портфоліо цієї програми
+              There are no projects in this program's portfolio yet
             </p>
             <Button onClick={handleCreateProject} disabled={isCreating}>
               {isCreating ? (
@@ -136,7 +136,7 @@ const PortfolioManager: React.FC = () => {
               ) : (
                 <Plus className="w-4 h-4 mr-2" />
               )}
-              Створити перший проєкт
+              Create first project
             </Button>
           </CardContent>
         </Card>
@@ -149,11 +149,11 @@ const PortfolioManager: React.FC = () => {
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-2">{project.name}</CardTitle>
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant={project.published ? "default" : "secondary"}>
+                      <Badge variant={project.published ? 'default' : 'secondary'}>
                         {project.published ? (
-                          <><Eye className="w-3 h-3 mr-1" /> Опубліковано</>
+                          <><Eye className="w-3 h-3 mr-1" /> Published</>
                         ) : (
-                          <><EyeOff className="w-3 h-3 mr-1" /> Чернетка</>
+                          <><EyeOff className="w-3 h-3 mr-1" /> Draft</>
                         )}
                       </Badge>
                     </div>
@@ -169,22 +169,22 @@ const PortfolioManager: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-green-600" />
-                    <span>Вартість: {formatCost(project.cost)}</span>
+                    <span>Cost: {formatCost(project.cost)}</span>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-blue-600" />
-                    <span>Тривалість: {formatDuration(project.duration)}</span>
+                    <span>Duration: {formatDuration(project.duration)}</span>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-purple-600" />
-                    <span>Завершено: {formatDate(project.completion_year, project.completion_month)}</span>
+                    <span>Completed: {formatDate(project.completion_year, project.completion_month)}</span>
                   </div>
                   
                   {project.service_offerings.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-xs text-gray-500 mb-1">Послуги:</p>
+                      <p className="text-xs text-gray-500 mb-1">Services:</p>
                       <div className="flex flex-wrap gap-1">
                         {project.service_offerings.slice(0, 3).map((service, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
@@ -212,7 +212,7 @@ const PortfolioManager: React.FC = () => {
                     }}
                   >
                     <Edit className="w-4 h-4 mr-1" />
-                    Редагувати
+                    Edit
                   </Button>
                   
                   <Button 
@@ -234,16 +234,16 @@ const PortfolioManager: React.FC = () => {
         <Dialog open={showProjectEditor} onOpenChange={setShowProjectEditor}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Редагування проєкту</DialogTitle>
+              <DialogTitle>Edit project</DialogTitle>
               <DialogDescription>
-                Налаштуйте деталі проєкту портфоліо
+                Configure portfolio project details
               </DialogDescription>
             </DialogHeader>
             
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Деталі проєкту</TabsTrigger>
-                <TabsTrigger value="photos">Фотогалерея</TabsTrigger>
+                <TabsTrigger value="details">Project details</TabsTrigger>
+                <TabsTrigger value="photos">Photo gallery</TabsTrigger>
               </TabsList>
               
               <TabsContent value="details" className="mt-6">

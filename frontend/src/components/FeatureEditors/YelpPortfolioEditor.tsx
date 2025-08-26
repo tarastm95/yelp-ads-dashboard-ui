@@ -85,19 +85,19 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FolderOpen className="w-5 h-5" />
-          Налаштування Yelp Portfolio в рекламі
+          Yelp Portfolio ad settings
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Info Section */}
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">📂 Що таке Yelp Portfolio:</h4>
+            <h4 className="text-sm font-medium mb-2">📂 What is Yelp Portfolio:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Показує ваші проекти/роботи прямо в рекламі</li>
-              <li>• Підвищує довіру потенційних клієнтів</li>
-              <li>• Демонструє якість ваших послуг</li>
-              <li>• Тільки опубліковані проекти будуть показуватись в рекламі</li>
+              <li>• Displays your projects/work directly in ads</li>
+              <li>• Increases trust of potential clients</li>
+              <li>• Showcases the quality of your services</li>
+              <li>• Only published projects will appear in ads</li>
             </ul>
           </div>
 
@@ -107,10 +107,10 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">
-                    📊 Загальна статистика: {projects.length} проект(ів)
+                    📊 Overall stats: {projects.length} project(s)
                   </p>
                   <p className="text-xs text-gray-600">
-                    Опубліковано: {publishedCount} | Не опубліковано: {projects.length - publishedCount}
+                    Published: {publishedCount} | Unpublished: {projects.length - publishedCount}
                   </p>
                 </div>
                 {projects.length > 1 && (
@@ -120,7 +120,7 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                     size="sm"
                     onClick={toggleAllPublished}
                   >
-                    {projects.every(p => p.published) ? 'Приховати всі' : 'Опублікувати всі'}
+                    {projects.every(p => p.published) ? 'Hide all' : 'Publish all'}
                   </Button>
                 )}
               </div>
@@ -130,9 +130,9 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
           {/* Projects List */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-base font-medium">Проекти портфоліо:</Label>
+              <Label className="text-base font-medium">Portfolio projects:</Label>
               {projects.length === 0 && (
-                <span className="text-sm text-gray-500">Немає проектів</span>
+                <span className="text-sm text-gray-500">No projects</span>
               )}
             </div>
 
@@ -142,7 +142,7 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                   <div className="flex items-start gap-4">
                     {/* Project ID Input */}
                     <div className="flex-1">
-                      <Label htmlFor={`project_id_${index}`}>ID проекту *</Label>
+                      <Label htmlFor={`project_id_${index}`}>Project ID *</Label>
                       <Input
                         id={`project_id_${index}`}
                         value={project.project_id}
@@ -155,14 +155,14 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                       />
                       {project.project_id && !isValidProjectId(project.project_id) && (
                         <p className="text-xs text-red-600 mt-1">
-                          ⚠️ ID проекту має містити лише букви, цифри, дефіси та підкреслення (3-50 символів)
+                          ⚠️ Project ID must contain only letters, numbers, hyphens, and underscores (3-50 characters)
                         </p>
                       )}
                     </div>
 
                     {/* Published Toggle */}
                     <div className="flex flex-col items-center gap-2 min-w-[120px]">
-                      <Label className="text-sm">Статус</Label>
+                      <Label className="text-sm">Status</Label>
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={project.published}
@@ -175,12 +175,12 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                           {project.published ? (
                             <>
                               <CheckCircle className="w-3 h-3 mr-1" />
-                              Опубліковано
+                              Published
                             </>
                           ) : (
                             <>
                               <XCircle className="w-3 h-3 mr-1" />
-                              Приховано
+                              Hidden
                             </>
                           )}
                         </Badge>
@@ -204,9 +204,9 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium">Проект: <code className="bg-white px-2 py-1 rounded">{project.project_id}</code></p>
+                          <p className="text-sm font-medium">Project: <code className="bg-white px-2 py-1 rounded">{project.project_id}</code></p>
                           <p className="text-xs text-gray-500">
-                            {project.published ? 'Буде показуватись в рекламі' : 'Не буде показуватись в рекламі'}
+                            {project.published ? 'Will be shown in ads' : 'Will not be shown in ads'}
                           </p>
                         </div>
                         <Button
@@ -221,7 +221,7 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
                           }}
                         >
                           <Eye className="w-3 h-3 mr-1" />
-                          Переглянути
+                          View
                         </Button>
                       </div>
                     </div>
@@ -233,41 +233,40 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
             {/* Add Project Button */}
             <Button type="button" onClick={addProject} variant="outline" className="w-full">
               <Plus className="w-4 h-4 mr-2" />
-              Додати проект до реклами
+              Add project to ad
             </Button>
           </div>
 
           {/* How to find Project ID */}
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">🔍 Як знайти ID проекту:</h4>
+            <h4 className="text-sm font-medium mb-2">🔍 How to find project ID:</h4>
             <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
-              <li>Перейдіть до розділу Portfolio в цьому додатку</li>
-              <li>Створіть або оберіть існуючий проект</li>
-              <li>Скопіюйте ID проекту з деталей проекту</li>
-              <li>Вставте ID в поле вище</li>
-              <li>Увімкніть "Опубліковано", щоб проект показувався в рекламі</li>
+              <li>Go to the Portfolio section in this app</li>
+              <li>Create or select an existing project</li>
+              <li>Copy the project ID from the project details</li>
+              <li>Paste the ID into the field above</li>
+              <li>Enable "Published" to show the project in ads</li>
             </ol>
           </div>
 
           {/* Tips */}
           <div className="bg-green-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Поради для ефективного портфоліо:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 Tips for an effective portfolio:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>Якість:</strong> Додавайте тільки найкращі проекти</li>
-              <li>• <strong>Різноманітність:</strong> Покажіть різні види робіт</li>
-              <li>• <strong>Актуальність:</strong> Регулярно оновлюйте портфоліо</li>
-              <li>• <strong>Деталі:</strong> Добавляйте детальні описи проектів</li>
-              <li>• <strong>Фото:</strong> Використовуйте якісні фото "до" і "після"</li>
+              <li>• <strong>Quality:</strong> Add only the best projects</li>
+              <li>• <strong>Variety:</strong> Showcase different types of work</li>
+              <li>• <strong>Relevance:</strong> Update your portfolio regularly</li>
+              <li>• <strong>Details:</strong> Include detailed project descriptions</li>
+              <li>• <strong>Photos:</strong> Use quality "before" and "after" photos</li>
             </ul>
           </div>
 
           {/* Performance Note */}
           {projects.length > 5 && (
             <div className="bg-orange-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium mb-2">⚡ Оптимізація продуктивності:</h4>
+              <h4 className="text-sm font-medium mb-2">⚡ Performance optimization:</h4>
               <p className="text-xs text-gray-600">
-                У вас {projects.length} проект(ів). Рекомендуємо показувати в рекламі не більше 3-5 найкращих проектів 
-                для оптимальної продуктивності та фокусу на якості.
+                You have {projects.length} project(s). We recommend showing no more than 3-5 top projects in ads for optimal performance and quality focus.
               </p>
             </div>
           )}
@@ -279,11 +278,11 @@ const YelpPortfolioEditor: React.FC<YelpPortfolioEditorProps> = ({
               className="flex-1"
             >
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти портфоліо налаштування
+              Save portfolio settings
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

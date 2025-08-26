@@ -75,8 +75,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
     // Validation
     if (!formData.name.trim()) {
       toast({
-        title: 'Помилка валідації',
-        description: 'Назва проєкту є обов\'язковою',
+        title: 'Validation error',
+        description: 'Project name is required',
         variant: 'destructive',
       });
       return;
@@ -84,8 +84,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
 
     if (!formData.description.trim()) {
       toast({
-        title: 'Помилка валідації',
-        description: 'Опис проєкту є обов\'язковим',
+        title: 'Validation error',
+        description: 'Project description is required',
         variant: 'destructive',
       });
       return;
@@ -93,8 +93,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
 
     if (formData.service_offerings.length > 4) {
       toast({
-        title: 'Помилка валідації',
-        description: 'Максимум 4 послуги дозволено',
+        title: 'Validation error',
+        description: 'Maximum of 4 services allowed',
         variant: 'destructive',
       });
       return;
@@ -102,8 +102,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
 
     if (formData.completion_month && (formData.completion_month < 1 || formData.completion_month > 12)) {
       toast({
-        title: 'Помилка валідації',
-        description: 'Місяць має бути від 1 до 12',
+        title: 'Validation error',
+        description: 'Month must be between 1 and 12',
         variant: 'destructive',
       });
       return;
@@ -117,8 +117,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
       }).unwrap();
 
       toast({
-        title: 'Проєкт оновлено',
-        description: 'Зміни збережено успішно',
+        title: 'Project updated',
+        description: 'Changes saved successfully',
       });
 
       onSuccess?.();
@@ -126,8 +126,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
     } catch (error: any) {
       console.error('❌ Update project error:', error);
       toast({
-        title: 'Помилка оновлення',
-        description: error.data?.detail || 'Не вдалося оновити проєкт',
+        title: 'Update error',
+        description: error.data?.detail || 'Failed to update project',
         variant: 'destructive',
       });
     }
@@ -154,7 +154,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="ml-2">Завантаження проєкту...</span>
+        <span className="ml-2">Loading project...</span>
       </div>
     );
   }
@@ -162,8 +162,8 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
   if (error) {
     return (
       <div className="text-center p-8">
-        <h3 className="text-lg font-semibold text-red-600">Помилка завантаження</h3>
-        <p className="text-gray-600 mt-2">Не вдалося завантажити дані проєкту</p>
+        <h3 className="text-lg font-semibold text-red-600">Loading error</h3>
+        <p className="text-gray-600 mt-2">Failed to load project data</p>
       </div>
     );
   }
@@ -174,34 +174,34 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
         {/* Basic Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Основна інформація</CardTitle>
+            <CardTitle>Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Назва проєкту *</Label>
+              <Label htmlFor="name">Project name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Введіть назву проєкту"
+                placeholder="Enter project name"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="description">Опис проєкту *</Label>
+              <Label htmlFor="description">Project description *</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Детальний опис проєкту"
+                placeholder="Detailed project description"
                 rows={4}
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="cta">Дія виклику</Label>
+              <Label htmlFor="cta">Call to action</Label>
               <Select
                 value={formData.call_to_action}
                 onValueChange={(value: any) => setFormData(prev => ({ ...prev, call_to_action: value }))}
@@ -210,11 +210,11 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="WEBSITE">Веб-сайт</SelectItem>
-                  <SelectItem value="CALL">Зателефонувати</SelectItem>
-                  <SelectItem value="BOOK_APPOINTMENT">Записатися</SelectItem>
-                  <SelectItem value="GET_QUOTE">Отримати пропозицію</SelectItem>
-                  <SelectItem value="LEARN_MORE">Дізнатися більше</SelectItem>
+                  <SelectItem value="WEBSITE">Website</SelectItem>
+                  <SelectItem value="CALL">Call</SelectItem>
+                  <SelectItem value="BOOK_APPOINTMENT">Book appointment</SelectItem>
+                  <SelectItem value="GET_QUOTE">Get quote</SelectItem>
+                  <SelectItem value="LEARN_MORE">Learn more</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -224,11 +224,11 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
         {/* Project Details */}
         <Card>
           <CardHeader>
-            <CardTitle>Деталі проєкту</CardTitle>
+            <CardTitle>Project details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="cost">Вартість</Label>
+              <Label htmlFor="cost">Cost</Label>
               <Select
                 value={formData.cost || ''}
                 onValueChange={(value) => setFormData(prev => ({ 
@@ -237,11 +237,11 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
                 }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Оберіть діапазон вартості" />
+                  <SelectValue placeholder="Select cost range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Не вказано</SelectItem>
-                  <SelectItem value="UNDER_100">Менше $100</SelectItem>
+                  <SelectItem value="">Not specified</SelectItem>
+                  <SelectItem value="UNDER_100">Under $100</SelectItem>
                   <SelectItem value="100_500">$100 - $500</SelectItem>
                   <SelectItem value="500_1000">$500 - $1,000</SelectItem>
                   <SelectItem value="1000_5000">$1,000 - $5,000</SelectItem>
@@ -251,7 +251,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="duration">Тривалість</Label>
+              <Label htmlFor="duration">Duration</Label>
               <Select
                 value={formData.duration || ''}
                 onValueChange={(value) => setFormData(prev => ({ 
@@ -260,22 +260,22 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
                 }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Оберіть тривалість проєкту" />
+                  <SelectValue placeholder="Select project duration" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Не вказано</SelectItem>
-                  <SelectItem value="UNDER_1_WEEK">Менше тижня</SelectItem>
-                  <SelectItem value="1_2_WEEKS">1-2 тижні</SelectItem>
-                  <SelectItem value="2_4_WEEKS">2-4 тижні</SelectItem>
-                  <SelectItem value="1_3_MONTHS">1-3 місяці</SelectItem>
-                  <SelectItem value="3_PLUS_MONTHS">3+ місяці</SelectItem>
+                  <SelectItem value="">Not specified</SelectItem>
+                  <SelectItem value="UNDER_1_WEEK">Less than a week</SelectItem>
+                  <SelectItem value="1_2_WEEKS">1-2 weeks</SelectItem>
+                  <SelectItem value="2_4_WEEKS">2-4 weeks</SelectItem>
+                  <SelectItem value="1_3_MONTHS">1-3 months</SelectItem>
+                  <SelectItem value="3_PLUS_MONTHS">3+ months</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="year">Рік завершення</Label>
+                <Label htmlFor="year">Completion year</Label>
                 <Input
                   id="year"
                   type="number"
@@ -291,7 +291,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="month">Місяць завершення</Label>
+                <Label htmlFor="month">Completion month</Label>
                 <Input
                   id="month"
                   type="number"
@@ -313,7 +313,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
       {/* Service Offerings */}
       <Card>
         <CardHeader>
-          <CardTitle>Послуги (макс. 4)</CardTitle>
+          <CardTitle>Services (max 4)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -321,7 +321,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
               <Input
                 value={newService}
                 onChange={(e) => setNewService(e.target.value)}
-                placeholder="Додати послугу"
+                placeholder="Add service"
                 disabled={formData.service_offerings.length >= 4}
               />
               <Button 
@@ -354,7 +354,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
       {/* Actions */}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>
-          Скасувати
+          Cancel
         </Button>
         <Button type="submit" disabled={isUpdating}>
           {isUpdating ? (
@@ -362,7 +362,7 @@ const PortfolioProjectEditor: React.FC<PortfolioProjectEditorProps> = ({
           ) : (
             <Save className="w-4 h-4 mr-2" />
           )}
-          Зберегти зміни
+          Save changes
         </Button>
       </div>
     </form>

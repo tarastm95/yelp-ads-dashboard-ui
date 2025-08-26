@@ -9,17 +9,17 @@ const ProgramStatus: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
 
-  // Функція для визначення типу ID
+  // Function to determine ID type
   const isJobId = (id: string): boolean => {
-    // Для програм з /programs API завжди використовуємо program info ендпоінт
-    // Job ID використовується тільки для відстеження створення програм
-    // Оскільки ми тепер працюємо з Yelp programs API, завжди обробляємо як program_id
-    return false; // Завжди використовуємо program info ендпоінт
+    // For programs from the /programs API always use the program info endpoint
+    // Job ID is used only for tracking program creation
+    // Since we now work with the Yelp programs API, always treat as program_id
+    return false; // Always use program info endpoint
   };
 
   const isJob = programId ? isJobId(programId) : false;
 
-  // Використовуємо правильний API залежно від типу ID
+  // Use appropriate API depending on ID type
   const { 
     data: jobData, 
     isLoading: jobLoading, 
@@ -37,7 +37,7 @@ const ProgramStatus: React.FC = () => {
   });
 
   if (!programId) {
-    return <p className="text-red-500">Program ID не указан</p>;
+    return <p className="text-red-500">Program ID not specified</p>;
   }
 
   const isLoading = jobLoading || programLoading;
@@ -56,16 +56,16 @@ const ProgramStatus: React.FC = () => {
     return (
       <div className="space-y-4 max-w-2xl mx-auto">
         <Button variant="outline" onClick={() => navigate(-1)}>
-          Назад
+          Back
         </Button>
         <div className="space-y-2">
-          <p className="text-red-500">Ошибка загрузки данных</p>
+          <p className="text-red-500">Error loading data</p>
           <p className="text-sm text-gray-600">
-            ID: {programId} (определен как {isJob ? 'Job ID' : 'Program ID'})
+            ID: {programId} (identified as {isJob ? 'Job ID' : 'Program ID'})
           </p>
           {error && 'status' in error && (
             <p className="text-sm text-red-400">
-              HTTP {error.status}: {error.data?.error?.message || 'Неизвестная ошибка'}
+              HTTP {error.status}: {error.data?.error?.message || 'Unknown error'}
             </p>
           )}
         </div>
@@ -76,13 +76,13 @@ const ProgramStatus: React.FC = () => {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <Button variant="outline" onClick={() => navigate(-1)}>
-        Назад
+        Back
       </Button>
       
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {isJob ? 'Статус задачи' : 'Информация о программе'}
+            {isJob ? 'Job status' : 'Program information'}
           </CardTitle>
           <CardDescription>
             {isJob ? 'Job ID' : 'Program ID'}: {programId}
@@ -90,28 +90,28 @@ const ProgramStatus: React.FC = () => {
         </CardHeader>
         <CardContent>
           {isJob ? (
-            // Відображення для Job Status
+            // Display for Job Status
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Статус</label>
-                  <p className="text-lg">{data.status || 'Неизвестно'}</p>
+                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <p className="text-lg">{data.status || 'Unknown'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Создано</label>
-                  <p className="text-sm">{data.created_at || 'Неизвестно'}</p>
+                  <label className="text-sm font-medium text-gray-500">Created</label>
+                  <p className="text-sm">{data.created_at || 'Unknown'}</p>
                 </div>
               </div>
               
               <div>
-                <label className="text-sm font-medium text-gray-500">Полные данные</label>
+                <label className="text-sm font-medium text-gray-500">Full data</label>
                 <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto mt-2">
                   {JSON.stringify(data, null, 2)}
                 </pre>
               </div>
             </div>
           ) : (
-            // Відображення для Program Info
+            // Display for Program Info
             <div className="space-y-4">
               {data.programs && data.programs.length > 0 ? (
                 <div className="space-y-4">
@@ -119,15 +119,15 @@ const ProgramStatus: React.FC = () => {
                     <div key={index} className="border rounded p-4">
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="text-sm font-medium text-gray-500">Статус программы</label>
+                          <label className="text-sm font-medium text-gray-500">Program status</label>
                           <p className="text-lg">{program.program_status}</p>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-gray-500">Тип программы</label>
+                          <label className="text-sm font-medium text-gray-500">Program type</label>
                           <p className="text-lg">{program.program_type}</p>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-gray-500">Статус паузы</label>
+                          <label className="text-sm font-medium text-gray-500">Pause status</label>
                           <p className="text-lg">{program.program_pause_status}</p>
                         </div>
                         <div>
@@ -138,39 +138,39 @@ const ProgramStatus: React.FC = () => {
                       
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="text-sm font-medium text-gray-500">Дата начала</label>
+                          <label className="text-sm font-medium text-gray-500">Start date</label>
                           <p>{program.start_date}</p>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-gray-500">Дата окончания</label>
+                          <label className="text-sm font-medium text-gray-500">End date</label>
                           <p>{program.end_date}</p>
                         </div>
                       </div>
                       
                       {program.program_metrics && (
                         <div className="border-t pt-4">
-                          <label className="text-sm font-medium text-gray-500">Метрики программы</label>
+                          <label className="text-sm font-medium text-gray-500">Program metrics</label>
                           <div className="grid grid-cols-3 gap-4 mt-2">
                             <div>
-                              <label className="text-xs text-gray-400">Бюджет</label>
+                              <label className="text-xs text-gray-400">Budget</label>
                               <p>{program.program_metrics.budget} {program.program_metrics.currency}</p>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-400">Автобид</label>
-                              <p>{program.program_metrics.is_autobid ? 'Да' : 'Нет'}</p>
+                              <label className="text-xs text-gray-400">Autobid</label>
+                              <p>{program.program_metrics.is_autobid ? 'Yes' : 'No'}</p>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-400">Макс. ставка</label>
-                              <p>{program.program_metrics.max_bid || 'Не установлено'}</p>
+                              <label className="text-xs text-gray-400">Max bid</label>
+                              <p>{program.program_metrics.max_bid || 'Not set'}</p>
                             </div>
                           </div>
                         </div>
                       )}
                       
-                      {/* Активные функции */}
+                      {/* Active features */}
                       {program.active_features && program.active_features.length > 0 && (
                         <div className="border-t pt-4">
-                          <label className="text-sm font-medium text-gray-500 mb-2 block">Активные функции</label>
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Active features</label>
                           <div className="flex flex-wrap gap-2">
                             {program.active_features.map((feature: string) => (
                               <span key={feature} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
@@ -181,10 +181,10 @@ const ProgramStatus: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Доступные функции */}
+                      {/* Available features */}
                       {program.available_features && program.available_features.length > 0 && (
                         <div className="border-t pt-4">
-                          <label className="text-sm font-medium text-gray-500 mb-2 block">Доступные функции</label>
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Available features</label>
                           <div className="flex flex-wrap gap-2">
                             {program.available_features.map((feature: string) => {
                               const isActive = program.active_features?.includes(feature);
@@ -205,46 +205,46 @@ const ProgramStatus: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Дополнительные метрики */}
+                      {/* Additional metrics */}
                       {program.program_metrics && (
                         <div className="border-t pt-4">
-                          <label className="text-sm font-medium text-gray-500 mb-2 block">Дополнительные метрики</label>
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Additional metrics</label>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             {program.program_metrics.fee_period && (
                               <div>
-                                <label className="text-xs text-gray-400">Период оплаты</label>
+                                <label className="text-xs text-gray-400">Billing period</label>
                                 <p>{program.program_metrics.fee_period}</p>
                               </div>
                             )}
                             <div>
-                              <label className="text-xs text-gray-400">Показы (оплачено)</label>
+                              <label className="text-xs text-gray-400">Impressions (billed)</label>
                               <p>{program.program_metrics.billed_impressions || 0}</p>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-400">Клики (оплачено)</label>
+                              <label className="text-xs text-gray-400">Clicks (billed)</label>
                               <p>{program.program_metrics.billed_clicks || 0}</p>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-400">Стоимость рекламы</label>
+                              <label className="text-xs text-gray-400">Ad cost</label>
                               <p>{program.program_metrics.ad_cost || 0} {program.program_metrics.currency}</p>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Будущие изменения бюджета */}
+                      {/* Future budget changes */}
                       {program.future_budget_changes && program.future_budget_changes.length > 0 && (
                         <div className="border-t pt-4">
-                          <label className="text-sm font-medium text-gray-500 mb-2 block">Запланированные изменения бюджета</label>
+                          <label className="text-sm font-medium text-gray-500 mb-2 block">Scheduled budget changes</label>
                           <div className="space-y-2">
                             {program.future_budget_changes.map((change: any, index: number) => (
                               <div key={index} className="bg-blue-50 p-3 rounded">
                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                   <div>
-                                    <span className="text-gray-500">Дата:</span> {change.date}
+                                    <span className="text-gray-500">Date:</span> {change.date}
                                   </div>
                                   <div>
-                                    <span className="text-gray-500">Новый бюджет:</span> {change.budget} {change.currency}
+                                    <span className="text-gray-500">New budget:</span> {change.budget} {change.currency}
                                   </div>
                                 </div>
                               </div>
@@ -253,9 +253,9 @@ const ProgramStatus: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Дополнительная информация */}
+                      {/* Additional information */}
                       <div className="border-t pt-4">
-                        <label className="text-sm font-medium text-gray-500 mb-2 block">Дополнительная информация</label>
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Additional information</label>
                         <div className="grid grid-cols-1 gap-2 text-sm">
                           {program.partner_business_id && (
                             <div>
@@ -270,10 +270,10 @@ const ProgramStatus: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* JSON данные (свернутые) */}
+                      {/* JSON data (collapsed) */}
                       <details className="border-t pt-4">
                         <summary className="text-sm font-medium text-gray-500 cursor-pointer hover:text-gray-700">
-                          Показать полные JSON данные
+                          Show full JSON data
                         </summary>
                         <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto mt-2 max-h-96">
                           {JSON.stringify(program, null, 2)}
@@ -284,7 +284,7 @@ const ProgramStatus: React.FC = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Данные ответа</label>
+                  <label className="text-sm font-medium text-gray-500">Response data</label>
                   <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto mt-2">
                     {JSON.stringify(data, null, 2)}
                   </pre>

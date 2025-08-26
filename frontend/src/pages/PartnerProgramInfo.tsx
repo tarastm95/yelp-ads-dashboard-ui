@@ -20,7 +20,7 @@ const PartnerProgramInfo: React.FC = () => {
   });
 
   if (!programId) {
-    return <p className="text-red-500">Program ID не указан</p>;
+    return <p className="text-red-500">Program ID not specified</p>;
   }
 
   if (isLoading) {
@@ -35,9 +35,9 @@ const PartnerProgramInfo: React.FC = () => {
     return (
       <div className="space-y-4 max-w-2xl mx-auto">
         <Button variant="outline" onClick={() => navigate(-1)}>
-          Назад
+          Back
         </Button>
-        <p className="text-red-500">Ошибка загрузки данных программы</p>
+        <p className="text-red-500">Error loading program data</p>
       </div>
     );
   }
@@ -47,7 +47,7 @@ const PartnerProgramInfo: React.FC = () => {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <Button variant="outline" onClick={() => navigate(-1)}>
-        Назад
+        Back
       </Button>
       <Card>
         <CardHeader>
@@ -60,24 +60,24 @@ const PartnerProgramInfo: React.FC = () => {
             <p className="font-mono text-sm">{program.yelp_business_id}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Статус</p>
+            <p className="text-sm text-muted-foreground">Status</p>
             <p className="font-medium">{program.program_status}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Пауза</p>
+            <p className="text-sm text-muted-foreground">Pause</p>
             <p className="font-medium">{program.program_pause_status}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Начало</p>
+            <p className="text-sm text-muted-foreground">Start</p>
             <p className="font-medium">{program.start_date}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Конец</p>
+            <p className="text-sm text-muted-foreground">End</p>
             <p className="font-medium">{program.end_date}</p>
           </div>
           {program.program_metrics && (
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Бюджет</p>
+              <p className="text-sm text-muted-foreground">Budget</p>
               <p className="font-medium">{program.program_metrics.budget}</p>
             </div>
           )}

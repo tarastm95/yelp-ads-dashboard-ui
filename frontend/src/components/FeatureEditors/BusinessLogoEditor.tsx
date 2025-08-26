@@ -94,11 +94,11 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
   const getStatusMessage = () => {
     switch (imageStatus) {
       case 'loading':
-        return { text: 'Перевіряємо зображення...', color: 'text-blue-600' };
+        return { text: 'Checking image...', color: 'text-blue-600' };
       case 'success':
-        return { text: 'Зображення успішно завантажене', color: 'text-green-600' };
+        return { text: 'Image uploaded successfully', color: 'text-green-600' };
       case 'error':
-        return { text: 'Не вдалося завантажити зображення', color: 'text-red-600' };
+        return { text: 'Failed to load image', color: 'text-red-600' };
       default:
         return null;
     }
@@ -111,7 +111,7 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Image className="w-5 h-5" />
-          Налаштування логотипу бізнесу
+          Business logo settings
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -125,12 +125,12 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
             />
             <div>
               <Label htmlFor="logo-enabled" className="text-base font-medium">
-                Використовувати власний логотип
+                Use custom logo
               </Label>
               <p className="text-sm text-gray-600">
-                {isEnabled 
-                  ? 'Ваш логотип буде показуватись в рекламі' 
-                  : 'Логотип не використовується (Yelp підбере автоматично)'
+                {isEnabled
+                  ? 'Your logo will be shown in ads'
+                  : 'Logo not used (Yelp will choose automatically)'
                 }
               </p>
             </div>
@@ -140,7 +140,7 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
             <div className="space-y-4">
               {/* URL Input */}
               <div>
-                <Label htmlFor="logoUrl">URL логотипу *</Label>
+                <Label htmlFor="logoUrl">Logo URL *</Label>
                 <div className="relative">
                   <Input
                     id="logoUrl"
@@ -166,7 +166,7 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
                 
                 {logoUrl && !isValidImageFormat(logoUrl) && (
                   <p className="text-xs text-red-600 mt-1">
-                    ⚠️ URL має містити розширення зображення (.jpeg, .jpg, .png, .gif, .tiff)
+                    ⚠️ URL must include an image extension (.jpeg, .jpg, .png, .gif, .tiff)
                   </p>
                 )}
               </div>
@@ -174,7 +174,7 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
               {/* Image Preview */}
               {logoUrl && isEnabled && imageStatus === 'success' && (
                 <div>
-                  <Label>Попередній перегляд:</Label>
+                  <Label>Preview:</Label>
                   <div className="mt-2 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
                     <div className="flex items-center justify-center">
                       <img
@@ -191,8 +191,8 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
                         size="sm"
                         onClick={() => window.open(logoUrl, '_blank')}
                       >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Відкрити в новій вкладці
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Open in new tab
                       </Button>
                     </div>
                   </div>
@@ -201,36 +201,36 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
 
               {/* Requirements */}
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">📋 Вимоги до логотипу:</h4>
+                <h4 className="text-sm font-medium mb-2">📋 Logo requirements:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• <strong>Формати:</strong> JPEG, PNG, GIF, TIFF</li>
-                  <li>• <strong>Доступність:</strong> URL має бути публічно доступним</li>
-                  <li>• <strong>Розмір:</strong> рекомендований розмір 400x400 пікселів або більше</li>
-                  <li>• <strong>Якість:</strong> високої роздільної здатності для чіткого відображення</li>
-                  <li>• <strong>Фон:</strong> прозорий або білий фон працює найкраще</li>
+                  <li>• <strong>Formats:</strong> JPEG, PNG, GIF, TIFF</li>
+                  <li>• <strong>Accessibility:</strong> URL must be publicly accessible</li>
+                  <li>• <strong>Size:</strong> recommended 400x400 pixels or larger</li>
+                  <li>• <strong>Quality:</strong> high resolution for clear display</li>
+                  <li>• <strong>Background:</strong> transparent or white background works best</li>
                 </ul>
               </div>
 
               {/* Tips */}
               <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">💡 Поради для ефективного логотипу:</h4>
+                <h4 className="text-sm font-medium mb-2">💡 Tips for an effective logo:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• Використовуйте простий, впізнаваний дизайн</li>
-                  <li>• Переконайтесь, що логотип добре виглядає в малому розмірі</li>
-                  <li>• Уникайте дрібного тексту, який важко прочитати</li>
-                  <li>• Логотип має відповідати стилю вашого бренду</li>
-                  <li>• Тестуйте відображення на різних пристроях</li>
+                  <li>• Use a simple, recognizable design</li>
+                  <li>• Ensure the logo looks good at small sizes</li>
+                  <li>• Avoid small text that is hard to read</li>
+                  <li>• Logo should match your brand style</li>
+                  <li>• Test appearance on different devices</li>
                 </ul>
               </div>
 
               {/* Host Examples */}
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">🌐 Приклади хостингу зображень:</h4>
+                <h4 className="text-sm font-medium mb-2">🌐 Image hosting examples:</h4>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  <li>• <strong>Ваш сайт:</strong> https://yoursite.com/logo.png</li>
+                  <li>• <strong>Your site:</strong> https://yoursite.com/logo.png</li>
                   <li>• <strong>CDN:</strong> https://cdn.yoursite.com/assets/logo.png</li>
-                  <li>• <strong>Cloud Storage:</strong> публічний URL з Google Drive, Dropbox</li>
-                  <li>• <strong>Image хостинг:</strong> Imgur, ImageBB (з прямими посиланнями)</li>
+                  <li>• <strong>Cloud Storage:</strong> public URL from Google Drive, Dropbox</li>
+                  <li>• <strong>Image hosting:</strong> Imgur, ImageBB (direct links)</li>
                 </ul>
               </div>
             </div>
@@ -243,11 +243,11 @@ const BusinessLogoEditor: React.FC<BusinessLogoEditorProps> = ({
               className="flex-1"
             >
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти логотип
+              Save logo
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

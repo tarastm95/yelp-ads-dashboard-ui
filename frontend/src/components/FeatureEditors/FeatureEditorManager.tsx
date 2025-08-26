@@ -156,13 +156,13 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
           />
         );
 
-      // Для простих фіч створимо простий редактор
+      // For simple features, create a basic editor
       case 'STRICT_CATEGORY_TARGETING':
         return (
           <SimpleToggleEditor
             featureType={featureType}
-            title="Точне таргетування категорій"
-            description="Показувати рекламу тільки в точній категорії вашого бізнесу"
+            title="Precise category targeting"
+            description="Show ads only in your business's exact category"
             data={featureData}
             onSave={handleSave}
             onCancel={onClose}
@@ -174,8 +174,8 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
         return (
           <SimpleToggleEditor
             featureType={featureType}
-            title="Планування реклами"
-            description="Показувати рекламу тільки в години роботи бізнесу"
+            title="Ad scheduling"
+            description="Show ads only during business hours"
             data={featureData}
             onSave={handleSave}
             onCancel={onClose}
@@ -189,12 +189,12 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
           <Card className="w-full max-w-2xl">
             <CardContent className="p-6 text-center">
               <AlertTriangle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Редактор в розробці</h3>
+              <h3 className="text-lg font-semibold mb-2">Editor under development</h3>
               <p className="text-gray-600 mb-4">
-                Графічний редактор для {featureType} ще розробляється.
+                A graphical editor for {featureType} is still being developed.
               </p>
               <p className="text-sm text-gray-500">
-                Поки що ви можете налаштувати цю фічу через JSON-формат в головному інтерфейсі.
+                For now, you can configure this feature via JSON in the main interface.
               </p>
             </CardContent>
           </Card>
@@ -207,11 +207,11 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
       <DialogContent className="max-w-fit max-h-[90vh] overflow-y-auto" aria-describedby="feature-editor-description">
         <DialogHeader>
           <DialogTitle>
-            Налаштування фічі: {featureType?.replace(/_/g, ' ')}
+            Feature settings: {featureType?.replace(/_/g, ' ')}
           </DialogTitle>
         </DialogHeader>
         <div id="feature-editor-description" className="sr-only">
-          Графічний редактор для налаштування програмних функцій Yelp Ads
+          Graphical editor for configuring Yelp Ads program features
         </div>
         <div className="mt-4">
           {renderEditor()}
@@ -221,7 +221,7 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
   );
 };
 
-// Простий редактор для toggle-фіч
+// Simple editor for toggle features
 interface SimpleToggleEditorProps {
   featureType: string;
   title: string;
@@ -265,7 +265,7 @@ const SimpleToggleEditor: React.FC<SimpleToggleEditorProps> = ({
               className="w-4 h-4"
             />
             <label htmlFor="toggle" className="font-medium">
-              {isEnabled ? 'Увімкнено' : 'Вимкнено'}
+              {isEnabled ? 'Enabled' : 'Disabled'}
             </label>
           </div>
 
@@ -276,14 +276,14 @@ const SimpleToggleEditor: React.FC<SimpleToggleEditorProps> = ({
               disabled={isLoading}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {isLoading ? '⏳ Збереження...' : `${isEnabled ? 'Вимкнути' : 'Увімкнути'} фічу`}
+              {isLoading ? '⏳ Saving...' : `${isEnabled ? 'Disable' : 'Enable'} feature`}
             </button>
             <button
               type="button"
               onClick={onCancel}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              Скасувати
+              Cancel
             </button>
           </div>
         </div>

@@ -16,7 +16,7 @@ interface Props {
 
 const BusinessProgramsView: React.FC<Props> = ({ data }) => {
   if (data.businesses.length === 0) {
-    return <p className="text-muted-foreground">Нет данных о программах</p>;
+    return <p className="text-muted-foreground">No program data available</p>;
   }
 
   return (
@@ -25,22 +25,22 @@ const BusinessProgramsView: React.FC<Props> = ({ data }) => {
         <Card key={biz.yelp_business_id}>
           <CardHeader>
             <CardTitle className="text-lg font-medium">{biz.yelp_business_id}</CardTitle>
-            <CardDescription>Статус рекламодателя: {biz.advertiser_status}</CardDescription>
+            <CardDescription>Advertiser status: {biz.advertiser_status}</CardDescription>
           </CardHeader>
           <CardContent>
             {biz.programs.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID программы</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Начало</TableHead>
-                    <TableHead>Конец</TableHead>
-                    <TableHead className="text-right">Бюджет</TableHead>
-                    <TableHead className="text-right">Клики</TableHead>
-                    <TableHead className="text-right">Показы</TableHead>
-                    <TableHead className="text-right">Стоимость</TableHead>
+                    <TableHead>Program ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Start</TableHead>
+                    <TableHead>End</TableHead>
+                    <TableHead className="text-right">Budget</TableHead>
+                    <TableHead className="text-right">Clicks</TableHead>
+                    <TableHead className="text-right">Impressions</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -68,7 +68,7 @@ const BusinessProgramsView: React.FC<Props> = ({ data }) => {
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-muted-foreground">Нет программ для этого бизнеса</p>
+              <p className="text-muted-foreground">No programs for this business</p>
             )}
           </CardContent>
         </Card>
