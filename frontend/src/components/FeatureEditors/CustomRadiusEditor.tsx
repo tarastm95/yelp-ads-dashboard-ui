@@ -45,11 +45,11 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
   };
 
   const getRadiusDescription = (radius: number): string => {
-    if (radius <= 5) return 'Дуже близько - тільки найближчі клієнти';
-    if (radius <= 15) return 'Близько - місцева аудиторія';
-    if (radius <= 30) return 'Середній радіус - міська аудиторія';
-    if (radius <= 45) return 'Широкий радіус - міжміська аудиторія';
-    return 'Максимальний радіус - регіональна аудиторія';
+    if (radius <= 5) return 'Very close - only nearest customers';
+    if (radius <= 15) return 'Close - local audience';
+    if (radius <= 30) return 'Medium radius - city audience';
+    if (radius <= 45) return 'Wide radius - inter-city audience';
+    return 'Maximum radius - regional audience';
   };
 
   return (
@@ -57,7 +57,7 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          Налаштування радіусу таргетування
+          Targeting Radius Settings
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -72,13 +72,13 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
                 className="w-4 h-4"
               />
               <Label htmlFor="enableRadius" className="text-base font-medium">
-                Увімкнути власний радіус таргетування
+                Enable custom targeting radius
               </Label>
             </div>
             
             {!isEnabled && (
               <p className="text-sm text-gray-600 mb-4">
-                Коли вимкнено, Yelp автоматично визначає оптимальний радіус для вашого бізнесу
+                When disabled, Yelp automatically determines the optimal radius for your business
               </p>
             )}
           </div>
@@ -87,7 +87,7 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
             <>
               <div>
                 <Label className="text-base font-medium mb-4 block">
-                  Радіус показу реклами: {radius} миль
+                  Ad display radius: {radius} miles
                 </Label>
                 
                 {/* Slider */}
@@ -101,16 +101,16 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>1 миля</span>
-                    <span>30 миль</span>
-                    <span>60 миль</span>
+                    <span>1 mile</span>
+                    <span>30 miles</span>
+                    <span>60 miles</span>
                   </div>
                 </div>
 
                 {/* Manual Input */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="radiusInput">Точне значення (мілі)</Label>
+                    <Label htmlFor="radiusInput">Exact value (miles)</Label>
                     <Input
                       id="radiusInput"
                       type="number"
@@ -127,9 +127,9 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
                     />
                   </div>
                   <div>
-                    <Label>В кілометрах</Label>
+                    <Label>In kilometers</Label>
                     <Input
-                      value={`≈ ${(radius * 1.6).toFixed(1)} км`}
+                      value={`≈ ${(radius * 1.6).toFixed(1)} km`}
                       disabled
                       className="bg-gray-50"
                     />
@@ -142,36 +142,36 @@ const CustomRadiusEditor: React.FC<CustomRadiusEditorProps> = ({
               </div>
 
               <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">📍 Візуалізація радіусу:</h4>
+                <h4 className="text-sm font-medium mb-2">📍 Radius visualization:</h4>
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div>• Центр: ваш бізнес</div>
-                  <div>• Радіус: {radius} миль ({(radius * 1.6).toFixed(1)} км)</div>
-                  <div>• Площа покриття: ≈ {Math.round(Math.PI * radius * radius)} кв. миль</div>
-                  <div>• Реклама показуватиметься тільки клієнтам в цій зоні</div>
+                  <div>• Center: your business</div>
+                  <div>• Radius: {radius} miles ({(radius * 1.6).toFixed(1)} km)</div>
+                  <div>• Coverage area: ≈ {Math.round(Math.PI * radius * radius)} sq. miles</div>
+                  <div>• Ads will only show to customers in this zone</div>
                 </div>
               </div>
             </>
           )}
 
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Рекомендації по радіусу:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 Radius recommendations:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>Ресторани/кафе:</strong> 3-10 миль</li>
-              <li>• <strong>Салони краси:</strong> 5-15 миль</li>
-              <li>• <strong>Будівельні послуги:</strong> 15-40 миль</li>
-              <li>• <strong>Спеціалізовані послуги:</strong> 25-60 миль</li>
-              <li>• Менший радіус = дорожчий трафік, але більш релевантні клієнти</li>
+              <li>• <strong>Restaurants/cafes:</strong> 3-10 miles</li>
+              <li>• <strong>Beauty salons:</strong> 5-15 miles</li>
+              <li>• <strong>Construction services:</strong> 15-40 miles</li>
+              <li>• <strong>Specialized services:</strong> 25-60 miles</li>
+              <li>• Smaller radius = more expensive traffic, but more relevant customers</li>
             </ul>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти радіус
+              Save Radius
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>

@@ -63,17 +63,17 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
     const validateCustomText = (text: string) => {
     const errors: string[] = [];
 
-    // Основні перевірки згідно з практичними лімітами
-    if (text.length > 1500) errors.push('Максимум ~1500 символів (практичний ліміт)');
-    if (text.trim().length === 0) errors.push('Текст не може бути порожнім');
+    // Basic checks according to practical limits
+    if (text.length > 1500) errors.push('Maximum ~1500 characters (practical limit)');
+    if (text.trim().length === 0) errors.push('Text cannot be empty');
     
-    // Рекомендації щодо стилю (не жорсткі правила API)
+    // Style recommendations (not strict API rules)
     const uppercasePercent = (text.match(/[A-ZА-Я]/g) || []).length / text.length;
-    if (uppercasePercent > 0.4) errors.push('Рекомендуємо менше великих літер (≤40%)');
+    if (uppercasePercent > 0.4) errors.push('Recommend fewer capital letters (≤40%)');
     
-    // Перевірка на надмірне використання знаків оклику
+    // Check for excessive use of exclamation marks
     const exclamationCount = (text.match(/!/g) || []).length;
-    if (exclamationCount > 3) errors.push('Рекомендуємо менше знаків оклику');
+    if (exclamationCount > 3) errors.push('Recommend fewer exclamation marks');
 
     return errors;
   };
@@ -86,13 +86,13 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5" />
-          Налаштування власного тексту реклами
+          Custom Ad Text Settings
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label className="text-base font-medium">Оберіть тип тексту реклами:</Label>
+            <Label className="text-base font-medium">Choose ad text type:</Label>
             <RadioGroup
               value={mode}
               onValueChange={(value) => setMode(value as typeof mode)}
@@ -102,10 +102,10 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                 <RadioGroupItem value="disabled" id="disabled" className="mt-1" />
                 <div>
                   <label htmlFor="disabled" className="font-medium cursor-pointer">
-                    Автоматичний текст Yelp
+                    Automatic Yelp Text
                   </label>
                   <p className="text-sm text-gray-600">
-                    Yelp автоматично генерує текст реклами на основі інформації про ваш бізнес
+                    Yelp automatically generates ad text based on your business information
                   </p>
                 </div>
               </div>
@@ -114,10 +114,10 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                 <RadioGroupItem value="custom_text" id="custom_text" className="mt-1" />
                 <div className="flex-1">
                   <label htmlFor="custom_text" className="font-medium cursor-pointer">
-                    Власний текст
+                    Custom Text
                   </label>
                   <p className="text-sm text-gray-600 mb-3">
-                    Напишіть власний текст для реклами
+                    Write your own ad text
                   </p>
                   
                   {mode === 'custom_text' && (
@@ -125,17 +125,17 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                       <Textarea
                         value={customText}
                         onChange={(e) => setCustomText(e.target.value)}
-                        placeholder="Введіть текст реклами (до ~1500 символів)&#10;&#10;Приклад:&#10;Найкраща піца в місті! Свіжі інгредієнти, швидка доставка та неперевершений смак. Замовляйте зараз і отримайте знижку 15% на першу піцу!"
+                        placeholder="Enter ad text (up to ~1500 characters)&#10;&#10;Example:&#10;Best pizza in town! Fresh ingredients, fast delivery and unmatched taste. Order now and get 15% off your first pizza!"
                         rows={4}
                         className={textErrors.length > 0 ? 'border-red-500' : 'border-green-500'}
                       />
                       
                       <div className="flex justify-between text-xs">
                         <span className={customText.length > 1500 ? 'text-red-500' : 'text-gray-500'}>
-                          Символів: {customText.length} / ~1500
+                          Characters: {customText.length} / ~1500
                         </span>
                         <span className={customText.trim().length > 0 && customText.length <= 1500 ? 'text-green-500' : 'text-red-500'}>
-                          {customText.trim().length > 0 && customText.length <= 1500 ? '✓' : '✗'} Довжина
+                          {customText.trim().length > 0 && customText.length <= 1500 ? '✓' : '✗'} Length
                         </span>
                       </div>
 
@@ -143,7 +143,7 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
                             <AlertTriangle className="w-4 h-4 text-red-600" />
-                            <span className="text-sm font-medium text-red-800">Помилки валідації:</span>
+                            <span className="text-sm font-medium text-red-800">Validation errors:</span>
                           </div>
                           <ul className="text-xs text-red-700 space-y-1">
                             {textErrors.map((error, index) => (
@@ -157,7 +157,7 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">Текст пройшов валідацію!</span>
+                            <span className="text-sm font-medium text-green-800">Text passed validation!</span>
                           </div>
                         </div>
                       )}
@@ -170,17 +170,17 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
                 <RadioGroupItem value="review" id="review" className="mt-1" />
                 <div className="flex-1">
                   <label htmlFor="review" className="font-medium cursor-pointer">
-                    Текст з відгуку
+                    Review Text
                   </label>
                   <p className="text-sm text-gray-600 mb-3">
-                    Використати текст з конкретного відгуку клієнта
+                    Use text from a specific customer review
                   </p>
                   
                   {mode === 'review' && (
                     <Input
                       value={reviewId}
                       onChange={(e) => setReviewId(e.target.value)}
-                      placeholder="Введіть ID відгуку (наприклад: review_abc123xyz)"
+                      placeholder="Enter review ID (e.g.: review_abc123xyz)"
                     />
                   )}
                 </div>
@@ -189,25 +189,25 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">📝 Правила тексту реклами:</h4>
+            <h4 className="text-sm font-medium mb-2">📝 Ad Text Rules:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• <strong>Поля:</strong> заповнюй або "Власний текст", або "Текст з відгуку" (не обидва)</li>
-              <li>• <strong>Довжина:</strong> тримай текст стислим; до ~1500 символів (практичний ліміт)</li>
-              <li>• <strong>Стиль:</strong> без надмірних ВЕРХНІХ ЛІТЕР та знаків оклику</li>
-              <li>• <strong>Контент:</strong> не додавай контактні дані/URL у текст (для посилань використовуй CTA)</li>
-              <li>• <strong>Якщо обидва поля порожні:</strong> текст встановить Yelp автоматично</li>
-              <li>• <strong>Релевантність:</strong> текст повинен відповідати вашому бізнесу</li>
+              <li>• <strong>Fields:</strong> fill either "Custom Text" or "Review Text" (not both)</li>
+              <li>• <strong>Length:</strong> keep text concise; up to ~1500 characters (practical limit)</li>
+              <li>• <strong>Style:</strong> avoid excessive CAPITAL LETTERS and exclamation marks</li>
+              <li>• <strong>Content:</strong> don't add contact info/URLs in text (use CTA for links)</li>
+              <li>• <strong>If both fields empty:</strong> Yelp will set text automatically</li>
+              <li>• <strong>Relevance:</strong> text should match your business</li>
             </ul>
           </div>
 
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium mb-2">💡 Поради для ефективного тексту:</h4>
+            <h4 className="text-sm font-medium mb-2">💡 Tips for effective text:</h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Підкресліть унікальні переваги вашого бізнесу</li>
-              <li>• Використовуйте конкретні факти (швидкість, якість, досвід)</li>
-              <li>• Додайте заклик до дії (замовляйте, телефонуйте, відвідайте)</li>
-              <li>• Згадайте спеціальні пропозиції або знижки</li>
-              <li>• Пишіть природною мовою, уникайте рекламних штампів</li>
+              <li>• Highlight your business's unique advantages</li>
+              <li>• Use specific facts (speed, quality, experience)</li>
+              <li>• Add a call to action (order, call, visit)</li>
+              <li>• Mention special offers or discounts</li>
+              <li>• Write in natural language, avoid advertising clichés</li>
             </ul>
           </div>
 
@@ -218,11 +218,11 @@ const CustomAdTextEditor: React.FC<CustomAdTextEditorProps> = ({
               className="flex-1"
             >
               {isLoading ? <div className="animate-spin mr-2">⏳</div> : <Save className="w-4 h-4 mr-2" />}
-              Зберегти текст
+              Save Text
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
-              Скасувати
+              Cancel
             </Button>
           </div>
         </form>
