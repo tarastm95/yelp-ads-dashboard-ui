@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function formatFeatureType(featureType: string): string {
+  return featureType
+    .toLowerCase()
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // Yelp API Error Codes mapping to user-friendly messages
 const errorMap: Record<string, { title: string; description: string; actionRequired: boolean }> = {
   // Critical Errors

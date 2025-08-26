@@ -12,6 +12,7 @@ import CustomAdPhotoEditor from './CustomAdPhotoEditor';
 import YelpPortfolioEditor from './YelpPortfolioEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
+import { formatFeatureType } from '@/lib/utils';
 
 export type FeatureType = 
   | 'LINK_TRACKING'
@@ -207,7 +208,7 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
       <DialogContent className="max-w-fit max-h-[90vh] overflow-y-auto" aria-describedby="feature-editor-description">
         <DialogHeader>
           <DialogTitle>
-            Feature settings: {featureType?.replace(/_/g, ' ')}
+            Feature settings: {featureType && formatFeatureType(featureType)}
           </DialogTitle>
         </DialogHeader>
         <div id="feature-editor-description" className="sr-only">
