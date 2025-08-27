@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: yelp
+      POSTGRES_USER: yelpadmin
+      POSTGRES_PASSWORD: yelpadmin
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yelpadmin -d yelp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"  # Bind только к localhost
+    env_file:
+      - .env.prod
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8080:8080"  # Frontend на порту 8080
+    command: npm run preview -- --host 0.0.0.0 --port 8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=production
+      - VITE_BACKEND_URL=http://ads.digitizeit.net
+      - VITE_API_BASE_URL=http://ads.digitizeit.net/api
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db_data:
