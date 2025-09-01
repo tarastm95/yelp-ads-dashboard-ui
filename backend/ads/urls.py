@@ -22,11 +22,13 @@ from .views import (
     PortfolioPhotoListView,
     PortfolioPhotoDetailView,
     # Auth Views
+    ValidateCredentialsView,
     SaveCredentialsView,
 )
 
 urlpatterns = [
     # Auth endpoints
+    path('auth/validate-credentials', ValidateCredentialsView.as_view()),
     path('auth/save-credentials', SaveCredentialsView.as_view()),
     
     # Legacy endpoints

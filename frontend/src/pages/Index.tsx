@@ -69,9 +69,21 @@ const Index = () => {
                 <Users className="h-4 w-4 text-blue-600" />
                 <span className="font-semibold">Test Business IDs:</span>
               </div>
-              <ul className="space-y-1 ml-6">
-                <li>• J9R1gG5xy7DpWsCWBup7DQ</li>
-                <li>• e2JTWqyUwRHXjpG8TCZ7Ow</li>
+              <ul className="space-y-2 ml-6">
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span className="line-through text-gray-400">J9R1gG5xy7DpWsCWBup7DQ</span>
+                  <span className="text-red-600 text-xs bg-red-50 px-2 py-1 rounded">
+                    Business removed from search
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-500">•</span>
+                  <span className="text-gray-800">e2JTWqyUwRHXjpG8TCZ7Ow</span>
+                  <span className="text-green-600 text-xs bg-green-50 px-2 py-1 rounded">
+                    Active
+                  </span>
+                </li>
               </ul>
             </div>
             <p className="text-sm">

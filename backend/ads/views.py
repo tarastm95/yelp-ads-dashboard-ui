@@ -636,6 +636,76 @@ class PortfolioPhotoDetailView(APIView):
             raise
 
 
+class ValidateCredentialsView(APIView):
+    """Validate user credentials against Yelp API before saving."""
+    
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        logger.info(f"🔐 ValidateCredentialsView: Validating credentials for username: '{username}'")
+        
+        try:
+            # Test credentials by making a simple API call to Yelp
+            auth = (username, password)
+            test_url = f'{YelpService.PARTNER_BASE}/v1/reseller/programs'
+            
+            # Make a simple request with pagination to test credentials
+            response = requests.get(
+                test_url,
+                auth=auth,
+                params={'limit': 1, 'offset': 0},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ ValidateCredentialsView: Credentials are valid for user '{username}'")
+                return Response({
+                    "valid": True,
+                    "message": "Credentials are valid",
+                    "username": username
+                }, status=status.HTTP_200_OK)
+            elif response.status_code == 401:
+                logger.warning(f"❌ ValidateCredentialsView: Invalid credentials for user '{username}'")
+                return Response({
+                    "valid": False,
+                    "message": "Invalid credentials - authentication failed",
+                    "username": username
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            else:
+                logger.error(f"❌ ValidateCredentialsView: Unexpected response from Yelp API: {response.status_code}")
+                return Response({
+                    "valid": False,
+                    "message": f"Unexpected error from Yelp API: {response.status_code}",
+                    "username": username
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ ValidateCredentialsView: Request timeout validating credentials for '{username}'")
+            return Response(
+                {"error": "Request timeout - Yelp API is not responding"}, 
+                status=status.HTTP_408_REQUEST_TIMEOUT
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ ValidateCredentialsView: Network error validating credentials for '{username}': {e}")
+            return Response(
+                {"error": f"Network error: {str(e)}"}, 
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            logger.error(f"❌ ValidateCredentialsView: Unexpected error validating credentials for '{username}': {e}")
+            return Response(
+                {"error": f"Failed to validate credentials: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class SaveCredentialsView(APIView):
     """Save user credentials for Yelp API authentication."""
     

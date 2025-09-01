@@ -25,9 +25,16 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action: PayloadAction<AuthState>) => {
+      // Preserve exact values without any escaping or transformation
       state.username = action.payload.username;
       state.password = action.payload.password;
-      localStorage.setItem('credentials', JSON.stringify(action.payload));
+      
+      // Store credentials exactly as provided, without JSON escaping issues
+      const credentialsToStore = {
+        username: action.payload.username,
+        password: action.payload.password
+      };
+      localStorage.setItem('credentials', JSON.stringify(credentialsToStore));
     },
     clearCredentials: (state) => {
       state.username = '';

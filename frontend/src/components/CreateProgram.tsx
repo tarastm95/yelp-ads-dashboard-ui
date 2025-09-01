@@ -13,9 +13,10 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Info } from 'lucide-react';
 
 const PROGRAM_OPTIONS = [
   { value: 'BP', label: 'BP \u2013 Branded Profile' },
@@ -28,6 +29,19 @@ const PROGRAM_OPTIONS = [
   { value: 'VL', label: 'VL \u2013 Verified License' },
   { value: 'LOGO', label: 'LOGO \u2013 Logo Feature' },
   { value: 'PORTFOLIO', label: 'PORTFOLIO \u2013 Portfolio Feature' },
+];
+
+const PROGRAM_DESCRIPTIONS = [
+  { code: 'BP', name: 'Branded Profile', description: 'Enhanced business profile with branding customization' },
+  { code: 'EP', name: 'Enhanced Profile', description: 'Improved profile with additional features (no competitor ads, CTA, etc.)' },
+  { code: 'CPC', name: 'Cost Per Click ads', description: 'Pay-per-click advertising campaigns' },
+  { code: 'RCA', name: 'Remove Competitor Ads', description: 'Removes competitor advertisements from your business page' },
+  { code: 'CTA', name: 'Call To Action', description: 'Adds action buttons (e.g., call button at top of page)' },
+  { code: 'SLIDESHOW', name: 'Slideshow', description: 'Image slideshow display on business page' },
+  { code: 'BH', name: 'Business Highlights', description: 'Highlights key business aspects and features' },
+  { code: 'VL', name: 'Verified License', description: 'Marks business as licensed (verified license badge)' },
+  { code: 'LOGO', name: 'Logo Feature', description: 'Adds business logo to advertising blocks' },
+  { code: 'PORTFOLIO', name: 'Portfolio Feature', description: 'Gallery showcasing work examples or services' },
 ];
 
 const CreateProgram: React.FC = () => {
@@ -123,6 +137,39 @@ const CreateProgram: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Program Types Reference */}
+        <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Info className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Program Types Reference</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-20">Code</TableHead>
+                  <TableHead className="w-48">Name</TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {PROGRAM_DESCRIPTIONS.map((program) => (
+                  <TableRow key={program.code}>
+                    <TableCell className="font-mono font-semibold text-blue-600">
+                      {program.code}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {program.name}
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {program.description}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="business_id">Business ID</Label>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setCredentials } from '../store/slices/authSlice';
+import { setCredentials, clearCredentials } from '../store/slices/authSlice';
 import type { RootState } from '../store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,19 +19,34 @@ const Login: React.FC = () => {
   // Get current authentication state
   const { username: currentUsername, password: currentPassword } = useSelector((state: RootState) => state.auth);
   
-  // Get the path the user came from
+  // Get the path the user came from and any error message
   const from = location.state?.from?.pathname || '/';
+  const authError = location.state?.error;
 
   // Check if the user is already authenticated
   useEffect(() => {
     const isAuthenticated = currentUsername && currentPassword && 
                            currentUsername.trim() !== '' && currentPassword.trim() !== '';
     
-    if (isAuthenticated) {
+    // Only redirect if authenticated and no auth error (to prevent redirect loops)
+    if (isAuthenticated && !authError) {
       // If already authenticated, redirect to the origin page
       navigate(from, { replace: true });
     }
-  }, [currentUsername, currentPassword, navigate, from]);
+  }, [currentUsername, currentPassword, navigate, from, authError]);
+
+  // Show error message if redirected due to authentication failure
+  useEffect(() => {
+    if (authError) {
+      // Clear invalid credentials when redirected due to auth failure
+      dispatch(clearCredentials());
+      toast({
+        title: "Authentication Required",
+        description: authError,
+        variant: "destructive",
+      });
+    }
+  }, [authError, dispatch]);
 
   useEffect(() => {
     const stored = localStorage.getItem('credentials');
@@ -62,8 +77,8 @@ const Login: React.FC = () => {
     setLoading(true);
     
     try {
-      // Send credentials to the backend for storage
-      const response = await fetch('/api/auth/save-credentials', {
+      // First, validate credentials against Yelp API
+      const validateResponse = await fetch('/api/auth/validate-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,18 +86,58 @@ const Login: React.FC = () => {
         body: JSON.stringify({ username, password }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (validateResponse.status === 401) {
+        toast({
+          title: "Authentication Failed",
+          description: "Invalid login or password. Please check your Yelp API credentials.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      const result = await response.json();
+      if (!validateResponse.ok) {
+        const errorData = await validateResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${validateResponse.status}: ${validateResponse.statusText}`);
+      }
+
+      const validateResult = await validateResponse.json();
+      
+      if (!validateResult.valid) {
+        toast({
+          title: "Authentication Failed",
+          description: validateResult.message || "Invalid credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Show success message for validation
+      toast({
+        title: "Validation Successful",
+        description: "Credentials are valid! Logging in...",
+      });
+
+      // If validation passed, save credentials to the backend
+      const saveResponse = await fetch('/api/auth/save-credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error(`Failed to save credentials: HTTP ${saveResponse.status}`);
+      }
+
+      const saveResult = await saveResponse.json();
       
       // Save to Redux and localStorage
       dispatch(setCredentials({ username, password }));
       
       toast({
-        title: "Success",
-        description: `Credentials saved for user: ${username}`,
+        title: "Login Successful",
+        description: `Credentials validated and saved for user: ${username}`,
       });
       
       // Redirect to the originating page or home
@@ -107,7 +162,7 @@ const Login: React.FC = () => {
             Sign In
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your Yelp API credentials
+            Enter your Yelp API credentials - they will be validated before saving
           </p>
         </div>
         
@@ -134,16 +189,22 @@ const Login: React.FC = () => {
                 id="password" 
                 type="password" 
                 value={password} 
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  // Prevent any automatic escaping by preserving the raw value
+                  const rawValue = e.target.value;
+                  setPassword(rawValue);
+                }}
                 className="mt-1"
                 placeholder="Enter your Yelp API Secret"
                 required
+                autoComplete="new-password"
+                spellCheck={false}
               />
             </div>
           </div>
           
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Saving...' : 'Sign In'}
+            {loading ? 'Validating credentials...' : 'Sign In'}
           </Button>
         </form>
         
@@ -154,7 +215,7 @@ const Login: React.FC = () => {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-50 text-gray-500">
-                Credentials will be stored for use with the Yelp API
+                Credentials will be validated against Yelp API and stored securely
               </span>
             </div>
           </div>
