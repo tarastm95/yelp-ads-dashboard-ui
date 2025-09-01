@@ -4,8 +4,6 @@ from rest_framework import status
 import requests
 import logging
 import uuid
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from .services import YelpService
 from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential
 from .serializers import (
@@ -638,7 +636,6 @@ class PortfolioPhotoDetailView(APIView):
             raise
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ValidateCredentialsView(APIView):
     """Validate user credentials against Yelp API before saving."""
     
@@ -709,7 +706,6 @@ class ValidateCredentialsView(APIView):
             )
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class SaveCredentialsView(APIView):
     """Save user credentials for Yelp API authentication."""
     
