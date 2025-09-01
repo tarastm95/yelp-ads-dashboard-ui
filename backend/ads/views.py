@@ -197,7 +197,8 @@ class ProgramListView(APIView):
             return Response(data)
         except Exception as e:
             logger.error(f"Error getting programs list from Yelp API: {e}")
-            raise
+            status_code = getattr(getattr(e, 'response', None), 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": str(e)}, status=status_code)
 
 
 class ProgramInfoView(APIView):

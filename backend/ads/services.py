@@ -3,6 +3,7 @@ import csv
 import threading
 import time
 import logging
+import json
 from io import StringIO
 from django.conf import settings
 from decimal import Decimal
@@ -460,15 +461,15 @@ class YelpService:
             logger.info(f"📥 YelpService.get_all_programs: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.get_all_programs: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.get_all_programs: Raw response text: {resp.text}")
-            
+
             resp.raise_for_status()
             data = resp.json()
             logger.info(f"✅ YelpService.get_all_programs: Successfully parsed JSON response")
-            
+
             # Yelp API повертає 'payment_programs' замість 'programs'
             programs = data.get('payment_programs', [])
             logger.info(f"📊 YelpService.get_all_programs: Found {len(programs)} programs")
-            
+
             # Перетворюємо у формат, очікуваний frontend
             normalized_data = {
                 'programs': programs,
@@ -476,13 +477,17 @@ class YelpService:
                 'offset': data.get('offset', offset),
                 'limit': data.get('limit', limit)
             }
-            
+
             return normalized_data
         except requests.HTTPError as e:
             logger.error(f"❌ YelpService.get_all_programs: HTTP Error: {e}")
-            logger.error(f"❌ YelpService.get_all_programs: Response status: {e.response.status_code}")
-            logger.error(f"❌ YelpService.get_all_programs: Response text: {e.response.text}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"❌ YelpService.get_all_programs: Response status: {e.response.status_code}")
+                logger.error(f"❌ YelpService.get_all_programs: Response text: {e.response.text}")
             raise
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ YelpService.get_all_programs: Failed to decode JSON: {e}")
+            raise ValueError("Invalid JSON from Yelp API") from e
         except Exception as e:
             logger.error(f"❌ YelpService.get_all_programs: Unexpected error: {e}")
             raise
