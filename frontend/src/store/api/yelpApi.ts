@@ -1,6 +1,7 @@
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../index';
+import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import {
   Program,
   CreateProgramRequest,
@@ -58,7 +59,7 @@ export interface PortfolioPhotoUploadRequest {
   caption: string;
 }
 
-const baseQuery = fetchBaseQuery({
+const rawBaseQuery = fetchBaseQuery({
   baseUrl: '/api', // Proxy through backend
   prepareHeaders: (headers, { getState }) => {
     headers.set('Content-Type', 'application/json');
@@ -70,6 +71,19 @@ const baseQuery = fetchBaseQuery({
     return headers;
   },
 });
+
+const baseQuery: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError & { statusText?: string }
+> = async (args, api, extraOptions) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+  if (result.error) {
+    const statusText = (result.meta as any)?.response?.statusText;
+    (result.error as any).statusText = statusText;
+  }
+  return result;
+};
 
 export const yelpApi = createApi({
   reducerPath: 'yelpApi',

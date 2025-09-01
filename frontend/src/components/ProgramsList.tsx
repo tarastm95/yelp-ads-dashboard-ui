@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { formatErrorForToast } from '@/lib/utils';
+  import { toast } from '@/hooks/use-toast';
+  import { formatErrorForToast } from '@/lib/utils';
+  import ApiErrorMessage from './ApiErrorMessage';
 
 const ProgramsList: React.FC = () => {
   const [offset, setOffset] = useState(0);
@@ -89,7 +90,7 @@ const ProgramsList: React.FC = () => {
   };
   
   // Regular programs
-  const { data, isLoading, error, refetch } = useGetProgramsQuery({ 
+  const { data, isLoading, error, isError, refetch } = useGetProgramsQuery({
     offset: offset, 
     limit: limit,
     program_status: programStatus,
@@ -191,13 +192,13 @@ const ProgramsList: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (isError && error && 'status' in error) {
     return (
       <Card className="w-full max-w-2xl mx-auto">
         <CardContent className="pt-6">
           <p className="text-red-500">Error loading programs</p>
           <p className="text-sm text-gray-600 mt-2">
-            {error && 'status' in error && `HTTP ${error.status}: ${error.data?.error?.message || 'Unknown error'}`}
+            <ApiErrorMessage error={error as any} />
           </p>
         </CardContent>
       </Card>
