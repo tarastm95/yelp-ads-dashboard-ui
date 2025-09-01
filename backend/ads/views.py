@@ -657,7 +657,7 @@ class ValidateCredentialsView(APIView):
         try:
             # Test credentials by making a simple API call to Yelp
             auth = (username, password)
-            test_url = f'{YelpService.PARTNER_BASE}/v1/reseller/programs'
+            test_url = f'{YelpService.PARTNER_BASE}/programs/v1'
             
             # Make a simple request with pagination to test credentials
             response = requests.get(
