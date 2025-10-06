@@ -171,6 +171,25 @@ class ProgramFeature(models.Model):
         return f"{self.program_id} - {self.feature_type}"
 
 
+class CustomSuggestedKeyword(models.Model):
+    """Store custom suggested keywords for negative keyword targeting"""
+    
+    program_id = models.CharField(max_length=100, db_index=True)
+    keyword = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=255, null=True, blank=True)  # username who added it
+    
+    class Meta:
+        unique_together = ['program_id', 'keyword']
+        indexes = [
+            models.Index(fields=['program_id']),
+            models.Index(fields=['keyword']),
+        ]
+    
+    def __str__(self):
+        return f"{self.program_id} - {self.keyword}"
+
+
 class PortfolioProject(models.Model):
     """Portfolio projects for Yelp programs"""
     

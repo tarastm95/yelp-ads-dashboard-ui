@@ -24,6 +24,8 @@ from .views import (
     # Auth Views
     ValidateCredentialsView,
     SaveCredentialsView,
+    # Custom Suggested Keywords Views
+    CustomSuggestedKeywordsView,
 )
 
 urlpatterns = [
@@ -57,6 +59,9 @@ urlpatterns = [
     path('program/<str:program_id>/portfolio/<str:project_id>/v1', PortfolioProjectDetailView.as_view()),
     path('program/<str:program_id>/portfolio/<str:project_id>/photos/v1', PortfolioPhotoListView.as_view()),
     path('program/<str:program_id>/portfolio/<str:project_id>/photos/<str:photo_id>/v1', PortfolioPhotoDetailView.as_view()),
+
+    # Custom Suggested Keywords endpoints
+    path('program/<str:program_id>/custom-suggested-keywords', CustomSuggestedKeywordsView.as_view()),
 
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),

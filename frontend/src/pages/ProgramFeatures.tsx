@@ -13,7 +13,7 @@ import {
 import { 
   Loader2, Settings, Save, Trash2, Info, 
   Globe, Phone, Camera, MapPin, Clock, 
-  Target, Shield, Star, Award, Link, FolderOpen
+  Target, Shield, Star, Award, Link, FolderOpen, Briefcase
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatFeatureType } from '@/lib/utils';
@@ -99,14 +99,14 @@ const FEATURE_DESCRIPTIONS = {
   },
 
   SERVICE_OFFERINGS_TARGETING: {
-    icon: Star,
+    icon: Briefcase,
     title: 'Service Offerings Targeting',
-    description: 'Manage services that are included/excluded from ads (deprecated)',
+    description: 'Control which service offerings are advertised in your campaigns',
     fields: {
-      disabled_service_offerings: 'List of disabled services for the campaign',
-      enabled_service_offerings: 'List of enabled services for the campaign'
+      disabled_service_offerings: 'List of service offerings to exclude from ads (Required)',
+      enabled_service_offerings: 'List of service offerings to include in ads (Optional for POST)'
     },
-    validation: 'Deprecated type, recommended to use negative keywords instead'
+    validation: 'For POST requests, disabled_service_offerings is required, enabled_service_offerings can be omitted'
   },
 
   BUSINESS_HIGHLIGHTS: {
@@ -351,7 +351,7 @@ const ProgramFeatures: React.FC = () => {
         return { 
           website: 'https://example.com/track',
           menu: null,
-          call_to_action: null
+          url: null
         };
         
       case 'CUSTOM_LOCATION_TARGETING':
@@ -519,7 +519,7 @@ const ProgramFeatures: React.FC = () => {
       case 'CALL_TRACKING':
         return featureData.enabled === true;
       case 'LINK_TRACKING':
-        return !!(featureData.website || featureData.menu || featureData.call_to_action);
+        return !!(featureData.website || featureData.menu || featureData.url);
       case 'CUSTOM_LOCATION_TARGETING':
         return featureData.businesses?.some((b: any) => b.locations?.length > 0) || false;
       case 'NEGATIVE_KEYWORD_TARGETING':
@@ -928,6 +928,7 @@ const ProgramFeatures: React.FC = () => {
       <FeatureEditorManager
         featureType={editingFeature}
         featureData={editingFeature ? features?.[editingFeature] : undefined}
+        programId={programId!}
         isOpen={showEditor}
         onClose={() => {
           setShowEditor(false);

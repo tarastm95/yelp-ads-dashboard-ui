@@ -7,12 +7,13 @@ import uuid
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .services import YelpService
-from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential
+from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential, CustomSuggestedKeyword
 from .serializers import (
     ProgramSerializer, ProgramFeaturesRequestSerializer, ProgramFeaturesDeleteSerializer,
     PortfolioProjectSerializer, PortfolioProjectCreateResponseSerializer,
     PortfolioPhotoUploadSerializer, PortfolioPhotoUploadResponseSerializer,
-    PortfolioPhotoSerializer
+    PortfolioPhotoSerializer, CustomSuggestedKeywordSerializer,
+    CustomSuggestedKeywordCreateSerializer, CustomSuggestedKeywordDeleteSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -750,5 +751,101 @@ class SaveCredentialsView(APIView):
             logger.error(f"❌ SaveCredentialsView: Error saving credentials for '{username}': {e}")
             return Response(
                 {"error": f"Failed to save credentials: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# ============= Custom Suggested Keywords Views =============
+
+class CustomSuggestedKeywordsView(APIView):
+    """Manage custom suggested keywords for negative keyword targeting"""
+    
+    def get(self, request, program_id):
+        """Get all custom suggested keywords for a program"""
+        logger.info(f"Getting custom suggested keywords for program {program_id}")
+        try:
+            keywords = CustomSuggestedKeyword.objects.filter(program_id=program_id)
+            serializer = CustomSuggestedKeywordSerializer(keywords, many=True)
+            logger.info(f"Retrieved {len(serializer.data)} custom suggested keywords for program {program_id}")
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error getting custom suggested keywords for {program_id}: {e}")
+            return Response(
+                {"error": f"Failed to get custom suggested keywords: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request, program_id):
+        """Add custom suggested keywords for a program"""
+        logger.info(f"Adding custom suggested keywords for program {program_id}")
+        logger.info(f"Request data: {request.data}")
+        
+        serializer = CustomSuggestedKeywordCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"Validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        keywords = serializer.validated_data['keywords']
+        created_keywords = []
+        skipped_keywords = []
+        
+        try:
+            for keyword in keywords:
+                obj, created = CustomSuggestedKeyword.objects.get_or_create(
+                    program_id=program_id,
+                    keyword=keyword,
+                    defaults={'created_by': request.user.username if request.user.is_authenticated else None}
+                )
+                if created:
+                    created_keywords.append(keyword)
+                else:
+                    skipped_keywords.append(keyword)
+            
+            logger.info(f"Added {len(created_keywords)} custom suggested keywords for program {program_id}")
+            if skipped_keywords:
+                logger.info(f"Skipped {len(skipped_keywords)} duplicate keywords: {skipped_keywords}")
+            
+            return Response({
+                "message": f"Successfully added {len(created_keywords)} keywords",
+                "created": created_keywords,
+                "skipped": skipped_keywords,
+                "total": len(created_keywords) + len(skipped_keywords)
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error adding custom suggested keywords for {program_id}: {e}")
+            return Response(
+                {"error": f"Failed to add custom suggested keywords: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def delete(self, request, program_id):
+        """Delete custom suggested keywords for a program"""
+        logger.info(f"Deleting custom suggested keywords for program {program_id}")
+        logger.info(f"Request data: {request.data}")
+        
+        serializer = CustomSuggestedKeywordDeleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"Validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        keywords = serializer.validated_data['keywords']
+        
+        try:
+            deleted_count, _ = CustomSuggestedKeyword.objects.filter(
+                program_id=program_id,
+                keyword__in=keywords
+            ).delete()
+            
+            logger.info(f"Deleted {deleted_count} custom suggested keywords for program {program_id}")
+            return Response({
+                "message": f"Successfully deleted {deleted_count} keywords",
+                "deleted": deleted_count
+            })
+            
+        except Exception as e:
+            logger.error(f"Error deleting custom suggested keywords for {program_id}: {e}")
+            return Response(
+                {"error": f"Failed to delete custom suggested keywords: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

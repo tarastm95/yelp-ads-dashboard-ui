@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Program, Report, ProgramFeature, PortfolioProject, PortfolioPhoto
+from .models import Program, Report, ProgramFeature, PortfolioProject, PortfolioPhoto, CustomSuggestedKeyword
 import re
 
 class ProgramSerializer(serializers.ModelSerializer):
@@ -48,7 +48,7 @@ class LinkTrackingSerializer(serializers.Serializer):
     """Serializer for LINK_TRACKING feature type"""
     website = serializers.CharField(required=False, allow_null=True)
     menu = serializers.CharField(required=False, allow_null=True)
-    call_to_action = serializers.CharField(required=False, allow_null=True)
+    url = serializers.CharField(required=False, allow_null=True)
 
 
 class NegativeKeywordTargetingSerializer(serializers.Serializer):
@@ -105,22 +105,26 @@ class CallTrackingSerializer(serializers.Serializer):
 
 
 class BusinessHighlightsSerializer(serializers.Serializer):
-    """Serializer for BUSINESS_HIGHLIGHTS feature type"""
-    business_highlights = serializers.ListField(
+    """Serializer for BUSINESS_HIGHLIGHTS feature type (POST/PUT)"""
+    active_business_highlights = serializers.ListField(
         child=serializers.CharField(), required=True
     )
-
-
-class BusinessHighlightsResponseSerializer(serializers.Serializer):
-    """Serializer for BUSINESS_HIGHLIGHTS GET response"""
-    active_business_highlights = serializers.ListField(
-        child=serializers.CharField(), required=False
-    )
+    # For GET response, these fields are populated by Yelp
     available_business_highlights = serializers.ListField(
         child=serializers.CharField(), required=False
     )
     mutually_exclusive_business_highlights = serializers.ListField(
         child=serializers.ListField(child=serializers.CharField()), required=False
+    )
+
+
+class ServiceOfferingsTargetingSerializer(serializers.Serializer):
+    """Serializer for SERVICE_OFFERINGS_TARGETING feature type"""
+    disabled_service_offerings = serializers.ListField(
+        child=serializers.CharField(), required=True
+    )
+    enabled_service_offerings = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list
     )
 
 
@@ -130,6 +134,11 @@ class VerifiedLicenseSerializer(serializers.Serializer):
     license_expiry_date = serializers.DateField(required=False, allow_null=True)
     license_trade = serializers.CharField(required=False, allow_null=True)
     license_issuing_agency = serializers.CharField(required=False, allow_null=True)
+    license_verification_status = serializers.ChoiceField(
+        choices=['PENDING', 'VERIFIED', 'REJECTED'], 
+        required=True
+    )
+    license_verification_failure_reason = serializers.CharField(required=False, allow_null=True)
 
 
 class VerifiedLicenseListSerializer(serializers.Serializer):
@@ -363,6 +372,7 @@ class ProgramFeaturesRequestSerializer(serializers.Serializer):
             'CUSTOM_LOCATION_TARGETING': CustomLocationTargetingSerializer,
             'AD_GOAL': AdGoalSerializer,
             'CALL_TRACKING': CallTrackingSerializer,
+            'SERVICE_OFFERINGS_TARGETING': ServiceOfferingsTargetingSerializer,
             'BUSINESS_HIGHLIGHTS': BusinessHighlightsSerializer,
             'VERIFIED_LICENSE': VerifiedLicenseListSerializer,
             'CUSTOM_RADIUS_TARGETING': CustomRadiusTargetingSerializer,
@@ -389,4 +399,52 @@ class ProgramFeaturesDeleteSerializer(serializers.Serializer):
         child=serializers.CharField(),
         required=True,
         help_text="List of feature types to delete"
+    )
+
+
+# ============= Custom Suggested Keywords Serializers =============
+
+class CustomSuggestedKeywordSerializer(serializers.ModelSerializer):
+    """Serializer for custom suggested keywords"""
+    
+    class Meta:
+        model = CustomSuggestedKeyword
+        fields = ['id', 'program_id', 'keyword', 'created_at', 'created_by']
+        read_only_fields = ['id', 'created_at']
+
+
+class CustomSuggestedKeywordCreateSerializer(serializers.Serializer):
+    """Serializer for creating custom suggested keywords"""
+    keywords = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        required=True,
+        help_text="List of keywords to add as custom suggestions"
+    )
+    
+    def validate_keywords(self, value):
+        """Validate keywords list"""
+        if not value:
+            raise serializers.ValidationError("At least one keyword is required")
+        
+        # Clean and validate each keyword
+        cleaned = []
+        for keyword in value:
+            kw = keyword.strip().lower()
+            if kw:
+                if len(kw) > 255:
+                    raise serializers.ValidationError(f"Keyword '{kw}' is too long (max 255 characters)")
+                cleaned.append(kw)
+        
+        if not cleaned:
+            raise serializers.ValidationError("No valid keywords provided")
+        
+        return cleaned
+
+
+class CustomSuggestedKeywordDeleteSerializer(serializers.Serializer):
+    """Serializer for deleting custom suggested keywords"""
+    keywords = serializers.ListField(
+        child=serializers.CharField(),
+        required=True,
+        help_text="List of keywords to delete"
     )

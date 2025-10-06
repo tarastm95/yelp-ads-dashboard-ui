@@ -88,7 +88,7 @@ const baseQuery: BaseQueryFn<
 export const yelpApi = createApi({
   reducerPath: 'yelpApi',
   baseQuery,
-  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto'],
+  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto', 'CustomSuggestedKeywords'],
   endpoints: (builder) => ({
     // 1. Create a new ad product
     createProgram: builder.mutation<{ job_id: string }, CreateProgramRequest>({
@@ -350,6 +350,43 @@ export const yelpApi = createApi({
         'PortfolioPhoto',
       ],
     }),
+
+    // Custom Suggested Keywords endpoints
+    getCustomSuggestedKeywords: builder.query<{ id: number; program_id: string; keyword: string; created_at: string; created_by?: string }[], string>({
+      query: (program_id) => `/program/${program_id}/custom-suggested-keywords`,
+      providesTags: (result, error, program_id) => [
+        { type: 'CustomSuggestedKeywords', id: program_id },
+        'CustomSuggestedKeywords',
+      ],
+    }),
+
+    addCustomSuggestedKeywords: builder.mutation<{ message: string; created: string[]; skipped: string[]; total: number }, { program_id: string; keywords: string[] }>({
+      query: ({ program_id, keywords }) => ({
+        url: `/program/${program_id}/custom-suggested-keywords`,
+        method: 'POST',
+        body: { keywords },
+      }),
+      invalidatesTags: (result, error, { program_id }) => [
+        { type: 'CustomSuggestedKeywords', id: program_id },
+        'CustomSuggestedKeywords',
+        { type: 'ProgramFeatures', id: program_id }, // Invalidate features to refetch with merged keywords
+        'ProgramFeatures',
+      ],
+    }),
+
+    deleteCustomSuggestedKeywords: builder.mutation<{ message: string; deleted: number }, { program_id: string; keywords: string[] }>({
+      query: ({ program_id, keywords }) => ({
+        url: `/program/${program_id}/custom-suggested-keywords`,
+        method: 'DELETE',
+        body: { keywords },
+      }),
+      invalidatesTags: (result, error, { program_id }) => [
+        { type: 'CustomSuggestedKeywords', id: program_id },
+        'CustomSuggestedKeywords',
+        { type: 'ProgramFeatures', id: program_id }, // Invalidate features to refetch with merged keywords
+        'ProgramFeatures',
+      ],
+    }),
   }),
 });
 
@@ -383,4 +420,8 @@ export const {
   useGetPortfolioPhotosQuery,
   useUploadPortfolioPhotoMutation,
   useDeletePortfolioPhotoMutation,
+  // Custom Suggested Keywords hooks
+  useGetCustomSuggestedKeywordsQuery,
+  useAddCustomSuggestedKeywordsMutation,
+  useDeleteCustomSuggestedKeywordsMutation,
 } = yelpApi;

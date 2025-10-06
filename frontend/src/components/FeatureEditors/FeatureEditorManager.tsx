@@ -10,6 +10,9 @@ import CallTrackingEditor from './CallTrackingEditor';
 import BusinessLogoEditor from './BusinessLogoEditor';
 import CustomAdPhotoEditor from './CustomAdPhotoEditor';
 import YelpPortfolioEditor from './YelpPortfolioEditor';
+import BusinessHighlightsEditor from './BusinessHighlightsEditor';
+import ServiceOfferingsEditor from './ServiceOfferingsEditor';
+import VerifiedLicenseEditor from './VerifiedLicenseEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import { formatFeatureType } from '@/lib/utils';
@@ -24,6 +27,7 @@ export type FeatureType =
   | 'AD_SCHEDULING'
   | 'CUSTOM_LOCATION_TARGETING'
   | 'CALL_TRACKING'
+  | 'SERVICE_OFFERINGS_TARGETING'
   | 'BUSINESS_HIGHLIGHTS'
   | 'VERIFIED_LICENSE'
   | 'CUSTOM_AD_PHOTO'
@@ -33,6 +37,7 @@ export type FeatureType =
 interface FeatureEditorManagerProps {
   featureType: FeatureType | null;
   featureData?: any;
+  programId: string;
   isOpen: boolean;
   onClose: () => void;
   onSave: (featureType: FeatureType, data: any) => void;
@@ -42,6 +47,7 @@ interface FeatureEditorManagerProps {
 const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
   featureType,
   featureData,
+  programId,
   isOpen,
   onClose,
   onSave,
@@ -81,6 +87,7 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
         return (
           <NegativeKeywordEditor
             data={featureData}
+            programId={programId}
             onSave={handleSave}
             onCancel={onClose}
             isLoading={isLoading}
@@ -150,6 +157,36 @@ const FeatureEditorManager: React.FC<FeatureEditorManagerProps> = ({
       case 'YELP_PORTFOLIO':
         return (
           <YelpPortfolioEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'BUSINESS_HIGHLIGHTS':
+        return (
+          <BusinessHighlightsEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'SERVICE_OFFERINGS_TARGETING':
+        return (
+          <ServiceOfferingsEditor
+            data={featureData}
+            onSave={handleSave}
+            onCancel={onClose}
+            isLoading={isLoading}
+          />
+        );
+
+      case 'VERIFIED_LICENSE':
+        return (
+          <VerifiedLicenseEditor
             data={featureData}
             onSave={handleSave}
             onCancel={onClose}

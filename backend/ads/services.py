@@ -7,7 +7,7 @@ import json
 from io import StringIO
 from django.conf import settings
 from decimal import Decimal
-from .models import Program, Report, PartnerCredential
+from .models import Program, Report, PartnerCredential, CustomSuggestedKeyword
 
 logger = logging.getLogger(__name__)
 
@@ -494,7 +494,8 @@ class YelpService:
 
     @classmethod
     def get_program_features(cls, program_id):
-        """Get available and active features for a specific program."""
+        """Get available and active features for a specific program.
+        Merges Yelp suggested keywords with custom suggested keywords for NEGATIVE_KEYWORD_TARGETING."""
         logger.info(f"🔍 YelpService.get_program_features: Getting features for program '{program_id}'")
         url = f'{cls.PARTNER_BASE}/program/{program_id}/features/v1'
         logger.info(f"🌐 YelpService.get_program_features: Request URL: {url}")
@@ -514,6 +515,24 @@ class YelpService:
             data = resp.json()
             logger.info(f"✅ YelpService.get_program_features: Successfully parsed JSON response")
             logger.info(f"📊 YelpService.get_program_features: Program {program_id} features: {list(data.get('features', {}).keys())}")
+            
+            # Merge custom suggested keywords with Yelp suggested keywords for NEGATIVE_KEYWORD_TARGETING
+            if 'features' in data and 'NEGATIVE_KEYWORD_TARGETING' in data['features']:
+                negative_kw_feature = data['features']['NEGATIVE_KEYWORD_TARGETING']
+                yelp_suggested = negative_kw_feature.get('suggested_keywords', [])
+                
+                # Get custom suggested keywords from database
+                custom_keywords = CustomSuggestedKeyword.objects.filter(
+                    program_id=program_id
+                ).values_list('keyword', flat=True)
+                
+                # Merge and deduplicate
+                all_suggested = list(set(yelp_suggested + list(custom_keywords)))
+                negative_kw_feature['suggested_keywords'] = sorted(all_suggested)
+                
+                logger.info(f"📊 YelpService.get_program_features: Merged suggested keywords - "
+                           f"Yelp: {len(yelp_suggested)}, Custom: {len(custom_keywords)}, Total: {len(all_suggested)}")
+            
             return data
         except requests.HTTPError as e:
             logger.error(f"❌ YelpService.get_program_features: HTTP Error for {program_id}: {e}")

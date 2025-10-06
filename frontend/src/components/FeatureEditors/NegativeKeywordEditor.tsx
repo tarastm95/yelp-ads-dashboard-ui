@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Target, Save, X, Plus, Trash2 } from 'lucide-react';
+import { useAddCustomSuggestedKeywordsMutation, useDeleteCustomSuggestedKeywordsMutation } from '@/store/api/yelpApi';
+import { useToast } from '@/hooks/use-toast';
 
 interface NegativeKeywordData {
   suggested_keywords?: string[];
@@ -14,6 +16,7 @@ interface NegativeKeywordData {
 
 interface NegativeKeywordEditorProps {
   data?: NegativeKeywordData;
+  programId: string;
   onSave: (data: NegativeKeywordData) => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -21,15 +24,22 @@ interface NegativeKeywordEditorProps {
 
 const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
   data,
+  programId,
   onSave,
   onCancel,
   isLoading = false
 }) => {
+  const { toast } = useToast();
+  const [addCustomKeywords, { isLoading: isAddingCustom }] = useAddCustomSuggestedKeywordsMutation();
+  const [deleteCustomKeywords, { isLoading: isDeletingCustom }] = useDeleteCustomSuggestedKeywordsMutation();
+  
   const [blockedKeywords, setBlockedKeywords] = useState<string[]>(
     data?.blocked_keywords || []
   );
   const [newKeyword, setNewKeyword] = useState('');
   const [bulkKeywords, setBulkKeywords] = useState('');
+  const [newCustomSuggested, setNewCustomSuggested] = useState('');
+  const [bulkCustomSuggested, setBulkCustomSuggested] = useState('');
 
   useEffect(() => {
     if (data) {
@@ -73,6 +83,78 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
     }
   };
 
+  const handleAddCustomSuggested = async () => {
+    const keyword = newCustomSuggested.trim().toLowerCase();
+    if (!keyword) return;
+    
+    try {
+      const result = await addCustomKeywords({
+        program_id: programId,
+        keywords: [keyword]
+      }).unwrap();
+      
+      toast({
+        title: 'Custom keyword added',
+        description: `Added "${keyword}" to suggested keywords`,
+      });
+      setNewCustomSuggested('');
+    } catch (error: any) {
+      toast({
+        title: 'Error adding keyword',
+        description: error?.data?.error || 'Failed to add custom suggested keyword',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddBulkCustomSuggested = async () => {
+    const keywords = bulkCustomSuggested
+      .split(/[,\n\r]+/)
+      .map(k => k.trim().toLowerCase())
+      .filter(k => k);
+    
+    if (keywords.length === 0) return;
+    
+    try {
+      const result = await addCustomKeywords({
+        program_id: programId,
+        keywords
+      }).unwrap();
+      
+      toast({
+        title: 'Custom keywords added',
+        description: `Added ${result.created.length} keywords (${result.skipped.length} duplicates skipped)`,
+      });
+      setBulkCustomSuggested('');
+    } catch (error: any) {
+      toast({
+        title: 'Error adding keywords',
+        description: error?.data?.error || 'Failed to add custom suggested keywords',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteCustomSuggested = async (keyword: string) => {
+    try {
+      await deleteCustomKeywords({
+        program_id: programId,
+        keywords: [keyword]
+      }).unwrap();
+      
+      toast({
+        title: 'Custom keyword deleted',
+        description: `Removed "${keyword}" from suggested keywords`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error deleting keyword',
+        description: error?.data?.error || 'Failed to delete custom suggested keyword',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
@@ -86,7 +168,7 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
           {/* Suggested Keywords */}
           {data?.suggested_keywords && data.suggested_keywords.length > 0 && (
             <div>
-              <Label className="text-base font-medium">Recommended keywords (from Yelp)</Label>
+              <Label className="text-base font-medium">Suggested keywords (Yelp + Custom)</Label>
               <p className="text-sm text-gray-600 mb-3">
                 These are keywords your ads may show for. Click to block:
               </p>
@@ -95,7 +177,7 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
                   <Badge
                     key={keyword}
                     variant="outline"
-                    className="cursor-pointer hover:bg-red-50 hover:border-red-300"
+                    className="cursor-pointer hover:bg-red-50 hover:border-red-300 group relative"
                     onClick={() => addSuggestedKeyword(keyword)}
                   >
                     {keyword}
@@ -105,6 +187,57 @@ const NegativeKeywordEditor: React.FC<NegativeKeywordEditorProps> = ({
               </div>
             </div>
           )}
+
+          {/* Add Custom Suggested Keywords */}
+          <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+            <div>
+              <Label className="text-base font-medium">Manage custom suggested keywords</Label>
+              <p className="text-sm text-gray-600 mb-3">
+                Add your own keywords to the suggested list (will appear above, merged with Yelp suggestions)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="newCustomSuggested">Add single custom keyword</Label>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  id="newCustomSuggested"
+                  value={newCustomSuggested}
+                  onChange={(e) => setNewCustomSuggested(e.target.value)}
+                  placeholder="e.g., emergency, 24/7, urgent"
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomSuggested())}
+                />
+                <Button 
+                  type="button" 
+                  onClick={handleAddCustomSuggested} 
+                  disabled={!newCustomSuggested.trim() || isAddingCustom}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="bulkCustomSuggested">Add multiple custom keywords</Label>
+              <Textarea
+                id="bulkCustomSuggested"
+                value={bulkCustomSuggested}
+                onChange={(e) => setBulkCustomSuggested(e.target.value)}
+                placeholder="Enter keywords separated by commas or new lines:&#10;emergency, 24/7, urgent&#10;local&#10;nearby"
+                rows={2}
+                className="mt-2"
+              />
+              <Button 
+                type="button" 
+                onClick={handleAddBulkCustomSuggested} 
+                disabled={!bulkCustomSuggested.trim() || isAddingCustom} 
+                className="mt-2"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add all
+              </Button>
+            </div>
+          </div>
 
           {/* Add Single Keyword */}
           <div>
