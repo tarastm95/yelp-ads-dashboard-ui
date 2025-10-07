@@ -518,20 +518,27 @@ class YelpService:
             
             # Merge custom suggested keywords with Yelp suggested keywords for NEGATIVE_KEYWORD_TARGETING
             if 'features' in data and 'NEGATIVE_KEYWORD_TARGETING' in data['features']:
-                negative_kw_feature = data['features']['NEGATIVE_KEYWORD_TARGETING']
-                yelp_suggested = negative_kw_feature.get('suggested_keywords', [])
-                
-                # Get custom suggested keywords from database
-                custom_keywords = CustomSuggestedKeyword.objects.filter(
-                    program_id=program_id
-                ).values_list('keyword', flat=True)
-                
-                # Merge and deduplicate
-                all_suggested = list(set(yelp_suggested + list(custom_keywords)))
-                negative_kw_feature['suggested_keywords'] = sorted(all_suggested)
-                
-                logger.info(f"📊 YelpService.get_program_features: Merged suggested keywords - "
-                           f"Yelp: {len(yelp_suggested)}, Custom: {len(custom_keywords)}, Total: {len(all_suggested)}")
+                try:
+                    negative_kw_feature = data['features']['NEGATIVE_KEYWORD_TARGETING']
+                    yelp_suggested = negative_kw_feature.get('suggested_keywords', [])
+                    
+                    # Get custom suggested keywords from database (safely)
+                    try:
+                        custom_keywords = CustomSuggestedKeyword.objects.filter(
+                            program_id=program_id
+                        ).values_list('keyword', flat=True)
+                    except Exception as db_error:
+                        logger.warning(f"⚠️ YelpService.get_program_features: Could not fetch custom keywords (table might not exist): {db_error}")
+                        custom_keywords = []
+                    
+                    # Merge and deduplicate
+                    all_suggested = list(set(yelp_suggested + list(custom_keywords)))
+                    negative_kw_feature['suggested_keywords'] = sorted(all_suggested)
+                    
+                    logger.info(f"📊 YelpService.get_program_features: Merged suggested keywords - "
+                               f"Yelp: {len(yelp_suggested)}, Custom: {len(custom_keywords)}, Total: {len(all_suggested)}")
+                except Exception as merge_error:
+                    logger.error(f"❌ YelpService.get_program_features: Error merging keywords: {merge_error}")
             
             return data
         except requests.HTTPError as e:
