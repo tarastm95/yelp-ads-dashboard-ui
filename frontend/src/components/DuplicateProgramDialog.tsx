@@ -198,13 +198,16 @@ const DuplicateProgramDialog: React.FC<DuplicateProgramDialogProps> = ({
               id="budget"
               type="number"
               step="0.01"
-              min="1"
+              min="25"
               value={formData.budget}
               onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) || 0 })}
               required
               className="mt-1"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-red-600 mt-1 font-medium">
+              ⚠️ Minimum budget: $25.00 (Yelp requirement)
+            </p>
+            <p className="text-xs text-gray-500">
               Separate budget for this campaign layer
             </p>
           </div>
@@ -290,7 +293,7 @@ const DuplicateProgramDialog: React.FC<DuplicateProgramDialogProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !formData.start_date || !formData.budget || formData.budget < 1}
+              disabled={isLoading || !formData.start_date || !formData.budget || formData.budget < 25}
             >
               {isLoading ? (
                 <>

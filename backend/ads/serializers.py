@@ -470,10 +470,10 @@ class DuplicateProgramRequestSerializer(serializers.Serializer):
         if end_date and start_date and end_date <= start_date:
             raise serializers.ValidationError("end_date must be after start_date")
         
-        # Validate budget
+        # Validate budget - Yelp requires minimum $25.00
         budget = data.get('budget')
-        if budget and budget < 1:
-            raise serializers.ValidationError("budget must be at least $1.00")
+        if budget and budget < 25:
+            raise serializers.ValidationError("budget must be at least $25.00 (Yelp minimum requirement)")
         
         return data
 
