@@ -53,9 +53,13 @@ class YelpService:
             budget = payload.get('budget')
             if budget is None:
                 raise ValueError("CPC program requires budget")
-            if isinstance(budget, (int, float)) and budget < 1000:
-                budget = int(budget * 100)  # $200.00 → 20000
-            params['budget'] = int(budget)
+            
+            # Always convert from dollars to cents (frontend always sends dollars now)
+            budget_dollars = float(budget)
+            if budget_dollars < 25:
+                raise ValueError("Budget must be at least $25.00")
+            params['budget'] = int(budget_dollars * 100)  # Convert dollars to cents
+            logger.info(f"Budget: ${budget_dollars} → {params['budget']} cents")
 
             is_autobid = payload.get('is_autobid')
             if is_autobid is None:
@@ -66,9 +70,13 @@ class YelpService:
                 max_bid = payload.get('max_bid')
                 if max_bid is None:
                     raise ValueError("max_bid required when is_autobid is false")
-                if isinstance(max_bid, (int, float)) and max_bid < 100:
-                    max_bid = int(max_bid * 100)  # $5.00 → 500
-                params['max_bid'] = int(max_bid)
+                
+                # Always convert from dollars to cents (frontend always sends dollars now)
+                max_bid_dollars = float(max_bid)
+                if max_bid_dollars < 0.25:
+                    raise ValueError("Max bid must be at least $0.25")
+                params['max_bid'] = int(max_bid_dollars * 100)  # Convert dollars to cents
+                logger.info(f"Max bid: ${max_bid_dollars} → {params['max_bid']} cents")
 
             if payload.get('currency'):
                 params['currency'] = payload['currency']
