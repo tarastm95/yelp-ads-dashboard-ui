@@ -365,7 +365,9 @@ const ProgramsList: React.FC = () => {
                       {program.program_metrics && (
                         <div>
                           <strong>Budget:</strong>
-                          <p>{program.program_metrics.budget} {program.program_metrics.currency}</p>
+                          <p>
+                            ${(Number(program.program_metrics.budget) / 100).toFixed(2)} {program.program_metrics.currency}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -379,7 +381,12 @@ const ProgramsList: React.FC = () => {
                           </div>
                           <div>
                             <strong>Max Bid:</strong>
-                            <p>{program.program_metrics.max_bid || 'N/A'}</p>
+                            <p>
+                              {program.program_metrics.max_bid 
+                                ? `$${(Number(program.program_metrics.max_bid) / 100).toFixed(2)}`
+                                : 'N/A'
+                              }
+                            </p>
                           </div>
                           <div>
                             <strong>Fee Period:</strong>

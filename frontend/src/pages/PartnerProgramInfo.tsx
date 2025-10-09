@@ -78,7 +78,9 @@ const PartnerProgramInfo: React.FC = () => {
           {program.program_metrics && (
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Budget</p>
-              <p className="font-medium">{program.program_metrics.budget}</p>
+              <p className="font-medium">
+                ${(Number(program.program_metrics.budget) / 100).toFixed(2)} {program.program_metrics.currency}
+              </p>
             </div>
           )}
         </CardContent>

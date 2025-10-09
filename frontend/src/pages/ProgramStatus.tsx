@@ -153,7 +153,9 @@ const ProgramStatus: React.FC = () => {
                           <div className="grid grid-cols-3 gap-4 mt-2">
                             <div>
                               <label className="text-xs text-gray-400">Budget</label>
-                              <p>{program.program_metrics.budget} {program.program_metrics.currency}</p>
+                              <p>
+                                ${(Number(program.program_metrics.budget) / 100).toFixed(2)} {program.program_metrics.currency}
+                              </p>
                             </div>
                             <div>
                               <label className="text-xs text-gray-400">Autobid</label>
@@ -161,7 +163,12 @@ const ProgramStatus: React.FC = () => {
                             </div>
                             <div>
                               <label className="text-xs text-gray-400">Max bid</label>
-                              <p>{program.program_metrics.max_bid || 'Not set'}</p>
+                              <p>
+                                {program.program_metrics.max_bid 
+                                  ? `$${(Number(program.program_metrics.max_bid) / 100).toFixed(2)}`
+                                  : 'Not set'
+                                }
+                              </p>
                             </div>
                           </div>
                         </div>

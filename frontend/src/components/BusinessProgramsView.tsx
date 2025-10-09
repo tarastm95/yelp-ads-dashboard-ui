@@ -52,16 +52,22 @@ const BusinessProgramsView: React.FC<Props> = ({ data }) => {
                       <TableCell>{p.start_date}</TableCell>
                       <TableCell>{p.end_date}</TableCell>
                       <TableCell className="text-right">
-                        {p.program_metrics?.budget ?? '-'}
+                        {p.program_metrics?.budget 
+                          ? `$${(Number(p.program_metrics.budget) / 100).toFixed(2)}`
+                          : '-'
+                        }
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.program_metrics?.billed_clicks ?? '-'}
+                        {p.program_metrics?.billed_clicks?.toLocaleString() ?? '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.program_metrics?.billed_impressions ?? '-'}
+                        {p.program_metrics?.billed_impressions?.toLocaleString() ?? '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.program_metrics?.ad_cost ?? '-'}
+                        {p.program_metrics?.ad_cost 
+                          ? `$${(Number(p.program_metrics.ad_cost) / 100).toFixed(2)}`
+                          : '-'
+                        }
                       </TableCell>
                     </TableRow>
                   ))}
