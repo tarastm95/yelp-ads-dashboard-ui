@@ -14,7 +14,8 @@ from .serializers import (
     PortfolioProjectSerializer, PortfolioProjectCreateResponseSerializer,
     PortfolioPhotoUploadSerializer, PortfolioPhotoUploadResponseSerializer,
     PortfolioPhotoSerializer, CustomSuggestedKeywordSerializer,
-    CustomSuggestedKeywordCreateSerializer, CustomSuggestedKeywordDeleteSerializer
+    CustomSuggestedKeywordCreateSerializer, CustomSuggestedKeywordDeleteSerializer,
+    DuplicateProgramRequestSerializer, DuplicateProgramResponseSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -156,6 +157,45 @@ class JobStatusView(APIView):
         except Exception as e:
             logger.error(f"❌ JobStatusView: Error getting status for program {program_id}: {e}")
             raise
+
+
+class DuplicateProgramView(APIView):
+    """Duplicate an existing program with new dates and budget (create a 'layer')"""
+    
+    def post(self, request, program_id):
+        logger.info(f"🔄 DuplicateProgramView: Duplicating program {program_id}")
+        logger.info(f"📝 Request data: {request.data}")
+        
+        # Validate request
+        serializer = DuplicateProgramRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"❌ Validation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Call service method to duplicate program
+            result = YelpService.duplicate_program(program_id, serializer.validated_data)
+            logger.info(f"✅ Program duplicated successfully: {result}")
+            
+            # Return structured response
+            response_serializer = DuplicateProgramResponseSerializer(data=result)
+            if response_serializer.is_valid():
+                return Response(response_serializer.data, status=status.HTTP_202_ACCEPTED)
+            else:
+                return Response(result, status=status.HTTP_202_ACCEPTED)
+                
+        except ValueError as e:
+            logger.error(f"❌ Validation error duplicating program: {e}")
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"❌ Error duplicating program {program_id}: {e}")
+            return Response(
+                {"error": f"Failed to duplicate program: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ActiveJobsView(APIView):

@@ -28,6 +28,8 @@ from .views import (
     CustomSuggestedKeywordsView,
     # Active Jobs View
     ActiveJobsView,
+    # Duplicate Program View
+    DuplicateProgramView,
 )
 
 urlpatterns = [
@@ -44,6 +46,7 @@ urlpatterns = [
 
     # Endpoints aligned with Yelp Ads API
     path('reseller/program/create', CreateProgramView.as_view()),
+    path('reseller/program/<str:program_id>/duplicate', DuplicateProgramView.as_view()),
     path('reseller/program/<str:program_id>/edit', EditProgramView.as_view()),
     path('reseller/program/<str:program_id>/end', TerminateProgramView.as_view()),
     path('program/<str:program_id>/pause/v1', PauseProgramView.as_view()),

@@ -829,6 +829,138 @@ class YelpService:
             raise
 
     @classmethod
+    def duplicate_program(cls, original_program_id, new_program_data):
+        """
+        Duplicate an existing program with new dates and budget.
+        Copies all features from the original program to the new one.
+        
+        Args:
+            original_program_id (str): ID of the program to duplicate
+            new_program_data (dict): New program parameters (start, end, budget, etc.)
+        
+        Returns:
+            dict: New program creation response with job_id and copied features info
+        """
+        logger.info(f"🔄 YelpService.duplicate_program: Starting duplication of program '{original_program_id}'")
+        
+        try:
+            # Step 1: Get original program info
+            logger.info(f"📥 Step 1/5: Getting original program info...")
+            original_info = cls.get_program_info(original_program_id)
+            
+            # Extract business_id from original program
+            if 'businesses' in original_info and len(original_info['businesses']) > 0:
+                business_id = original_info['businesses'][0]['yelp_business_id']
+            else:
+                raise ValueError("Could not extract business_id from original program")
+            
+            logger.info(f"✅ Original program business_id: {business_id}")
+            
+            # Step 2: Get original program features
+            logger.info(f"📥 Step 2/5: Getting original program features...")
+            try:
+                original_features = cls.get_program_features(original_program_id)
+                features_to_copy = original_features.get('features', {})
+                logger.info(f"✅ Found {len(features_to_copy)} features to copy: {list(features_to_copy.keys())}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get features (will create without features): {e}")
+                features_to_copy = {}
+            
+            # Step 3: Prepare new program creation payload
+            logger.info(f"📝 Step 3/5: Preparing new program creation...")
+            program_type = original_info.get('program_type', 'CPC')
+            
+            create_payload = {
+                'business_id': business_id,
+                'program_name': program_type,
+                'start': new_program_data.get('start_date'),
+                'end': new_program_data.get('end_date'),
+                'budget': new_program_data.get('budget'),
+            }
+            
+            # Copy additional parameters from original if not provided in new_program_data
+            if program_type == 'CPC':
+                metrics = original_info.get('program_metrics', {})
+                create_payload['is_autobid'] = new_program_data.get('is_autobid', metrics.get('is_autobid', True))
+                
+                if not create_payload['is_autobid']:
+                    create_payload['max_bid'] = new_program_data.get('max_bid', metrics.get('max_bid'))
+                
+                create_payload['currency'] = new_program_data.get('currency', metrics.get('currency', 'USD'))
+                create_payload['pacing_method'] = new_program_data.get('pacing_method', metrics.get('pacing_method'))
+                create_payload['fee_period'] = new_program_data.get('fee_period', metrics.get('fee_period'))
+            
+            logger.info(f"📤 Creating new program with payload: {create_payload}")
+            
+            # Step 4: Create new program
+            new_program_response = cls.create_program(create_payload)
+            new_job_id = new_program_response['job_id']
+            logger.info(f"✅ Step 4/5: New program created with job_id: {new_job_id}")
+            
+            # Step 5: Wait for program to be created, then copy features
+            logger.info(f"⏳ Step 5/5: Waiting for program creation to complete...")
+            
+            # Poll status until completed (with timeout)
+            max_attempts = 40  # 40 * 15 seconds = 10 minutes max
+            attempt = 0
+            new_program_id = None
+            
+            while attempt < max_attempts:
+                time.sleep(15)  # Wait 15 seconds between polls
+                attempt += 1
+                
+                try:
+                    status_data = cls.get_program_status(new_job_id)
+                    status_value = status_data.get('status')
+                    logger.info(f"⏳ Poll attempt {attempt}/{max_attempts}: status = {status_value}")
+                    
+                    if status_value == 'COMPLETED':
+                        # Extract program_id from response
+                        try:
+                            br = status_data.get('business_results', [])[0]
+                            added = br.get('update_results', {}).get('program_added', {})
+                            new_program_id = added.get('program_id', {}).get('requested_value')
+                            logger.info(f"✅ Program created successfully! Program ID: {new_program_id}")
+                            break
+                        except Exception as e:
+                            logger.error(f"❌ Could not extract program_id from status: {e}")
+                            break
+                    elif status_value in ['FAILED', 'ERROR']:
+                        logger.error(f"❌ Program creation failed with status: {status_value}")
+                        raise ValueError(f"Program creation failed: {status_value}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error polling status: {e}")
+                    break
+            
+            # Step 6: Copy features if we have a new program_id and features to copy
+            copied_features = []
+            if new_program_id and features_to_copy and new_program_data.get('copy_features', True):
+                logger.info(f"📋 Step 6/5: Copying {len(features_to_copy)} features to new program...")
+                
+                try:
+                    # Copy features to new program
+                    features_payload = {'features': features_to_copy}
+                    cls.update_program_features(new_program_id, features_payload)
+                    copied_features = list(features_to_copy.keys())
+                    logger.info(f"✅ Successfully copied features: {copied_features}")
+                except Exception as e:
+                    logger.error(f"❌ Error copying features: {e}")
+                    # Don't fail the whole operation if features copy fails
+            
+            return {
+                'job_id': new_job_id,
+                'program_id': new_program_id,
+                'original_program_id': original_program_id,
+                'copied_features': copied_features,
+                'message': f'Program duplicated successfully. {"Features copied." if copied_features else "Created without features."}'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ YelpService.duplicate_program: Error duplicating program: {e}")
+            raise
+
+    @classmethod
     def delete_portfolio_photo(cls, program_id, project_id, photo_id):
         """Delete a photo from a portfolio project."""
         logger.info(f"🗑️ YelpService.delete_portfolio_photo: Deleting photo '{photo_id}' from project '{project_id}'")

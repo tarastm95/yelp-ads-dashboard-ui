@@ -3,16 +3,19 @@ import {
   useGetProgramsQuery, 
   useTerminateProgramMutation,
   usePauseProgramMutation,
-  useResumeProgramMutation 
+  useResumeProgramMutation,
+  useDuplicateProgramMutation
 } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-  import { toast } from '@/hooks/use-toast';
-  import { formatErrorForToast } from '@/lib/utils';
-  import ApiErrorMessage from './ApiErrorMessage';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { formatErrorForToast } from '@/lib/utils';
+import ApiErrorMessage from './ApiErrorMessage';
+import DuplicateProgramDialog, { DuplicateFormData } from './DuplicateProgramDialog';
+import { BusinessProgram } from '../types/yelp';
 
 const ProgramsList: React.FC = () => {
   const [offset, setOffset] = useState(0);
@@ -124,7 +127,12 @@ const ProgramsList: React.FC = () => {
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
   const [resumeProgram] = useResumeProgramMutation();
+  const [duplicateProgram, { isLoading: isDuplicating }] = useDuplicateProgramMutation();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
+  
+  // State for duplicate dialog
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -181,6 +189,44 @@ const ProgramsList: React.FC = () => {
       "Program resumed",
       "resume"
     );
+  };
+
+  const handleDuplicateClick = (program: BusinessProgram) => {
+    setProgramToDuplicate(program);
+    setShowDuplicateDialog(true);
+  };
+
+  const handleDuplicateConfirm = async (data: DuplicateFormData) => {
+    try {
+      const result = await duplicateProgram(data).unwrap();
+      
+      toast({
+        title: 'Campaign Layer Created!',
+        description: (
+          <div className="space-y-1">
+            <p>{result.message}</p>
+            <p className="text-xs">Job ID: {result.job_id}</p>
+            {result.copied_features.length > 0 && (
+              <p className="text-xs">Copied {result.copied_features.length} features</p>
+            )}
+          </div>
+        ),
+      });
+      
+      setShowDuplicateDialog(false);
+      setProgramToDuplicate(null);
+      
+      // Navigate to jobs page to monitor
+      navigate('/jobs');
+      
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
+      toast({
+        title: title || 'Duplication Failed',
+        description,
+        variant: 'destructive',
+      });
+    }
   };
 
   // Show main loader only on initial load (not during page switch)
@@ -343,7 +389,7 @@ const ProgramsList: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 pt-3">
+                    <div className="grid grid-cols-3 gap-2 pt-3">
                       {/* EDIT - edit program */}
                       <Button
                         size="sm"
@@ -354,6 +400,18 @@ const ProgramsList: React.FC = () => {
                       >
                         <Edit className="w-4 h-4 mr-1" />
                         Edit
+                      </Button>
+
+                      {/* DUPLICATE - create layer */}
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        onClick={() => handleDuplicateClick(program)}
+                        disabled={!program.program_id}
+                      >
+                        <Copy className="w-4 h-4 mr-1" />
+                        Layer
                       </Button>
 
                       {/* TERMINATE - terminate program */}
@@ -646,6 +704,18 @@ const ProgramsList: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Duplicate Program Dialog */}
+      <DuplicateProgramDialog
+        isOpen={showDuplicateDialog}
+        onClose={() => {
+          setShowDuplicateDialog(false);
+          setProgramToDuplicate(null);
+        }}
+        program={programToDuplicate}
+        onConfirm={handleDuplicateConfirm}
+        isLoading={isDuplicating}
+      />
     </div>
   );
 };

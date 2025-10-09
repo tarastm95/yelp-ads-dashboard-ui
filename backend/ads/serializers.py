@@ -448,3 +448,40 @@ class CustomSuggestedKeywordDeleteSerializer(serializers.Serializer):
         required=True,
         help_text="List of keywords to delete"
     )
+
+
+# ============= Program Duplication Serializers =============
+
+class DuplicateProgramRequestSerializer(serializers.Serializer):
+    """Serializer for duplicating a program (creating a 'layer')"""
+    start_date = serializers.DateField(required=True, help_text="Start date for the new program (format: YYYY-MM-DD)")
+    end_date = serializers.DateField(required=False, allow_null=True, help_text="End date for the new program (format: YYYY-MM-DD)")
+    budget = serializers.DecimalField(required=True, max_digits=12, decimal_places=2, help_text="Budget in dollars")
+    copy_features = serializers.BooleanField(default=True, help_text="Copy all features from original program")
+    is_autobid = serializers.BooleanField(required=False, help_text="Use autobidding (only for CPC)")
+    max_bid = serializers.DecimalField(required=False, allow_null=True, max_digits=10, decimal_places=2, help_text="Max bid in dollars (only for CPC with autobid=false)")
+    
+    def validate(self, data):
+        """Validate duplication request"""
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        # Validate that end_date is after start_date
+        if end_date and start_date and end_date <= start_date:
+            raise serializers.ValidationError("end_date must be after start_date")
+        
+        # Validate budget
+        budget = data.get('budget')
+        if budget and budget < 1:
+            raise serializers.ValidationError("budget must be at least $1.00")
+        
+        return data
+
+
+class DuplicateProgramResponseSerializer(serializers.Serializer):
+    """Serializer for duplicate program response"""
+    job_id = serializers.CharField()
+    program_id = serializers.CharField(allow_null=True)
+    original_program_id = serializers.CharField()
+    copied_features = serializers.ListField(child=serializers.CharField())
+    message = serializers.CharField()

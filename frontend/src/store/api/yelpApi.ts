@@ -119,6 +119,19 @@ export const yelpApi = createApi({
       invalidatesTags: ['Program'],
     }),
 
+    // Duplicate program (create a layer)
+    duplicateProgram: builder.mutation<
+      { job_id: string; program_id: string | null; original_program_id: string; copied_features: string[]; message: string },
+      { program_id: string; start_date: string; end_date?: string; budget: number; copy_features?: boolean; is_autobid?: boolean; max_bid?: number }
+    >({
+      query: ({ program_id, ...data }) => ({
+        url: `/reseller/program/${program_id}/duplicate`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Program', 'JobStatus'],
+    }),
+
     pauseProgram: builder.mutation<{ status: number }, string>({
       query: (program_id) => ({
         url: `/program/${program_id}/pause/v1`,
@@ -400,6 +413,7 @@ export const {
   useCreateProgramMutation,
   useEditProgramMutation,
   useTerminateProgramMutation,
+  useDuplicateProgramMutation,
   usePauseProgramMutation,
   useResumeProgramMutation,
   useGetJobStatusQuery,
