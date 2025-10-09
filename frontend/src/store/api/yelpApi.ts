@@ -141,6 +141,12 @@ export const yelpApi = createApi({
       providesTags: ['JobStatus'],
     }),
 
+    // Get all active/pending jobs
+    getActiveJobs: builder.query<{ jobs: Program[]; count: number }, void>({
+      query: () => '/reseller/active-jobs',
+      providesTags: ['JobStatus', 'Program'],
+    }),
+
     // 5. Get product information
     getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string; _forceKey?: number }>({
       query: ({ offset = 0, limit = 20, program_status = 'CURRENT', _forceKey } = {}) => ({
@@ -398,6 +404,7 @@ export const {
   useResumeProgramMutation,
   useGetJobStatusQuery,
   useLazyGetJobStatusQuery,
+  useGetActiveJobsQuery,
   useGetProgramsQuery,
   useGetProgramInfoQuery,
   useGetBusinessMatchesQuery,

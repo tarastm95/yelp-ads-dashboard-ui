@@ -157,6 +157,32 @@ class JobStatusView(APIView):
             raise
 
 
+class ActiveJobsView(APIView):
+    """Get all programs with PROCESSING or PENDING status"""
+    
+    def get(self, request):
+        logger.info("🔍 ActiveJobsView: Getting all active/pending jobs")
+        try:
+            # Get programs that are still processing
+            active_programs = Program.objects.filter(
+                status__in=['PROCESSING', 'PENDING']
+            ).order_by('-created_at')[:50]  # Limit to 50 most recent
+            
+            serializer = ProgramSerializer(active_programs, many=True)
+            logger.info(f"✅ ActiveJobsView: Found {len(serializer.data)} active jobs")
+            
+            return Response({
+                'jobs': serializer.data,
+                'count': len(serializer.data)
+            })
+        except Exception as e:
+            logger.error(f"❌ ActiveJobsView: Error getting active jobs: {e}")
+            return Response(
+                {"error": f"Failed to get active jobs: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 
 class RequestReportView(APIView):
     def post(self, request, period):
