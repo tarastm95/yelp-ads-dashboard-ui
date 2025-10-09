@@ -915,7 +915,12 @@ class YelpService:
                 create_payload['is_autobid'] = new_program_data.get('is_autobid', metrics.get('is_autobid', True))
                 
                 if not create_payload['is_autobid']:
-                    create_payload['max_bid'] = new_program_data.get('max_bid', metrics.get('max_bid'))
+                    # Convert max_bid from dollars to cents
+                    max_bid_dollars = new_program_data.get('max_bid')
+                    if max_bid_dollars:
+                        create_payload['max_bid'] = int(max_bid_dollars * 100)
+                    elif metrics.get('max_bid'):
+                        create_payload['max_bid'] = metrics.get('max_bid')  # Already in cents
                 
                 create_payload['currency'] = new_program_data.get('currency', metrics.get('currency', 'USD'))
                 
