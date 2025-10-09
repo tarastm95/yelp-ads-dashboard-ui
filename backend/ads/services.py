@@ -915,15 +915,14 @@ class YelpService:
                 
                 create_payload['currency'] = new_program_data.get('currency', metrics.get('currency', 'USD'))
                 
-                # Only add pacing_method and fee_period if they exist in original
-                # Don't pass None values as they might cause validation errors
-                pacing_method = new_program_data.get('pacing_method') or metrics.get('pacing_method')
+                # Only add pacing_method if explicitly provided by user
+                # Don't copy from original as it might not be compatible
+                pacing_method = new_program_data.get('pacing_method')
                 if pacing_method:
                     create_payload['pacing_method'] = pacing_method
                 
-                fee_period = new_program_data.get('fee_period') or metrics.get('fee_period')
-                if fee_period:
-                    create_payload['fee_period'] = fee_period
+                # NOTE: fee_period is READ-ONLY and set by Yelp based on account settings
+                # Do NOT copy it from original program - it will cause FEE_PERIOD_TYPE_NOT_SUPPORTED_ERROR
             
             logger.info(f"📤 Creating new program with payload: {create_payload}")
             
