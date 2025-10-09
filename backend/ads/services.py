@@ -470,9 +470,18 @@ class YelpService:
             programs = data.get('payment_programs', [])
             logger.info(f"📊 YelpService.get_all_programs: Found {len(programs)} programs")
 
+            # Sort programs by start_date in descending order (newest first)
+            # If start_date is missing, use empty string which will sort to the end
+            sorted_programs = sorted(
+                programs, 
+                key=lambda p: p.get('start_date', '') or '', 
+                reverse=True
+            )
+            logger.info(f"📊 YelpService.get_all_programs: Sorted programs by start_date (newest first)")
+
             # Перетворюємо у формат, очікуваний frontend
             normalized_data = {
-                'programs': programs,
+                'programs': sorted_programs,
                 'total_count': data.get('total', 0),
                 'offset': data.get('offset', offset),
                 'limit': data.get('limit', limit)
