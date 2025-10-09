@@ -72,13 +72,27 @@ const EditProgram: React.FC = () => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="budget">Budget (USD)</Label>
+            <Label htmlFor="budget" className="text-base font-semibold flex items-center gap-2">
+              💵 Budget (USD)
+            </Label>
             <Input
               id="budget"
               type="number"
+              step="0.01"
+              min="25"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
+              placeholder="200.00"
+              className="text-lg"
             />
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-800 font-medium">
+                ✅ Enter in DOLLARS (e.g., 200.00 for $200)
+              </p>
+              <p className="text-xs text-green-700 mt-1">
+                Minimum: $25.00 | System automatically handles conversion
+              </p>
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="categories">Categories</Label>
