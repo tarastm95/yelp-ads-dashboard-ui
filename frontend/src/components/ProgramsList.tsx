@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import ApiErrorMessage from './ApiErrorMessage';
@@ -133,6 +133,21 @@ const ProgramsList: React.FC = () => {
   // State for duplicate dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
+  
+  // State for expanded programs (to show metrics)
+  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
+  
+  const toggleProgramExpanded = (programId: string) => {
+    setExpandedPrograms(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(programId)) {
+        newSet.delete(programId);
+      } else {
+        newSet.add(programId);
+      }
+      return newSet;
+    });
+  };
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -323,8 +338,16 @@ const ProgramsList: React.FC = () => {
           ) : (
             /* Programs list */
           <div className="grid gap-4">
-            {programs.map((program, index) => (
-              <Card key={program.program_id || `program-${index}`}>
+            {programs.map((program, index) => {
+              const metrics = program.program_metrics;
+              const budget = metrics ? Number(metrics.budget) / 100 : 0;
+              const adCost = metrics ? Number(metrics.ad_cost) / 100 : 0;
+              const remaining = budget - adCost;
+              const budgetUsedPercent = budget > 0 ? Math.min(100, (adCost / budget) * 100) : 0;
+              const isExpanded = expandedPrograms.has(program.program_id);
+              
+              return (
+              <Card key={program.program_id || `program-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex justify-between items-center">
                     <span className="text-lg">
@@ -372,27 +395,124 @@ const ProgramsList: React.FC = () => {
                       )}
                     </div>
 
-                    {program.program_metrics && (
+                    {/* Expandable Metrics Section */}
+                    {metrics && (
                       <div className="border-t pt-3">
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <strong>Auto Bid:</strong>
-                            <p>{program.program_metrics.is_autobid ? 'Yes' : 'No'}</p>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-between hover:bg-gray-50"
+                          onClick={() => toggleProgramExpanded(program.program_id)}
+                        >
+                          <span className="font-medium text-sm">
+                            📊 Campaign Analytics & Budget
+                          </span>
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+
+                        {isExpanded && (
+                          <div className="mt-4 space-y-4 animate-in slide-in-from-top duration-300">
+                            {/* Budget Overview */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                              <div className="flex items-center gap-2 mb-3">
+                                <DollarSign className="w-5 h-5 text-blue-600" />
+                                <h4 className="font-semibold text-blue-900">CAMPAIGN BUDGET</h4>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 gap-4 mb-4">
+                                <div>
+                                  <p className="text-xs text-blue-600 uppercase">Total</p>
+                                  <p className="text-2xl font-bold text-gray-900">${budget.toFixed(2)}</p>
+                                  <p className="text-xs text-gray-500">{metrics.currency}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-orange-600 uppercase">Spent</p>
+                                  <p className="text-2xl font-bold text-gray-900">${adCost.toFixed(2)}</p>
+                                  <p className="text-xs text-gray-500">{budgetUsedPercent.toFixed(1)}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-green-600 uppercase">Remaining</p>
+                                  <p className="text-2xl font-bold text-gray-900">${remaining.toFixed(2)}</p>
+                                  <p className="text-xs text-gray-500">{(100 - budgetUsedPercent).toFixed(1)}%</p>
+                                </div>
+                              </div>
+
+                              {/* Progress Bar */}
+                              <div>
+                                <div className="flex justify-between text-xs mb-1.5">
+                                  <span className="text-gray-600">Budget Usage</span>
+                                  <span className="font-bold text-gray-900">{budgetUsedPercent.toFixed(1)}%</span>
+                                </div>
+                                <div className="relative">
+                                  <Progress 
+                                    value={budgetUsedPercent} 
+                                    className={`h-3 ${
+                                      budgetUsedPercent >= 90 ? '[&>div]:bg-red-500' :
+                                      budgetUsedPercent >= 70 ? '[&>div]:bg-yellow-500' :
+                                      '[&>div]:bg-green-500'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Performance Stats Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                              {/* Clicks */}
+                              <div className="bg-white border border-purple-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <MousePointer className="w-4 h-4 text-purple-600" />
+                                  <span className="text-xs font-medium text-purple-600 uppercase">Clicks</span>
+                                </div>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  {(metrics.billed_clicks || 0).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">Total clicks</p>
+                              </div>
+
+                              {/* Views */}
+                              <div className="bg-white border border-green-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Eye className="w-4 h-4 text-green-600" />
+                                  <span className="text-xs font-medium text-green-600 uppercase">Views</span>
+                                </div>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  {(metrics.billed_impressions || 0).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">Total impressions</p>
+                              </div>
+
+                              {/* CTR */}
+                              <div className="bg-white border border-orange-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <TrendingUp className="w-4 h-4 text-orange-600" />
+                                  <span className="text-xs font-medium text-orange-600 uppercase">CTR</span>
+                                </div>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  {metrics.billed_impressions > 0
+                                    ? ((metrics.billed_clicks / metrics.billed_impressions) * 100).toFixed(2)
+                                    : '0.00'
+                                  }%
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">Click rate</p>
+                              </div>
+
+                              {/* CPC */}
+                              <div className="bg-white border border-blue-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Activity className="w-4 h-4 text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-600 uppercase">CPC</span>
+                                </div>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  ${metrics.billed_clicks > 0
+                                    ? (adCost / metrics.billed_clicks).toFixed(2)
+                                    : '0.00'
+                                  }
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">Cost per click</p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <strong>Max Bid:</strong>
-                            <p>
-                              {program.program_metrics.max_bid 
-                                ? `$${(Number(program.program_metrics.max_bid) / 100).toFixed(2)}`
-                                : 'N/A'
-                              }
-                            </p>
-                          </div>
-                          <div>
-                            <strong>Fee Period:</strong>
-                            <p>{program.program_metrics.fee_period}</p>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     )}
 
@@ -510,7 +630,8 @@ const ProgramsList: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
           )}
 
