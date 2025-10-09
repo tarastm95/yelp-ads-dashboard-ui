@@ -331,7 +331,7 @@ const ProgramsList: React.FC = () => {
               const budgetUsedPercent = budget > 0 ? Math.min(100, (adCost / budget) * 100) : 0;
               
               return (
-              <Card key={program.program_id || `program-${index}`} className="hover:shadow-lg transition-shadow">
+                <Card key={program.program_id || `program-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex justify-between items-center">
                     <span className="text-lg">
@@ -601,7 +601,7 @@ const ProgramsList: React.FC = () => {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+                </Card>
               );
             })}
           </div>
