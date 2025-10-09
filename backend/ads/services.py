@@ -914,8 +914,16 @@ class YelpService:
                     create_payload['max_bid'] = new_program_data.get('max_bid', metrics.get('max_bid'))
                 
                 create_payload['currency'] = new_program_data.get('currency', metrics.get('currency', 'USD'))
-                create_payload['pacing_method'] = new_program_data.get('pacing_method', metrics.get('pacing_method'))
-                create_payload['fee_period'] = new_program_data.get('fee_period', metrics.get('fee_period'))
+                
+                # Only add pacing_method and fee_period if they exist in original
+                # Don't pass None values as they might cause validation errors
+                pacing_method = new_program_data.get('pacing_method') or metrics.get('pacing_method')
+                if pacing_method:
+                    create_payload['pacing_method'] = pacing_method
+                
+                fee_period = new_program_data.get('fee_period') or metrics.get('fee_period')
+                if fee_period:
+                    create_payload['fee_period'] = fee_period
             
             logger.info(f"📤 Creating new program with payload: {create_payload}")
             
@@ -952,10 +960,22 @@ class YelpService:
                         except Exception as e:
                             logger.error(f"❌ Could not extract program_id from status: {e}")
                             break
-                    elif status_value in ['FAILED', 'ERROR']:
-                        logger.error(f"❌ Program creation failed with status: {status_value}")
-                        raise ValueError(f"Program creation failed: {status_value}")
+                    elif status_value in ['FAILED', 'ERROR', 'REJECTED']:
+                        # Extract error message from response
+                        error_message = "Unknown error"
+                        try:
+                            br = status_data.get('business_results', [])[0]
+                            error_info = br.get('error', {})
+                            error_message = error_info.get('message', error_info.get('code', 'Unknown error'))
+                        except:
+                            pass
+                        
+                        logger.error(f"❌ Program creation failed with status: {status_value}, error: {error_message}")
+                        raise ValueError(f"Program creation {status_value.lower()}: {error_message}")
                     
+                except ValueError:
+                    # Re-raise ValueError (our intentional errors)
+                    raise
                 except Exception as e:
                     logger.error(f"❌ Error polling status: {e}")
                     break
