@@ -862,9 +862,14 @@ class YelpService:
             # Format 2: Wrapped in programs array (from /v1/programs/info/{id})
             elif 'programs' in original_info and len(original_info['programs']) > 0:
                 program_data = original_info['programs'][0]
+                # Check for businesses array first
                 if 'businesses' in program_data and len(program_data['businesses']) > 0:
                     business_id = program_data['businesses'][0]['yelp_business_id']
-                    logger.info(f"✅ Format 2: Found business_id in wrapped programs array")
+                    logger.info(f"✅ Format 2a: Found business_id in businesses array within programs")
+                # Or direct yelp_business_id field (this is the actual format!)
+                elif 'yelp_business_id' in program_data:
+                    business_id = program_data['yelp_business_id']
+                    logger.info(f"✅ Format 2b: Found business_id as direct field in program")
             
             # Format 3: Direct yelp_business_id field (legacy format)
             elif 'yelp_business_id' in original_info:
