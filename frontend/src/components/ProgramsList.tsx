@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import ApiErrorMessage from './ApiErrorMessage';
@@ -373,27 +373,64 @@ const ProgramsList: React.FC = () => {
                     </div>
 
                     {program.program_metrics && (
-                      <div className="border-t pt-3">
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <strong>Auto Bid:</strong>
-                            <p>{program.program_metrics.is_autobid ? 'Yes' : 'No'}</p>
+                      <>
+                        {/* Performance Metrics Section */}
+                        <div className="border-t pt-4 mt-4">
+                          <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Performance Metrics</h4>
+                          
+                          {/* Stats Grid */}
+                          <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Eye className="w-4 h-4 text-green-600" />
+                                <span className="text-xs font-medium text-green-700 uppercase">Impressions</span>
+                              </div>
+                              <p className="text-xl font-bold text-gray-900">{(program.program_metrics.billed_impressions || 0).toLocaleString()}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Ad views</p>
+                            </div>
+
+                            <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MousePointer className="w-4 h-4 text-purple-600" />
+                                <span className="text-xs font-medium text-purple-700 uppercase">Clicks</span>
+                              </div>
+                              <p className="text-xl font-bold text-gray-900">{(program.program_metrics.billed_clicks || 0).toLocaleString()}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">User interactions</p>
+                            </div>
+
+                            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <DollarSign className="w-4 h-4 text-blue-600" />
+                                <span className="text-xs font-medium text-blue-700 uppercase">Total Spend</span>
+                              </div>
+                              <p className="text-xl font-bold text-gray-900">
+                                ${(Number(program.program_metrics.ad_cost) / 100).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {((Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100).toFixed(1)}% of ${(Number(program.program_metrics.budget) / 100).toFixed(2)} budget
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <strong>Max Bid:</strong>
-                            <p>
-                              {program.program_metrics.max_bid 
-                                ? `$${(Number(program.program_metrics.max_bid) / 100).toFixed(2)}`
-                                : 'N/A'
-                              }
-                            </p>
-                          </div>
-                          <div>
-                            <strong>Fee Period:</strong>
-                            <p>{program.program_metrics.fee_period}</p>
+
+                          {/* Budget Progress Bar */}
+                          <div className="bg-gray-50 p-3 rounded-lg border">
+                            <div className="flex justify-between text-xs mb-2">
+                              <span className="font-medium text-gray-700">Budget Usage</span>
+                              <span className="font-bold text-gray-900">
+                                {((Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <Progress 
+                              value={Math.min(100, (Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100)} 
+                              className="h-2"
+                            />
+                            <div className="flex justify-between text-xs mt-2 text-gray-600">
+                              <span>Spent: ${(Number(program.program_metrics.ad_cost) / 100).toFixed(2)}</span>
+                              <span>Remaining: ${((Number(program.program_metrics.budget) - Number(program.program_metrics.ad_cost)) / 100).toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </>
                     )}
 
                     <div className="grid grid-cols-3 gap-2 pt-3">
