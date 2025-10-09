@@ -205,18 +205,28 @@ const CreateProgram: React.FC = () => {
           {formData.program_name === 'CPC' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="budget">Budget (USD in cents)</Label>
+                <Label htmlFor="budget" className="text-base font-semibold flex items-center gap-2">
+                  💵 Budget (USD)
+                </Label>
                 <Input
                   id="budget"
                   type="number"
+                  step="0.01"
+                  min="25"
                   value={formData.budget}
                   onChange={(e) => handleChange('budget', e.target.value)}
-                  placeholder="20000 (= $200.00)"
+                  placeholder="200.00"
                   required
+                  className="text-lg"
                 />
-                  <p className="text-sm text-gray-500">
-                    Enter amount in cents: $200.00 = 20000
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✅ Enter in DOLLARS (e.g., 200.00 for $200)
                   </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    Minimum: $25.00 | Backend automatically converts to cents for Yelp API
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -232,18 +242,28 @@ const CreateProgram: React.FC = () => {
               {/* Max bid only if NOT autobid */}
               {!formData.is_autobid && (
                 <div className="space-y-2">
-                  <Label htmlFor="max_bid">Max Bid (USD in cents)</Label>
+                  <Label htmlFor="max_bid" className="text-base font-semibold flex items-center gap-2">
+                    💰 Max Bid per Click (USD)
+                  </Label>
                   <Input
                     id="max_bid"
                     type="number"
+                    step="0.01"
+                    min="0.25"
                     value={formData.max_bid}
                     onChange={(e) => handleChange('max_bid', e.target.value)}
-                    placeholder="500 (= $5.00)"
+                    placeholder="5.00"
                     required
+                    className="text-lg"
                   />
-                  <p className="text-sm text-gray-500">
-                    Enter amount in cents: $5.00 = 500
-                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800 font-medium">
+                      ✅ Enter in DOLLARS (e.g., 5.00 for $5 per click)
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      This is the maximum you'll pay per click | Backend converts to cents
+                    </p>
+                  </div>
                 </div>
               )}
 
