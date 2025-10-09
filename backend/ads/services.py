@@ -847,12 +847,34 @@ class YelpService:
             # Step 1: Get original program info
             logger.info(f"📥 Step 1/5: Getting original program info...")
             original_info = cls.get_program_info(original_program_id)
+            logger.info(f"📊 Original info structure keys: {list(original_info.keys())}")
             
-            # Extract business_id from original program
+            # Extract business_id - handle multiple response formats
+            business_id = None
+            program_data = None
+            
+            # Format 1: Direct businesses array (from /programs/v1)
             if 'businesses' in original_info and len(original_info['businesses']) > 0:
                 business_id = original_info['businesses'][0]['yelp_business_id']
-            else:
-                raise ValueError("Could not extract business_id from original program")
+                program_data = original_info
+                logger.info(f"✅ Format 1: Found business_id in direct businesses array")
+            
+            # Format 2: Wrapped in programs array (from /v1/programs/info/{id})
+            elif 'programs' in original_info and len(original_info['programs']) > 0:
+                program_data = original_info['programs'][0]
+                if 'businesses' in program_data and len(program_data['businesses']) > 0:
+                    business_id = program_data['businesses'][0]['yelp_business_id']
+                    logger.info(f"✅ Format 2: Found business_id in wrapped programs array")
+            
+            # Format 3: Direct yelp_business_id field (legacy format)
+            elif 'yelp_business_id' in original_info:
+                business_id = original_info['yelp_business_id']
+                program_data = original_info
+                logger.info(f"✅ Format 3: Found direct yelp_business_id field")
+            
+            if not business_id or not program_data:
+                logger.error(f"❌ Response structure: {original_info}")
+                raise ValueError(f"Could not extract business_id from original program. Available keys: {list(original_info.keys())}")
             
             logger.info(f"✅ Original program business_id: {business_id}")
             
@@ -868,7 +890,7 @@ class YelpService:
             
             # Step 3: Prepare new program creation payload
             logger.info(f"📝 Step 3/5: Preparing new program creation...")
-            program_type = original_info.get('program_type', 'CPC')
+            program_type = program_data.get('program_type', 'CPC')
             
             create_payload = {
                 'business_id': business_id,
@@ -880,7 +902,7 @@ class YelpService:
             
             # Copy additional parameters from original if not provided in new_program_data
             if program_type == 'CPC':
-                metrics = original_info.get('program_metrics', {})
+                metrics = program_data.get('program_metrics', {})
                 create_payload['is_autobid'] = new_program_data.get('is_autobid', metrics.get('is_autobid', True))
                 
                 if not create_payload['is_autobid']:
