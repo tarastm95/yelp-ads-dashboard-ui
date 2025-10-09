@@ -55,8 +55,10 @@ const JobStatusMonitor: React.FC = () => {
   const getStatusColor = (status: string | undefined | null) => {
     switch (status) {
       case 'PENDING':
-      case 'IN_PROGRESS':
         return 'bg-yellow-500';
+      case 'PROCESSING':
+      case 'IN_PROGRESS':
+        return 'bg-blue-500';
       case 'COMPLETED':
         return 'bg-green-500';
       case 'FAILED':
@@ -126,22 +128,31 @@ const JobStatusMonitor: React.FC = () => {
                 Auto-refreshing every 10 seconds...
               </div>
               
-              {activeJobs.map((job) => (
-                <Card key={job.job_id} className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className={getStatusColor(job.status)}>
-                            <span className="flex items-center gap-1">
-                              {getStatusIcon(job.status)}
-                              {job.status}
+              {activeJobs.map((job) => {
+                const isCompleted = job.status === 'COMPLETED';
+                const borderColor = isCompleted ? 'border-l-green-500' : 'border-l-blue-500';
+                
+                return (
+                  <Card key={job.job_id} className={`border-l-4 ${borderColor}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className={getStatusColor(job.status)}>
+                              <span className="flex items-center gap-1">
+                                {getStatusIcon(job.status)}
+                                {job.status}
+                              </span>
+                            </Badge>
+                            <span className="text-sm font-medium text-gray-700">
+                              Created {formatTimestamp(job.created_date)}
                             </span>
-                          </Badge>
-                          <span className="text-sm text-gray-500">
-                            {formatTimestamp(job.created_date)}
-                          </span>
-                        </div>
+                            {isCompleted && (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                ✓ Will disappear in ~5 min
+                              </Badge>
+                            )}
+                          </div>
                         
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
@@ -170,22 +181,36 @@ const JobStatusMonitor: React.FC = () => {
                       </div>
                       
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setJobId(job.job_id);
-                            setShouldPoll(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Monitor
-                        </Button>
+                        {!isCompleted && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setJobId(job.job_id);
+                              setShouldPoll(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Monitor
+                          </Button>
+                        )}
+                        {isCompleted && job.partner_program_id && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => navigate(`/program/${job.partner_program_id}`)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Program
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              );
+              })}
             </div>
           )}
         </CardContent>

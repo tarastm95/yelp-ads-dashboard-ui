@@ -6,6 +6,7 @@ import logging
 import uuid
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.db import models
 from .services import YelpService
 from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential, CustomSuggestedKeyword
 from .serializers import (
@@ -158,18 +159,27 @@ class JobStatusView(APIView):
 
 
 class ActiveJobsView(APIView):
-    """Get all programs with PROCESSING or PENDING status"""
+    """Get all programs with PROCESSING/PENDING status or COMPLETED within last 5 minutes"""
     
     def get(self, request):
-        logger.info("🔍 ActiveJobsView: Getting all active/pending jobs")
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        logger.info("🔍 ActiveJobsView: Getting all active/pending jobs and recently completed")
         try:
-            # Get programs that are still processing
+            # Calculate 5 minutes ago
+            five_minutes_ago = timezone.now() - timedelta(minutes=5)
+            
+            # Get programs that are:
+            # 1. Still processing (PROCESSING or PENDING)
+            # 2. Completed within last 5 minutes
             active_programs = Program.objects.filter(
-                status__in=['PROCESSING', 'PENDING']
+                models.Q(status__in=['PROCESSING', 'PENDING']) |
+                models.Q(status='COMPLETED', updated_at__gte=five_minutes_ago)
             ).order_by('-created_at')[:50]  # Limit to 50 most recent
             
             serializer = ProgramSerializer(active_programs, many=True)
-            logger.info(f"✅ ActiveJobsView: Found {len(serializer.data)} active jobs")
+            logger.info(f"✅ ActiveJobsView: Found {len(serializer.data)} active/recent jobs")
             
             return Response({
                 'jobs': serializer.data,
