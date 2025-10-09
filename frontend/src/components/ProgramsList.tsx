@@ -133,21 +133,6 @@ const ProgramsList: React.FC = () => {
   // State for duplicate dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
-  
-  // State for expanded programs (to show metrics)
-  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
-  
-  const toggleProgramExpanded = (programId: string) => {
-    setExpandedPrograms(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(programId)) {
-        newSet.delete(programId);
-      } else {
-        newSet.add(programId);
-      }
-      return newSet;
-    });
-  };
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -344,7 +329,6 @@ const ProgramsList: React.FC = () => {
               const adCost = metrics ? Number(metrics.ad_cost) / 100 : 0;
               const remaining = budget - adCost;
               const budgetUsedPercent = budget > 0 ? Math.min(100, (adCost / budget) * 100) : 0;
-              const isExpanded = expandedPrograms.has(program.program_id);
               
               return (
               <Card key={program.program_id || `program-${index}`} className="hover:shadow-lg transition-shadow">
@@ -395,22 +379,10 @@ const ProgramsList: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Expandable Metrics Section */}
+                    {/* Always Visible Metrics Section */}
                     {metrics && (
-                      <div className="border-t pt-3">
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-between hover:bg-gray-50"
-                          onClick={() => toggleProgramExpanded(program.program_id)}
-                        >
-                          <span className="font-medium text-sm">
-                            📊 Campaign Analytics & Budget
-                          </span>
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </Button>
-
-                        {isExpanded && (
-                          <div className="mt-4 space-y-4 animate-in slide-in-from-top duration-300">
+                      <div className="border-t pt-4 mt-4">
+                        <div className="space-y-4">
                             {/* Budget Overview */}
                             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
                               <div className="flex items-center gap-2 mb-3">
@@ -512,7 +484,7 @@ const ProgramsList: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
 
