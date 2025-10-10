@@ -19,9 +19,16 @@ import DuplicateProgramDialog, { DuplicateFormData } from './DuplicateProgramDia
 import { BusinessProgram } from '../types/yelp';
 
 const ProgramsList: React.FC = () => {
-  const [offset, setOffset] = useState(0);
-  const [limit, setLimit] = useState(20);
-  const [programStatus, setProgramStatus] = useState('CURRENT');
+  const navigate = useNavigate();
+  
+  // Restore pagination state from sessionStorage
+  const savedOffset = sessionStorage.getItem('programsList_offset');
+  const savedLimit = sessionStorage.getItem('programsList_limit');
+  const savedStatus = sessionStorage.getItem('programsList_status');
+  
+  const [offset, setOffset] = useState(savedOffset ? parseInt(savedOffset) : 0);
+  const [limit, setLimit] = useState(savedLimit ? parseInt(savedLimit) : 20);
+  const [programStatus, setProgramStatus] = useState(savedStatus || 'CURRENT');
   const [isChangingPage, setIsChangingPage] = useState(false); // Page switching state
   
   // Create a unique key to force refresh
@@ -29,6 +36,13 @@ const ProgramsList: React.FC = () => {
   
   // State for quick page jump
   const [jumpToPage, setJumpToPage] = useState('');
+  
+  // Save pagination state to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('programsList_offset', offset.toString());
+    sessionStorage.setItem('programsList_limit', limit.toString());
+    sessionStorage.setItem('programsList_status', programStatus);
+  }, [offset, limit, programStatus]);
 
   // Generate page numbers with ellipsis
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
@@ -124,7 +138,6 @@ const ProgramsList: React.FC = () => {
   
   // Get programs from API
   const programs = data?.programs || [];
-  const navigate = useNavigate();
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
   const [resumeProgram] = useResumeProgramMutation();
@@ -165,13 +178,29 @@ const ProgramsList: React.FC = () => {
     navigate(`/edit/${programId}`);
   };
 
-  const handleTerminate = (programId: string) => {
-    handleAction(
-      () => terminateProgram(programId).unwrap(),
-      programId,
-      "Program is terminating",
-      "terminate"
-    );
+  const handleTerminate = async (programId: string) => {
+    setLoadingActions(prev => ({ ...prev, [`${programId}-terminate`]: true }));
+    try {
+      await terminateProgram(programId).unwrap();
+      
+      toast({
+        title: "Program Terminated",
+        description: `Program ${programId} has been terminated successfully`,
+      });
+      
+      // Force refresh the programs list to remove terminated program
+      refetch();
+      
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
+      toast({
+        title: title || "Termination Failed",
+        description,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`${programId}-terminate`]: false }));
+    }
   };
 
   const handlePause = (programId: string) => {
