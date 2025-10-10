@@ -148,7 +148,22 @@ const ProgramsList: React.FC = () => {
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
   
   // Track locally terminated programs (for immediate removal)
-  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(new Set());
+  // Restore from sessionStorage on mount
+  const getInitialTerminatedIds = (): Set<string> => {
+    try {
+      const saved = sessionStorage.getItem('terminatedProgramIds');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+  
+  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(getInitialTerminatedIds());
+  
+  // Save terminated IDs to sessionStorage whenever they change
+  useEffect(() => {
+    sessionStorage.setItem('terminatedProgramIds', JSON.stringify(Array.from(terminatedProgramIds)));
+  }, [terminatedProgramIds]);
   
   // Get programs from API and filter out terminated/inactive ones
   const allPrograms = data?.programs || [];
@@ -629,8 +644,11 @@ const ProgramsList: React.FC = () => {
               {/* Results info and quick page size change */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
                 <div className="text-sm text-gray-600 text-center sm:text-left">
-                  Showing {programs.length} of {data.total_count} programs
-                  <span className="hidden sm:inline"> (page {Math.floor(offset / limit) + 1} of {Math.ceil(data.total_count / limit)})</span>
+                  Showing {programs.length} programs
+                  {allPrograms.length !== programs.length && (
+                    <span className="text-orange-600 font-medium"> ({allPrograms.length - programs.length} filtered out)</span>
+                  )}
+                  <span className="hidden sm:inline"> • Page {Math.floor(offset / limit) + 1} of {Math.ceil((data?.total_count || 0) / limit)}</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm">
