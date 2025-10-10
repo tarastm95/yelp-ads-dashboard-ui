@@ -20,6 +20,7 @@ import ProgramStatus from './pages/ProgramStatus';
 import ProgramFeatures from './pages/ProgramFeatures';
 import PortfolioManager from './pages/PortfolioManager';
 import EditAdvancedProgram from './pages/EditAdvancedProgram';
+import JobHistory from './pages/JobHistory';
 import Login from './pages/Login';
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="portfolio/:programId" element={<PortfolioManager />} />
             <Route path="business-programs/:businessId" element={<BusinessProgramsInfo />} />
             <Route path="jobs" element={<JobStatusMonitor />} />
+            <Route path="job-history" element={<JobHistory />} />
 
           </Route>
           <Route path="*" element={<NotFound />} />

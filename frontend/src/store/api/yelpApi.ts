@@ -160,6 +160,15 @@ export const yelpApi = createApi({
       providesTags: ['JobStatus', 'Program'],
     }),
 
+    // Get job history with filters
+    getJobHistory: builder.query<{ jobs: Program[]; count: number; filters: { days: number; status: string; limit: number } }, { days?: number; status?: string; limit?: number }>({
+      query: ({ days = 7, status = 'ALL', limit = 100 } = {}) => ({
+        url: '/reseller/job-history',
+        params: { days, status, limit },
+      }),
+      providesTags: ['JobStatus', 'Program'],
+    }),
+
     // 5. Get product information
     getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string; _forceKey?: number }>({
       query: ({ offset = 0, limit = 20, program_status = 'CURRENT', _forceKey } = {}) => ({
@@ -419,6 +428,7 @@ export const {
   useGetJobStatusQuery,
   useLazyGetJobStatusQuery,
   useGetActiveJobsQuery,
+  useGetJobHistoryQuery,
   useGetProgramsQuery,
   useGetProgramInfoQuery,
   useGetBusinessMatchesQuery,

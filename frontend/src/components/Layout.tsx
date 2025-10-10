@@ -7,10 +7,8 @@ import {
   Home,
   Plus,
   List,
-  Search,
   BarChart3,
   Clock,
-  Settings,
   Menu,
   Edit,
   LogOut
@@ -37,6 +35,7 @@ const Layout: React.FC = () => {
     { name: 'Programs', href: '/programs', icon: List },
     { name: 'Advanced Editing', href: '/edit-advanced', icon: Edit },
     { name: 'Task Monitor', href: '/jobs', icon: Clock },
+    { name: 'Job History', href: '/job-history', icon: BarChart3 },
   ];
 
   return (
