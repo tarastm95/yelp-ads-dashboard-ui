@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEditProgramMutation, useGetProgramInfoQuery } from '../store/api/yelpApi';
+import { useEditProgramMutation, useGetPartnerProgramInfoQuery } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,8 @@ const EditAdvancedProgram: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
   const [editProgram, { isLoading }] = useEditProgramMutation();
-  const { data: program } = useGetProgramInfoQuery(programId || '', { skip: !programId });
+  const { data: programData } = useGetPartnerProgramInfoQuery(programId || '', { skip: !programId });
+  const program = programData?.programs?.[0];
   const [programIdInput, setProgramIdInput] = useState('');
 
   const [form, setForm] = useState({

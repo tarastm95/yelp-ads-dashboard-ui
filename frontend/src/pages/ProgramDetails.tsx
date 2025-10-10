@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGetProgramInfoQuery, usePauseProgramMutation, useResumeProgramMutation } from '../store/api/yelpApi';
+import { useGetPartnerProgramInfoQuery, usePauseProgramMutation, useResumeProgramMutation } from '../store/api/yelpApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,10 +13,12 @@ const ProgramDetails: React.FC = () => {
   const [resumeProgram] = useResumeProgramMutation();
 
   const {
-    data: program,
+    data: programData,
     isLoading,
     error,
-  } = useGetProgramInfoQuery(programId || '', { skip: !programId });
+  } = useGetPartnerProgramInfoQuery(programId || '', { skip: !programId });
+  
+  const program = programData?.programs?.[0];
 
   if (!programId) {
     return <p className="text-red-500">Program ID not specified</p>;
