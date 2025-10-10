@@ -516,9 +516,31 @@ const ProgramFeatures: React.FC = () => {
       
     } catch (error: any) {
       console.error('❌ Save feature error:', error);
+      
+      // Extract detailed error from response
+      let errorTitle = 'Save Error';
+      let errorDescription = 'Failed to save settings';
+      
+      if (error.data) {
+        // Check for Yelp error structure
+        if (error.data.error) {
+          errorDescription = error.data.error;
+          errorTitle = error.data.error_id || 'Yelp API Error';
+        } else if (error.data.detail) {
+          errorDescription = error.data.detail;
+        }
+      }
+      
       toast({
-        title: 'Save Error',
-        description: error.data?.detail || 'Failed to save settings',
+        title: errorTitle,
+        description: (
+          <div className="space-y-1">
+            <p>{errorDescription}</p>
+            {error.data?.error_id && (
+              <p className="text-xs opacity-75">Error ID: {error.data.error_id}</p>
+            )}
+          </div>
+        ),
         variant: 'destructive',
       });
     }

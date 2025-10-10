@@ -430,10 +430,19 @@ class ProgramFeaturesView(APIView):
                 logger.warning(f"Bad request for program features update: {program_id}")
                 try:
                     error_data = e.response.json()
+                    # Extract detailed error from Yelp response
+                    if 'error' in error_data:
+                        yelp_error = error_data['error']
+                        detailed_error = {
+                            "error": yelp_error.get('description', yelp_error.get('id', 'Unknown error')),
+                            "error_id": yelp_error.get('id'),
+                            "full_response": error_data
+                        }
+                        return Response(detailed_error, status=status.HTTP_400_BAD_REQUEST)
                     return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
                 except:
                     return Response(
-                        {"detail": "Invalid features data"}, 
+                        {"error": "Invalid features data"}, 
                         status=status.HTTP_400_BAD_REQUEST
                     )
             logger.error(f"HTTP error updating program features for {program_id}: {e}")
