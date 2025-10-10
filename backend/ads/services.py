@@ -986,13 +986,66 @@ class YelpService:
                     
                     # Copy features if program created successfully
                     if new_program_id and features_to_copy and new_program_data.get('copy_features', True):
-                        logger.info(f"📋 Background: Copying {len(features_to_copy)} features to {new_program_id}...")
-                        try:
-                            features_payload = {'features': features_to_copy}
-                            cls.update_program_features(new_program_id, features_payload)
-                            logger.info(f"✅ Background: Successfully copied {len(features_to_copy)} features!")
-                        except Exception as e:
-                            logger.error(f"❌ Background: Error copying features: {e}")
+                        logger.info(f"📋 Background: Copying {len(features_to_copy)} features to {new_program_id} ONE BY ONE...")
+                        
+                        # Define copy order based on dependencies
+                        # Features that provide data should be copied before features that use that data
+                        COPY_ORDER = [
+                            # Phase 1: Independent features (no dependencies)
+                            'CUSTOM_RADIUS_TARGETING',
+                            'AD_SCHEDULING',
+                            'STRICT_CATEGORY_TARGETING',
+                            'CUSTOM_LOCATION_TARGETING',
+                            'NEGATIVE_KEYWORD_TARGETING',
+                            'SERVICE_OFFERINGS_TARGETING',
+                            'BUSINESS_HIGHLIGHTS',
+                            'VERIFIED_LICENSE',
+                            
+                            # Phase 2: Features that provide data for others
+                            'LINK_TRACKING',        # Provides URL for AD_GOAL
+                            'CALL_TRACKING',        # Provides phone for AD_GOAL
+                            'CUSTOM_AD_TEXT',
+                            'CUSTOM_AD_PHOTO',
+                            'BUSINESS_LOGO',
+                            'YELP_PORTFOLIO',
+                            
+                            # Phase 3: Features that depend on others (LAST!)
+                            'AD_GOAL',              # Depends on LINK_TRACKING or CALL_TRACKING
+                        ]
+                        
+                        # Sort features by dependency order
+                        ordered_features = []
+                        for feature_type in COPY_ORDER:
+                            if feature_type in features_to_copy:
+                                ordered_features.append((feature_type, features_to_copy[feature_type]))
+                        
+                        # Add any remaining features not in COPY_ORDER (just in case)
+                        for feature_type, feature_data in features_to_copy.items():
+                            if feature_type not in COPY_ORDER:
+                                ordered_features.append((feature_type, feature_data))
+                                logger.warning(f"⚠️ Feature {feature_type} not in COPY_ORDER, adding at end")
+                        
+                        logger.info(f"📝 Copy order: {[f[0] for f in ordered_features]}")
+                        
+                        # Copy features ONE BY ONE
+                        copied_count = 0
+                        failed_features = []
+                        
+                        for feature_type, feature_data in ordered_features:
+                            try:
+                                logger.info(f"📤 Copying feature {copied_count + 1}/{len(ordered_features)}: {feature_type}")
+                                features_payload = {'features': {feature_type: feature_data}}
+                                cls.update_program_features(new_program_id, features_payload)
+                                copied_count += 1
+                                logger.info(f"✅ Feature {feature_type} copied successfully")
+                            except Exception as e:
+                                failed_features.append((feature_type, str(e)))
+                                logger.error(f"❌ Failed to copy {feature_type}: {e}")
+                                # Continue with next feature even if this one failed
+                        
+                        logger.info(f"✅ Background: Feature copy complete - Success: {copied_count}/{len(ordered_features)}, Failed: {len(failed_features)}")
+                        if failed_features:
+                            logger.warning(f"⚠️ Failed features: {[(f[0], f[1][:100]) for f in failed_features]}")
                     else:
                         logger.warning(f"⚠️ Background: Skipping feature copy - program_id={new_program_id}, features={len(features_to_copy) if features_to_copy else 0}, copy_flag={new_program_data.get('copy_features')}")
                         
