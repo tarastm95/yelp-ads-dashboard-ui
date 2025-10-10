@@ -948,75 +948,68 @@ class YelpService:
             new_job_id = new_program_response['job_id']
             logger.info(f"✅ Step 4/5: New program created with job_id: {new_job_id}")
             
-            # Step 5: Wait for program to be created, then copy features
-            logger.info(f"⏳ Step 5/5: Waiting for program creation to complete...")
+            # Step 5: Return job_id immediately and copy features in background
+            logger.info(f"✅ Step 5/5: Program creation started, will copy features in background")
             
-            # Poll status until completed (with timeout)
-            max_attempts = 40  # 40 * 15 seconds = 10 minutes max
-            attempt = 0
-            new_program_id = None
-            
-            while attempt < max_attempts:
-                time.sleep(15)  # Wait 15 seconds between polls
-                attempt += 1
-                
+            # Start background thread to wait for completion and copy features
+            def copy_features_when_ready():
+                """Background task to wait for program creation and copy features"""
                 try:
-                    status_data = cls.get_program_status(new_job_id)
-                    status_value = status_data.get('status')
-                    logger.info(f"⏳ Poll attempt {attempt}/{max_attempts}: status = {status_value}")
+                    logger.info(f"🔄 Background: Starting feature copy task for job {new_job_id}")
                     
-                    if status_value == 'COMPLETED':
-                        # Extract program_id from response
-                        try:
-                            br = status_data.get('business_results', [])[0]
-                            added = br.get('update_results', {}).get('program_added', {})
-                            new_program_id = added.get('program_id', {}).get('requested_value')
-                            logger.info(f"✅ Program created successfully! Program ID: {new_program_id}")
-                            break
-                        except Exception as e:
-                            logger.error(f"❌ Could not extract program_id from status: {e}")
-                            break
-                    elif status_value in ['FAILED', 'ERROR', 'REJECTED']:
-                        # Extract error message from response
-                        error_message = "Unknown error"
-                        try:
-                            br = status_data.get('business_results', [])[0]
-                            error_info = br.get('error', {})
-                            error_message = error_info.get('message', error_info.get('code', 'Unknown error'))
-                        except:
-                            pass
+                    # Poll status until completed
+                    max_attempts = 40
+                    attempt = 0
+                    new_program_id = None
+                    
+                    while attempt < max_attempts:
+                        time.sleep(15)
+                        attempt += 1
                         
-                        logger.error(f"❌ Program creation failed with status: {status_value}, error: {error_message}")
-                        raise ValueError(f"Program creation {status_value.lower()}: {error_message}")
+                        try:
+                            status_data = cls.get_program_status(new_job_id)
+                            status_value = status_data.get('status')
+                            logger.info(f"🔄 Background poll {attempt}/{max_attempts}: status = {status_value}")
+                            
+                            if status_value == 'COMPLETED':
+                                br = status_data.get('business_results', [])[0]
+                                added = br.get('update_results', {}).get('program_added', {})
+                                new_program_id = added.get('program_id', {}).get('requested_value')
+                                logger.info(f"✅ Background: Program ID extracted: {new_program_id}")
+                                break
+                            elif status_value in ['FAILED', 'ERROR', 'REJECTED']:
+                                logger.error(f"❌ Background: Program creation failed with status: {status_value}")
+                                return
+                        except Exception as e:
+                            logger.error(f"❌ Background: Error polling: {e}")
+                            return
                     
-                except ValueError:
-                    # Re-raise ValueError (our intentional errors)
-                    raise
+                    # Copy features if program created successfully
+                    if new_program_id and features_to_copy and new_program_data.get('copy_features', True):
+                        logger.info(f"📋 Background: Copying {len(features_to_copy)} features to {new_program_id}...")
+                        try:
+                            features_payload = {'features': features_to_copy}
+                            cls.update_program_features(new_program_id, features_payload)
+                            logger.info(f"✅ Background: Successfully copied {len(features_to_copy)} features!")
+                        except Exception as e:
+                            logger.error(f"❌ Background: Error copying features: {e}")
+                    else:
+                        logger.warning(f"⚠️ Background: Skipping feature copy - program_id={new_program_id}, features={len(features_to_copy) if features_to_copy else 0}, copy_flag={new_program_data.get('copy_features')}")
+                        
                 except Exception as e:
-                    logger.error(f"❌ Error polling status: {e}")
-                    break
+                    logger.error(f"❌ Background: Feature copy task failed: {e}")
             
-            # Step 6: Copy features if we have a new program_id and features to copy
-            copied_features = []
-            if new_program_id and features_to_copy and new_program_data.get('copy_features', True):
-                logger.info(f"📋 Step 6/5: Copying {len(features_to_copy)} features to new program...")
-                
-                try:
-                    # Copy features to new program
-                    features_payload = {'features': features_to_copy}
-                    cls.update_program_features(new_program_id, features_payload)
-                    copied_features = list(features_to_copy.keys())
-                    logger.info(f"✅ Successfully copied features: {copied_features}")
-                except Exception as e:
-                    logger.error(f"❌ Error copying features: {e}")
-                    # Don't fail the whole operation if features copy fails
+            # Start background thread
+            if new_program_data.get('copy_features', True) and features_to_copy:
+                threading.Thread(target=copy_features_when_ready, daemon=True).start()
+                logger.info(f"🚀 Background thread started to copy {len(features_to_copy)} features when program is ready")
             
             return {
                 'job_id': new_job_id,
-                'program_id': new_program_id,
+                'program_id': None,  # Will be set by background task
                 'original_program_id': original_program_id,
-                'copied_features': copied_features,
-                'message': f'Program duplicated successfully. {"Features copied." if copied_features else "Created without features."}'
+                'copied_features': list(features_to_copy.keys()) if features_to_copy else [],  # Show what WILL be copied
+                'message': f'Program is being created. {len(features_to_copy) if features_to_copy else 0} features will be copied when ready.'
             }
             
         except Exception as e:
