@@ -139,7 +139,12 @@ const ProgramsList: React.FC = () => {
   // Get programs from API and filter out terminated/inactive ones
   const allPrograms = data?.programs || [];
   const programs = allPrograms.filter(program => {
-    // Filter out INACTIVE and TERMINATED programs when viewing CURRENT
+    // FIRST: Filter out locally terminated programs (optimistic update)
+    if (terminatedProgramIds.has(program.program_id)) {
+      return false;
+    }
+    
+    // SECOND: Filter out INACTIVE and TERMINATED programs when viewing CURRENT
     if (programStatus === 'CURRENT') {
       return program.program_status !== 'INACTIVE' && 
              program.program_status !== 'TERMINATED' &&
@@ -156,6 +161,9 @@ const ProgramsList: React.FC = () => {
   // State for duplicate dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
+  
+  // Track locally terminated programs (for immediate removal)
+  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(new Set());
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -192,21 +200,16 @@ const ProgramsList: React.FC = () => {
     try {
       await terminateProgram(programId).unwrap();
       
-      toast({
-        title: "Program Terminating...",
-        description: "Waiting for Yelp to process. Program will disappear shortly...",
-      });
-      
-      // Wait 2 seconds for Yelp to process, then refresh
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Force refresh the programs list
-      await refetch();
+      // Immediately add to terminated list for optimistic update
+      setTerminatedProgramIds(prev => new Set(prev).add(programId));
       
       toast({
         title: "Program Terminated",
         description: `Program ${programId} has been removed from the list`,
       });
+      
+      // Refresh in background to sync with Yelp
+      setTimeout(() => refetch(), 3000);
       
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
