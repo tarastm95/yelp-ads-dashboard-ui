@@ -157,15 +157,21 @@ class YelpService:
 
         if 'budget' in payload:
             budget = payload['budget']
-            if isinstance(budget, (int, float)) and budget < 1000:
-                budget = int(budget * 100)
-            params['budget'] = int(budget)
+            # Always convert from dollars to cents (frontend always sends dollars)
+            budget_dollars = float(budget)
+            if budget_dollars < 25:
+                raise ValueError("Budget must be at least $25.00")
+            params['budget'] = int(budget_dollars * 100)
+            logger.info(f"Edit: Budget ${budget_dollars} → {params['budget']} cents")
 
         if 'max_bid' in payload:
             max_bid = payload['max_bid']
-            if isinstance(max_bid, (int, float)) and max_bid < 100:
-                max_bid = int(max_bid * 100)
-            params['max_bid'] = int(max_bid)
+            # Always convert from dollars to cents (frontend always sends dollars)
+            max_bid_dollars = float(max_bid)
+            if max_bid_dollars < 0.25:
+                raise ValueError("Max bid must be at least $0.25")
+            params['max_bid'] = int(max_bid_dollars * 100)
+            logger.info(f"Edit: Max bid ${max_bid_dollars} → {params['max_bid']} cents")
 
         if 'future_budget_date' in payload:
             params['future_budget_date'] = payload['future_budget_date']
