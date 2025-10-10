@@ -136,6 +136,20 @@ const ProgramsList: React.FC = () => {
     }
   }, [isChangingPage]);
   
+  // State declarations FIRST (before using them)
+  const [terminateProgram] = useTerminateProgramMutation();
+  const [pauseProgram] = usePauseProgramMutation();
+  const [resumeProgram] = useResumeProgramMutation();
+  const [duplicateProgram, { isLoading: isDuplicating }] = useDuplicateProgramMutation();
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
+  
+  // State for duplicate dialog
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
+  
+  // Track locally terminated programs (for immediate removal)
+  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(new Set());
+  
   // Get programs from API and filter out terminated/inactive ones
   const allPrograms = data?.programs || [];
   const programs = allPrograms.filter(program => {
@@ -152,18 +166,6 @@ const ProgramsList: React.FC = () => {
     }
     return true; // For other filters, show all
   });
-  const [terminateProgram] = useTerminateProgramMutation();
-  const [pauseProgram] = usePauseProgramMutation();
-  const [resumeProgram] = useResumeProgramMutation();
-  const [duplicateProgram, { isLoading: isDuplicating }] = useDuplicateProgramMutation();
-  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
-  
-  // State for duplicate dialog
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
-  
-  // Track locally terminated programs (for immediate removal)
-  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(new Set());
 
   const handleAction = async (
     action: () => Promise<any>, 
