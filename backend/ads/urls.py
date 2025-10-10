@@ -28,6 +28,7 @@ from .views import (
     CustomSuggestedKeywordsView,
     # Active Jobs View
     ActiveJobsView,
+    JobHistoryView,
     # Duplicate Program View
     DuplicateProgramView,
 )
@@ -54,6 +55,7 @@ urlpatterns = [
     path('program/<str:program_id>/features/v1', ProgramFeaturesView.as_view()),
     path('reseller/status/<str:program_id>', JobStatusView.as_view()),
     path('reseller/active-jobs', ActiveJobsView.as_view()),
+    path('reseller/job-history', JobHistoryView.as_view()),
     path('reseller/programs', ProgramListView.as_view()),
     path('reseller/get_program_info', ProgramInfoView.as_view()),
     path('reseller/business_programs/<str:business_id>', BusinessProgramsView.as_view()),

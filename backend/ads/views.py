@@ -233,6 +233,53 @@ class ActiveJobsView(APIView):
             )
 
 
+class JobHistoryView(APIView):
+    """Get job history with filtering by status and time range"""
+    
+    def get(self, request):
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Get query parameters
+        days = int(request.query_params.get('days', 7))  # Default: last 7 days
+        job_status = request.query_params.get('status', 'ALL')  # COMPLETED, REJECTED, FAILED, ALL
+        limit = int(request.query_params.get('limit', 100))  # Max 100
+        
+        logger.info(f"🔍 JobHistoryView: Getting job history - days={days}, status={job_status}, limit={limit}")
+        
+        try:
+            # Calculate time range
+            time_ago = timezone.now() - timedelta(days=days)
+            
+            # Build query
+            query = models.Q(created_at__gte=time_ago)
+            
+            if job_status != 'ALL':
+                query &= models.Q(status=job_status)
+            
+            # Get jobs
+            jobs = Program.objects.filter(query).order_by('-created_at')[:limit]
+            
+            serializer = ProgramSerializer(jobs, many=True)
+            logger.info(f"✅ JobHistoryView: Found {len(serializer.data)} jobs")
+            
+            return Response({
+                'jobs': serializer.data,
+                'count': len(serializer.data),
+                'filters': {
+                    'days': days,
+                    'status': job_status,
+                    'limit': limit
+                }
+            })
+        except Exception as e:
+            logger.error(f"❌ JobHistoryView: Error getting job history: {e}")
+            return Response(
+                {"error": f"Failed to get job history: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 
 class RequestReportView(APIView):
     def post(self, request, period):
