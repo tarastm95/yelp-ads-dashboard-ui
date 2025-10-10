@@ -52,7 +52,13 @@ const EditProgram: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!program || !program.partner_program_id) return;
+    // Yelp API returns program_id (not partner_program_id)
+    const actualProgramId = program?.program_id || programId;
+    if (!program || !actualProgramId) {
+      console.error('No program or program_id available');
+      return;
+    }
+    
     try {
       const editData: any = {};
       
@@ -63,8 +69,10 @@ const EditProgram: React.FC = () => {
       if (endDate) editData.end = endDate;
       if (pacingMethod) editData.pacing_method = pacingMethod;
       
+      console.log('Submitting edit with program_id:', actualProgramId, 'data:', editData);
+      
       const result = await editProgram({
-        partner_program_id: program.partner_program_id,
+        partner_program_id: actualProgramId,  // Use program_id from Yelp API
         data: editData,
       }).unwrap();
 
