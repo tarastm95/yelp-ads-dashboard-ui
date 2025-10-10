@@ -36,10 +36,10 @@ const EditProgram: React.FC = () => {
       const result = await editProgram({
         partner_program_id: program.partner_program_id,
         data: {
-          budget_amount: budget ? parseFloat(budget) : undefined,
-          targeting: categories
-            ? { categories: categories.split(',').map((c) => c.trim()).filter(Boolean) }
-            : undefined,
+          budget: budget ? parseFloat(budget) : undefined,  // Fixed: budget not budget_amount
+          ad_categories: categories
+            ? categories.split(',').map((c) => c.trim()).filter(Boolean)
+            : undefined,  // Fixed: ad_categories not targeting.categories
         },
       }).unwrap();
 
@@ -95,13 +95,16 @@ const EditProgram: React.FC = () => {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="categories">Categories</Label>
+            <Label htmlFor="categories">Ad Categories (comma-separated)</Label>
             <Input
               id="categories"
               value={categories}
               onChange={(e) => setCategories(e.target.value)}
-              placeholder="cat1, cat2"
+              placeholder="category1, category2, category3"
             />
+            <p className="text-xs text-gray-500">
+              Leave empty to keep current categories, or enter comma-separated list
+            </p>
           </div>
           <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading ? (
