@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEditProgramMutation, useGetProgramInfoQuery } from '../store/api/yelpApi';
+import { useEditProgramMutation, useGetPartnerProgramInfoQuery } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,11 @@ const EditProgram: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
   const [editProgram, { isLoading }] = useEditProgramMutation();
-  const { data: program } = useGetProgramInfoQuery(programId || '', { skip: !programId });
+  // Use Yelp API (not local DB) for fresh data
+  const { data: programData } = useGetPartnerProgramInfoQuery(programId || '', { skip: !programId });
+  
+  // Extract first program from Yelp API response
+  const program = programData?.programs?.[0];
 
   const [budget, setBudget] = useState('');
   const [maxBid, setMaxBid] = useState('');
@@ -24,24 +28,25 @@ const EditProgram: React.FC = () => {
 
   useEffect(() => {
     if (program) {
-      if (program.budget_amount !== undefined && program.budget_amount !== null) {
-        setBudget(String(program.budget_amount));
+      // Budget from Yelp API (in cents) - convert to dollars
+      if (program.program_metrics?.budget !== undefined && program.program_metrics?.budget !== null) {
+        const budgetInDollars = Number(program.program_metrics.budget) / 100;
+        setBudget(budgetInDollars.toFixed(2));
       }
-      if (program.max_bid !== undefined && program.max_bid !== null) {
-        setMaxBid(String(program.max_bid));
+      // Max bid from Yelp API (in cents) - convert to dollars
+      if (program.program_metrics?.max_bid !== undefined && program.program_metrics?.max_bid !== null) {
+        const maxBidInDollars = Number(program.program_metrics.max_bid) / 100;
+        setMaxBid(maxBidInDollars.toFixed(2));
       }
-      if (program.targeting?.categories) {
-        setCategories(program.targeting.categories.join(', '));
-      }
+      // Dates
       if (program.start_date) {
         setStartDate(program.start_date);
       }
       if (program.end_date) {
         setEndDate(program.end_date);
       }
-      if (program.pacing_method) {
-        setPacingMethod(program.pacing_method);
-      }
+      // Categories - Yelp doesn't return this in program_metrics
+      // Leave empty for now
     }
   }, [program]);
 
