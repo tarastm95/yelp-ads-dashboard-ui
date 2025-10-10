@@ -281,7 +281,7 @@ class ProgramListView(APIView):
 
 
 class ProgramInfoView(APIView):
-    """Return single program info by job/program id."""
+    """Return single program info by job/program id from local database."""
 
     def get(self, request):
         program_id = request.query_params.get("program_id")
@@ -295,7 +295,22 @@ class ProgramInfoView(APIView):
             )
         
         try:
-            program = get_object_or_404(Program, job_id=program_id)
+            # Try to find by job_id first, then by partner_program_id
+            program = None
+            try:
+                program = Program.objects.get(job_id=program_id)
+                logger.info(f"Found program by job_id: {program_id}")
+            except Program.DoesNotExist:
+                try:
+                    program = Program.objects.get(partner_program_id=program_id)
+                    logger.info(f"Found program by partner_program_id: {program_id}")
+                except Program.DoesNotExist:
+                    logger.warning(f"Program not found in database: {program_id}")
+                    return Response(
+                        {"detail": "Program not found in local database"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            
             serializer = ProgramSerializer(program)
             logger.info(f"Program info retrieved successfully for program_id: {program_id}")
             return Response(serializer.data)
