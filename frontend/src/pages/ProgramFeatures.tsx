@@ -483,6 +483,9 @@ const ProgramFeatures: React.FC = () => {
     try {
       console.log('🔧 Saving feature:', featureType, 'with data:', featureData);
       
+      // Save current scroll position before update
+      const scrollY = window.scrollY;
+      
       await updateFeatures({
         program_id: programId!,
         features: {
@@ -499,6 +502,18 @@ const ProgramFeatures: React.FC = () => {
         title: 'Feature Updated',
         description: `Settings for ${formatFeatureType(featureType)} saved successfully`,
       });
+
+      // Restore scroll position after a short delay (allow time for re-render)
+      setTimeout(() => {
+        window.scrollTo({ top: scrollY, behavior: 'smooth' });
+        
+        // Also try to scroll to the specific feature card
+        const featureCard = document.getElementById(`feature-${featureType}`);
+        if (featureCard) {
+          featureCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
     } catch (error: any) {
       console.error('❌ Save feature error:', error);
       toast({
@@ -556,11 +571,16 @@ const ProgramFeatures: React.FC = () => {
     const isPresent = !!featureData;
     const isActive = isFeatureActive(featureType, featureData);
     const isDeactivated = isPresent && !isActive;
+    
+    // Scroll to this card after save (set by handleSaveFeature)
+    const cardRef = React.useRef<HTMLDivElement>(null);
     const isSelected = selectedFeatures.includes(featureType);
     const isDeactivatedSelected = selectedDeactivatedFeatures.includes(featureType);
 
     return (
       <Card 
+        id={`feature-${featureType}`}
+        ref={cardRef}
         className={`cursor-pointer transition-all ${
           isSelected ? 'ring-2 ring-blue-500' : 
           isDeactivatedSelected ? 'ring-2 ring-orange-500' : ''
