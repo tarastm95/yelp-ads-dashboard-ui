@@ -107,7 +107,11 @@ export const yelpApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Program'],
+      invalidatesTags: (result, error, { partner_program_id }) => [
+        { type: 'Program', id: partner_program_id },
+        'Program',
+        'JobStatus'
+      ],
     }),
 
     // 3. Terminate product
@@ -187,7 +191,10 @@ export const yelpApi = createApi({
 
     getProgramInfo: builder.query<Program, string>({
       query: (program_id) => `/reseller/get_program_info?program_id=${program_id}`,
-      providesTags: ['Program'],
+      providesTags: (result, error, program_id) => [
+        { type: 'Program', id: program_id },
+        'Program'
+      ],
     }),
 
     // 6. Get encrypted business_id
