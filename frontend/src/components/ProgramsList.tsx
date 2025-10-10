@@ -107,13 +107,15 @@ const ProgramsList: React.FC = () => {
     }
   };
   
-  // Regular programs
+  // Regular programs with auto-refresh every 30 seconds
   const { data, isLoading, error, isError, refetch } = useGetProgramsQuery({
     offset: offset, 
     limit: limit,
     program_status: programStatus,
     // Add force refresh key
     _forceKey: forceRefreshKey
+  }, {
+    pollingInterval: 30000, // Auto-refresh every 30 seconds
   });
 
   // Reset page switching state when data loaded or error
@@ -181,6 +183,19 @@ const ProgramsList: React.FC = () => {
     }
     return true; // For other filters, show all
   });
+  
+  // Auto-navigate to previous page if current page becomes empty after filtering
+  useEffect(() => {
+    if (!isLoading && programs.length === 0 && offset > 0 && data?.total_count && data.total_count > 0) {
+      // Current page is empty but there are programs on other pages
+      const newPage = Math.max(1, Math.floor(offset / limit));
+      if (newPage > 1) {
+        const newOffset = (newPage - 1) * limit;
+        setOffset(newOffset);
+        setForceRefreshKey(prev => prev + 1);
+      }
+    }
+  }, [programs.length, offset, limit, isLoading, data?.total_count]);
 
   const handleAction = async (
     action: () => Promise<any>, 
