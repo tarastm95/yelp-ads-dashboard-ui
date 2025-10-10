@@ -905,16 +905,16 @@ class YelpService:
             logger.info(f"📝 Step 3/5: Preparing new program creation...")
             program_type = program_data.get('program_type', 'CPC')
             
-            # Convert budget from dollars to cents (Yelp API expects cents)
+            # Get budget from new_program_data (already in DOLLARS from frontend)
             budget_dollars = new_program_data.get('budget')
-            budget_cents = int(budget_dollars * 100) if budget_dollars else None
+            logger.info(f"📊 Budget from request: ${budget_dollars} (dollars)")
             
             create_payload = {
                 'business_id': business_id,
                 'program_name': program_type,
                 'start': new_program_data.get('start_date'),
                 'end': new_program_data.get('end_date'),
-                'budget': budget_cents,
+                'budget': budget_dollars,  # Pass as dollars - create_program will convert
             }
             
             # Copy additional parameters from original if not provided in new_program_data
