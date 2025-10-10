@@ -659,11 +659,11 @@ const ProgramsList: React.FC = () => {
               {/* Results info and quick page size change */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
                 <div className="text-sm text-gray-600 text-center sm:text-left">
-                  Showing {programs.length} programs
+                  Showing {programs.length} of {data.total_count} programs
                   {allPrograms.length !== programs.length && (
-                    <span className="text-orange-600 font-medium"> ({allPrograms.length - programs.length} filtered out)</span>
+                    <span className="text-orange-600 font-medium ml-1">({allPrograms.length - programs.length} filtered)</span>
                   )}
-                  <span className="hidden sm:inline"> • Page {Math.floor(offset / limit) + 1} of {Math.ceil((data?.total_count || 0) / limit)}</span>
+                  <span className="hidden sm:inline text-gray-500"> • Page {Math.floor(offset / limit) + 1} of {Math.ceil((data?.total_count || 0) / limit)}</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm">
