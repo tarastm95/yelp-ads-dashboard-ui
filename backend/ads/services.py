@@ -192,7 +192,41 @@ class YelpService:
             logger.debug(f"Edit response status: {resp.status_code}")
             logger.debug(f"Edit response text: {resp.text}")
             resp.raise_for_status()
-            return resp.json()
+            
+            data = resp.json()
+            job_id = data.get('job_id')
+            
+            # Save or update program in database with PROCESSING status
+            if job_id:
+                try:
+                    # Try to find existing program by partner_program_id
+                    program = Program.objects.filter(partner_program_id=program_id).first()
+                    
+                    if program:
+                        # Update existing
+                        program.job_id = job_id
+                        program.status = 'PROCESSING'
+                        program.save()
+                        logger.info(f"Updated existing program with new job_id: {job_id}")
+                    else:
+                        # Create new entry for editing job
+                        Program.objects.create(
+                            job_id=job_id,
+                            partner_program_id=program_id,
+                            name='EDIT',
+                            budget=0,  # Will be updated when job completes
+                            status='PROCESSING',
+                        )
+                        logger.info(f"Created new program entry for edit job: {job_id}")
+                    
+                    # Start background polling
+                    threading.Thread(target=cls._poll_program_status, args=(job_id,), daemon=True).start()
+                    logger.info(f"Started background polling for edit job: {job_id}")
+                except Exception as db_error:
+                    logger.error(f"Error saving edit job to database: {db_error}")
+                    # Don't fail the whole operation
+            
+            return data
         except Exception as e:
             logger.error(f"Error editing program {program_id}: {e}")
             raise
