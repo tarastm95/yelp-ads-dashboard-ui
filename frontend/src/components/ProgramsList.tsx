@@ -136,8 +136,17 @@ const ProgramsList: React.FC = () => {
     }
   }, [isChangingPage]);
   
-  // Get programs from API
-  const programs = data?.programs || [];
+  // Get programs from API and filter out terminated/inactive ones
+  const allPrograms = data?.programs || [];
+  const programs = allPrograms.filter(program => {
+    // Filter out INACTIVE and TERMINATED programs when viewing CURRENT
+    if (programStatus === 'CURRENT') {
+      return program.program_status !== 'INACTIVE' && 
+             program.program_status !== 'TERMINATED' &&
+             program.program_status !== 'EXPIRED';
+    }
+    return true; // For other filters, show all
+  });
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
   const [resumeProgram] = useResumeProgramMutation();
