@@ -361,8 +361,27 @@ const ProgramsList: React.FC = () => {
           ) : (
             /* Programs list */
           <div className="grid gap-4">
-            {programs.map((program, index) => (
-              <Card key={program.program_id || `program-${index}`}>
+            {programs.map((program, index) => {
+              const isTerminating = loadingActions[`${program.program_id}-terminate`];
+              
+              return (
+              <Card key={program.program_id || `program-${index}`} className={`relative hover:shadow-lg transition-shadow ${isTerminating ? 'opacity-60' : ''}`}>
+                {/* Terminating Overlay */}
+                {isTerminating && (
+                  <div className="absolute inset-0 bg-red-50/90 z-10 flex items-center justify-center rounded-lg backdrop-blur-sm">
+                    <div className="text-center p-6">
+                      <Loader2 className="w-12 h-12 animate-spin text-red-600 mx-auto mb-3" />
+                      <p className="text-lg font-bold text-red-900">Terminating Program...</p>
+                      <p className="text-sm text-red-700 mt-2">Please wait (~2-3 seconds)</p>
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <CardHeader>
                   <CardTitle className="flex justify-between items-center">
                     <span className="text-lg">
@@ -585,7 +604,8 @@ const ProgramsList: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
           )}
 
