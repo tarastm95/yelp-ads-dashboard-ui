@@ -184,12 +184,20 @@ const ProgramsList: React.FC = () => {
       await terminateProgram(programId).unwrap();
       
       toast({
-        title: "Program Terminated",
-        description: `Program ${programId} has been terminated successfully`,
+        title: "Program Terminating...",
+        description: "Waiting for Yelp to process. Program will disappear shortly...",
       });
       
-      // Force refresh the programs list to remove terminated program
-      refetch();
+      // Wait 2 seconds for Yelp to process, then refresh
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Force refresh the programs list
+      await refetch();
+      
+      toast({
+        title: "Program Terminated",
+        description: `Program ${programId} has been removed from the list`,
+      });
       
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
