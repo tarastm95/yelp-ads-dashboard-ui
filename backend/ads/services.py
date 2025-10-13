@@ -179,8 +179,11 @@ class YelpService:
             params['pacing_method'] = payload['pacing_method']
         if 'ad_categories' in payload and payload['ad_categories']:
             params['ad_categories'] = ','.join(payload['ad_categories'])
+        
+        # NOTE: 'start' date CANNOT be edited via Yelp API - only set at creation
         if 'start' in payload:
-            params['start'] = payload['start']
+            logger.warning(f"⚠️ Ignoring 'start' date in edit request - Yelp API does not allow changing start date")
+        
         if 'end' in payload:
             params['end'] = payload['end']
 

@@ -65,7 +65,7 @@ const EditProgram: React.FC = () => {
       if (budget) editData.budget = parseFloat(budget);
       if (maxBid) editData.max_bid = parseFloat(maxBid);
       if (categories) editData.ad_categories = categories.split(',').map((c) => c.trim()).filter(Boolean);
-      if (startDate) editData.start = startDate;
+      // NOTE: start date is NOT editable via Yelp API - ignored by backend
       if (endDate) editData.end = endDate;
       if (pacingMethod) editData.pacing_method = pacingMethod;
       
@@ -148,13 +148,20 @@ const EditProgram: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="flex items-center gap-2">
+                Start Date
+                <span className="text-xs text-gray-500">(read-only)</span>
+              </Label>
               <Input
                 id="startDate"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
               />
+              <p className="text-xs text-amber-600">
+                ⚠️ Start date cannot be changed via Yelp API
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate">End Date</Label>
@@ -164,6 +171,9 @@ const EditProgram: React.FC = () => {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
+              <p className="text-xs text-gray-500">
+                ✅ Can be updated
+              </p>
             </div>
           </div>
 
@@ -194,12 +204,20 @@ const EditProgram: React.FC = () => {
             </p>
           </div>
           
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-800 font-medium">
-              ℹ️ Leave fields empty to keep current values
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-900 font-semibold mb-2">
+              📝 Editable Fields (via Yelp API)
             </p>
-            <p className="text-xs text-yellow-700 mt-1">
-              Only changed fields will be updated in Yelp
+            <ul className="text-xs text-blue-800 space-y-1">
+              <li>✅ <strong>Budget</strong> - increase or decrease campaign budget</li>
+              <li>✅ <strong>Max Bid</strong> - adjust maximum bid per click (CPC only)</li>
+              <li>✅ <strong>End Date</strong> - extend or shorten campaign duration</li>
+              <li>✅ <strong>Pacing Method</strong> - paced or unpaced budget spending</li>
+              <li>✅ <strong>Categories</strong> - update targeting categories</li>
+              <li>❌ <strong>Start Date</strong> - cannot be changed after program creation</li>
+            </ul>
+            <p className="text-xs text-blue-700 mt-2 pt-2 border-t border-blue-200">
+              💡 Leave fields empty to keep current values. Only changed fields will be sent to Yelp.
             </p>
           </div>
 
