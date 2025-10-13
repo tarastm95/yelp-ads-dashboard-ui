@@ -486,7 +486,7 @@ class YelpService:
 
     @classmethod
     def get_all_programs(cls, offset=0, limit=20, program_status='CURRENT'):
-        """Return list of programs from Yelp API with pagination."""
+        """Return list of programs from Yelp API with pagination. Enriches data with full program info."""
         logger.info(f"Getting programs list from Yelp API - offset: {offset}, limit: {limit}, status: {program_status}")
         url = f'{cls.PARTNER_BASE}/programs/v1'
         
@@ -508,7 +508,6 @@ class YelpService:
             resp = requests.get(url, params=params, auth=auth_creds)
             logger.info(f"📥 YelpService.get_all_programs: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.get_all_programs: Response headers: {dict(resp.headers)}")
-            logger.info(f"📥 YelpService.get_all_programs: Raw response text: {resp.text}")
 
             resp.raise_for_status()
             data = resp.json()
@@ -518,9 +517,40 @@ class YelpService:
             programs = data.get('payment_programs', [])
             logger.info(f"📊 YelpService.get_all_programs: Found {len(programs)} programs")
 
+            # Enrich programs with full data from /v1/programs/info/{id} for programs missing budget
+            enriched_programs = []
+            for program in programs:
+                # Check if program has budget in program_metrics
+                has_budget = program.get('program_metrics', {}).get('budget') is not None
+                
+                if not has_budget:
+                    # Fetch full program info to get budget
+                    program_id = program.get('program_id')
+                    logger.info(f"📥 Enriching program {program_id} with full data (missing budget)")
+                    try:
+                        full_info_url = f'{cls.PARTNER_BASE}/v1/programs/info/{program_id}'
+                        full_resp = requests.get(full_info_url, auth=auth_creds, timeout=5)
+                        full_resp.raise_for_status()
+                        full_data = full_resp.json()
+                        
+                        # Get first program from response
+                        full_programs = full_data.get('programs', [])
+                        if full_programs:
+                            full_program = full_programs[0]
+                            # Merge program_metrics from full response
+                            if 'program_metrics' in full_program:
+                                if 'program_metrics' not in program:
+                                    program['program_metrics'] = {}
+                                program['program_metrics'].update(full_program['program_metrics'])
+                                logger.info(f"✅ Enriched {program_id} with budget: ${full_program['program_metrics'].get('budget', 0) / 100}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to enrich program {program_id}: {e}")
+                
+                enriched_programs.append(program)
+
             # Перетворюємо у формат, очікуваний frontend
             normalized_data = {
-                'programs': programs,
+                'programs': enriched_programs,
                 'total_count': data.get('total', 0),
                 'offset': data.get('offset', offset),
                 'limit': data.get('limit', limit)

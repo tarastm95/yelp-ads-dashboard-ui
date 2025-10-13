@@ -480,8 +480,8 @@ const ProgramsList: React.FC = () => {
                       
                       {/* Always show basic info even without full metrics */}
                       {(() => {
-                        // Get budget from metrics or fallback to local DB budget (both in cents)
-                        const budgetInCents = program.program_metrics?.budget || program.budget || 0;
+                        // Get budget from metrics (backend enriches data from Yelp API for INACTIVE programs)
+                        const budgetInCents = program.program_metrics?.budget || 0;
                         const adCostInCents = program.program_metrics?.ad_cost || 0;
                         const budgetInDollars = budgetInCents / 100;
                         const adCostInDollars = adCostInCents / 100;
