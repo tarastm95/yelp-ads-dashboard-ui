@@ -463,21 +463,24 @@ const ProgramsList: React.FC = () => {
                         <strong>Dates:</strong>
                         <p>{program.start_date} - {program.end_date}</p>
                       </div>
-                      {program.program_metrics && (
-                        <div>
-                          <strong>Budget:</strong>
-                          <p>
-                            ${(Number(program.program_metrics.budget) / 100).toFixed(2)} {program.program_metrics.currency}
-                          </p>
-                        </div>
-                      )}
+                      <div>
+                        <strong>Budget:</strong>
+                        <p>
+                          {program.program_metrics
+                            ? `$${(Number(program.program_metrics.budget) / 100).toFixed(2)} ${program.program_metrics.currency}`
+                            : 'N/A (program not active yet)'
+                          }
+                        </p>
+                      </div>
                     </div>
 
-                    {program.program_metrics && (
-                      <>
-                        {/* Performance Metrics Section */}
-                        <div className="border-t pt-4 mt-4">
-                          <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Performance Metrics</h4>
+                    {/* Performance Metrics Section - Always show */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Performance Metrics</h4>
+                      
+                      {program.program_metrics ? (
+                        <>
+                          {/* Has metrics - show actual data */}
                           
                           {/* Stats Grid */}
                           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -530,9 +533,21 @@ const ProgramsList: React.FC = () => {
                               <span>Remaining: ${((Number(program.program_metrics.budget) - Number(program.program_metrics.ad_cost)) / 100).toFixed(2)}</span>
                             </div>
                           </div>
-                        </div>
-                      </>
-                    )}
+                        </>
+                      ) : (
+                        <>
+                          {/* No metrics - show placeholder */}
+                          <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                            <p className="text-gray-500">
+                              📊 Performance metrics not available yet
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Metrics will appear once the program becomes ACTIVE
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-3">
                       {/* EDIT - edit program */}
