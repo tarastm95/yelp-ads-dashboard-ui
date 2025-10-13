@@ -365,6 +365,40 @@ class YelpService:
             logger.info(f"📥 YelpService.get_program_status: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.get_program_status: Raw response text: {resp.text}")
             
+            # Handle 500 errors gracefully (job_id expired or not found)
+            if resp.status_code == 500:
+                logger.warning(f"⚠️ YelpService.get_program_status: Job {program_id} not found or expired (500)")
+                try:
+                    error_data = resp.json()
+                    error_id = error_data.get('error', {}).get('id', 'UNKNOWN')
+                    error_desc = error_data.get('error', {}).get('description', 'Job not found')
+                except:
+                    error_id = 'JOB_NOT_FOUND'
+                    error_desc = 'Job ID expired or does not exist'
+                
+                return {
+                    'job_id': program_id,
+                    'status': 'UNKNOWN',
+                    'error': {
+                        'id': error_id,
+                        'description': error_desc
+                    },
+                    'message': 'Job not found in Yelp system (may have expired)'
+                }
+            
+            # Handle 404 errors gracefully
+            if resp.status_code == 404:
+                logger.warning(f"⚠️ YelpService.get_program_status: Job {program_id} not found (404)")
+                return {
+                    'job_id': program_id,
+                    'status': 'NOT_FOUND',
+                    'error': {
+                        'id': 'JOB_NOT_FOUND',
+                        'description': 'Job ID not found'
+                    },
+                    'message': 'Job not found in Yelp system'
+                }
+            
             resp.raise_for_status()
             data = resp.json()
             logger.info(f"✅ YelpService.get_program_status: Successfully parsed JSON response")

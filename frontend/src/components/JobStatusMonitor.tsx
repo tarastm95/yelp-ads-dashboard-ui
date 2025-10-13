@@ -42,11 +42,16 @@ const JobStatusMonitor: React.FC = () => {
     switch (status) {
       case 'PENDING':
       case 'IN_PROGRESS':
+      case 'PROCESSING':
         return <Clock className="h-4 w-4" />;
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
       case 'FAILED':
+      case 'REJECTED':
         return <XCircle className="h-4 w-4" />;
+      case 'UNKNOWN':
+      case 'NOT_FOUND':
+        return <Eye className="h-4 w-4" />;
       default:
         return <Loader2 className="h-4 w-4 animate-spin" />;
     }
@@ -62,7 +67,11 @@ const JobStatusMonitor: React.FC = () => {
       case 'COMPLETED':
         return 'bg-green-500';
       case 'FAILED':
+      case 'REJECTED':
         return 'bg-red-500';
+      case 'UNKNOWN':
+      case 'NOT_FOUND':
+        return 'bg-orange-500';
       default:
         return 'bg-gray-500';
     }
@@ -297,6 +306,23 @@ const JobStatusMonitor: React.FC = () => {
                     <pre className="text-red-600 bg-red-50 p-3 rounded">
                       {JSON.stringify(jobStatus.business_results ?? {}, null, 2)}
                     </pre>
+                  </div>
+                )}
+
+                {(jobStatus.status === 'UNKNOWN' || jobStatus.status === 'NOT_FOUND') && (
+                  <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-orange-700">Job Not Found</h4>
+                    <p className="text-sm text-orange-800 mb-2">
+                      {jobStatus.message || 'This job ID was not found in the Yelp system.'}
+                    </p>
+                    <p className="text-xs text-orange-600">
+                      Possible reasons: Job ID expired, already completed and removed, or never existed.
+                    </p>
+                    {jobStatus.error && (
+                      <pre className="mt-3 text-xs text-orange-700 bg-orange-100 p-2 rounded">
+                        {JSON.stringify(jobStatus.error, null, 2)}
+                      </pre>
+                    )}
                   </div>
                 )}
 

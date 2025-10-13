@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { useLazyGetJobStatusQuery } from '../store/api/yelpApi';
 
 interface ProgramStatusDialogProps {
@@ -23,11 +23,16 @@ const ProgramStatusDialog: React.FC<ProgramStatusDialogProps> = ({ jobId }) => {
     switch (status) {
       case 'PENDING':
       case 'IN_PROGRESS':
+      case 'PROCESSING':
         return <Clock className="h-4 w-4" />;
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
       case 'FAILED':
+      case 'REJECTED':
         return <XCircle className="h-4 w-4" />;
+      case 'UNKNOWN':
+      case 'NOT_FOUND':
+        return <Eye className="h-4 w-4" />;
       default:
         return <Loader2 className="h-4 w-4 animate-spin" />;
     }
@@ -36,12 +41,18 @@ const ProgramStatusDialog: React.FC<ProgramStatusDialogProps> = ({ jobId }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-      case 'IN_PROGRESS':
         return 'bg-yellow-500';
+      case 'PROCESSING':
+      case 'IN_PROGRESS':
+        return 'bg-blue-500';
       case 'COMPLETED':
         return 'bg-green-500';
       case 'FAILED':
+      case 'REJECTED':
         return 'bg-red-500';
+      case 'UNKNOWN':
+      case 'NOT_FOUND':
+        return 'bg-orange-500';
       default:
         return 'bg-gray-500';
     }
