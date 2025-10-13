@@ -479,71 +479,81 @@ const ProgramsList: React.FC = () => {
                       <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Performance Metrics</h4>
                       
                       {/* Always show basic info even without full metrics */}
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-3 gap-3 mb-4">
-                        <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Eye className="w-4 h-4 text-green-600" />
-                            <span className="text-xs font-medium text-green-700 uppercase">Impressions</span>
-                          </div>
-                          <p className="text-xl font-bold text-gray-900">
-                            {program.program_metrics?.billed_impressions?.toLocaleString() || '0'}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">Ad views</p>
-                        </div>
+                      {(() => {
+                        // Get budget from metrics or fallback to local DB budget (both in cents)
+                        const budgetInCents = program.program_metrics?.budget || program.budget || 0;
+                        const adCostInCents = program.program_metrics?.ad_cost || 0;
+                        const budgetInDollars = budgetInCents / 100;
+                        const adCostInDollars = adCostInCents / 100;
+                        const spendPercentage = budgetInCents > 0 ? (adCostInCents / budgetInCents) * 100 : 0;
+                        
+                        return (
+                          <>
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                              <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Eye className="w-4 h-4 text-green-600" />
+                                  <span className="text-xs font-medium text-green-700 uppercase">Impressions</span>
+                                </div>
+                                <p className="text-xl font-bold text-gray-900">
+                                  {program.program_metrics?.billed_impressions?.toLocaleString() || '0'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">Ad views</p>
+                              </div>
 
-                        <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <MousePointer className="w-4 h-4 text-purple-600" />
-                            <span className="text-xs font-medium text-purple-700 uppercase">Clicks</span>
-                          </div>
-                          <p className="text-xl font-bold text-gray-900">
-                            {program.program_metrics?.billed_clicks?.toLocaleString() || '0'}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">User interactions</p>
-                        </div>
+                              <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <MousePointer className="w-4 h-4 text-purple-600" />
+                                  <span className="text-xs font-medium text-purple-700 uppercase">Clicks</span>
+                                </div>
+                                <p className="text-xl font-bold text-gray-900">
+                                  {program.program_metrics?.billed_clicks?.toLocaleString() || '0'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">User interactions</p>
+                              </div>
 
-                        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <DollarSign className="w-4 h-4 text-blue-600" />
-                            <span className="text-xs font-medium text-blue-700 uppercase">Total Spend</span>
-                          </div>
-                          <p className="text-xl font-bold text-gray-900">
-                            ${program.program_metrics?.ad_cost ? (Number(program.program_metrics.ad_cost) / 100).toFixed(2) : '0.00'}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {program.program_metrics?.budget && program.program_metrics?.ad_cost
-                              ? `${((Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100).toFixed(1)}% of $${(Number(program.program_metrics.budget) / 100).toFixed(2)} budget`
-                              : program.program_metrics?.budget
-                                ? `of $${(Number(program.program_metrics.budget) / 100).toFixed(2)} budget`
-                                : 'Budget pending'
-                            }
-                          </p>
-                        </div>
-                      </div>
+                              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <DollarSign className="w-4 h-4 text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-700 uppercase">Total Spend</span>
+                                </div>
+                                <p className="text-xl font-bold text-gray-900">
+                                  ${adCostInDollars.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {budgetInCents > 0
+                                    ? adCostInCents > 0
+                                      ? `${spendPercentage.toFixed(1)}% of $${budgetInDollars.toFixed(2)} budget`
+                                      : `of $${budgetInDollars.toFixed(2)} budget`
+                                    : 'Budget pending'
+                                  }
+                                </p>
+                              </div>
+                            </div>
 
-                      {/* Budget Progress Bar */}
-                      {program.program_metrics?.budget && (
-                        <div className="bg-gray-50 p-3 rounded-lg border">
-                          <div className="flex justify-between text-xs mb-2">
-                            <span className="font-medium text-gray-700">Budget Usage</span>
-                            <span className="font-bold text-gray-900">
-                              {program.program_metrics?.ad_cost
-                                ? ((Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100).toFixed(1)
-                                : '0.0'
-                              }%
-                            </span>
-                          </div>
-                          <Progress 
-                            value={program.program_metrics?.ad_cost ? Math.min(100, (Number(program.program_metrics.ad_cost) / Number(program.program_metrics.budget)) * 100) : 0} 
-                            className="h-2"
-                          />
-                          <div className="flex justify-between text-xs mt-2 text-gray-600">
-                            <span>Spent: ${program.program_metrics?.ad_cost ? (Number(program.program_metrics.ad_cost) / 100).toFixed(2) : '0.00'}</span>
-                            <span>Remaining: ${program.program_metrics?.ad_cost ? ((Number(program.program_metrics.budget) - Number(program.program_metrics.ad_cost)) / 100).toFixed(2) : (Number(program.program_metrics.budget) / 100).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
+                            {/* Budget Progress Bar - show if we have budget */}
+                            {budgetInCents > 0 && (
+                              <div className="bg-gray-50 p-3 rounded-lg border">
+                                <div className="flex justify-between text-xs mb-2">
+                                  <span className="font-medium text-gray-700">Budget Usage</span>
+                                  <span className="font-bold text-gray-900">
+                                    {spendPercentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={Math.min(100, spendPercentage)} 
+                                  className="h-2"
+                                />
+                                <div className="flex justify-between text-xs mt-2 text-gray-600">
+                                  <span>Spent: ${adCostInDollars.toFixed(2)}</span>
+                                  <span>Remaining: ${(budgetInDollars - adCostInDollars).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                       
                       {/* Info message if program not active */}
                       {!program.program_metrics && (
