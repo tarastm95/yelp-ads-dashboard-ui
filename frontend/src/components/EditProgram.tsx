@@ -25,6 +25,7 @@ const EditProgram: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pacingMethod, setPacingMethod] = useState('');
+  const [isAutobid, setIsAutobid] = useState(true);
 
   useEffect(() => {
     if (program) {
@@ -33,17 +34,28 @@ const EditProgram: React.FC = () => {
         const budgetInDollars = Number(program.program_metrics.budget) / 100;
         setBudget(budgetInDollars.toFixed(2));
       }
+      
+      // Autobid status
+      setIsAutobid(program.program_metrics?.is_autobid ?? true);
+      
       // Max bid from Yelp API (in cents) - convert to dollars
-      if (program.program_metrics?.max_bid !== undefined && program.program_metrics?.max_bid !== null) {
+      // Only show if manual bidding
+      if (!program.program_metrics?.is_autobid && program.program_metrics?.max_bid !== undefined && program.program_metrics?.max_bid !== null) {
         const maxBidInDollars = Number(program.program_metrics.max_bid) / 100;
         setMaxBid(maxBidInDollars.toFixed(2));
       }
+      
       // Dates
       if (program.start_date) {
         setStartDate(program.start_date);
       }
       if (program.end_date) {
         setEndDate(program.end_date);
+      }
+      
+      // Pacing method
+      if (program.program_metrics?.pacing_method) {
+        setPacingMethod(program.program_metrics.pacing_method);
       }
       // Categories - Yelp doesn't return this in program_metrics
       // Leave empty for now
@@ -59,11 +71,29 @@ const EditProgram: React.FC = () => {
       return;
     }
     
+    // Validation: max_bid required for manual bidding
+    if (!isAutobid && !maxBid) {
+      toast({
+        title: 'Max Bid Required',
+        description: 'Please enter a max bid per click for manual bidding, or switch to auto-bidding.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       const editData: any = {};
       
       if (budget) editData.budget = parseFloat(budget);
-      if (maxBid) editData.max_bid = parseFloat(maxBid);
+      
+      // Always send is_autobid to be explicit
+      editData.is_autobid = isAutobid;
+      
+      // Only send max_bid if manual bidding
+      if (!isAutobid && maxBid) {
+        editData.max_bid = parseFloat(maxBid);
+      }
+      
       if (categories) editData.ad_categories = categories.split(',').map((c) => c.trim()).filter(Boolean);
       // NOTE: start date is NOT editable via Yelp API - ignored by backend
       if (endDate) editData.end = endDate;
@@ -127,23 +157,83 @@ const EditProgram: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="maxBid" className="text-base font-semibold flex items-center gap-2">
-              💰 Max Bid per Click (USD)
-            </Label>
-            <Input
-              id="maxBid"
-              type="number"
-              step="0.01"
-              min="0.25"
-              value={maxBid}
-              onChange={(e) => setMaxBid(e.target.value)}
-              placeholder="5.00"
-              className="text-lg"
-            />
-            <p className="text-xs text-gray-500">
-              Leave empty to keep current max bid (only for manual bidding programs)
-            </p>
+          
+          {/* Bidding Strategy Selection */}
+          <div className="space-y-3 border-t border-b py-4">
+            <Label className="text-base font-semibold">⚡ Bidding Strategy</Label>
+            
+            <div className="space-y-2">
+              <label 
+                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  isAutobid 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="bidding"
+                  checked={isAutobid}
+                  onChange={() => {
+                    setIsAutobid(true);
+                    setMaxBid(''); // Clear max_bid when switching to autobid
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">🤖 Automatic Bidding (Recommended)</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Yelp automatically optimizes your bids to get the most clicks within your budget
+                  </p>
+                </div>
+              </label>
+              
+              <label 
+                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  !isAutobid 
+                    ? 'border-orange-500 bg-orange-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="bidding"
+                  checked={!isAutobid}
+                  onChange={() => setIsAutobid(false)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">🎯 Manual Bidding (Advanced)</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Set a maximum price you're willing to pay per click. Gives you more control.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Max Bid Input - только для manual bidding */}
+            {!isAutobid && (
+              <div className="ml-8 space-y-2 mt-3">
+                <Label htmlFor="maxBid" className="text-base font-semibold flex items-center gap-2">
+                  💰 Max Bid per Click (USD)
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="maxBid"
+                  type="number"
+                  step="0.01"
+                  min="0.25"
+                  value={maxBid}
+                  onChange={(e) => setMaxBid(e.target.value)}
+                  placeholder="5.00"
+                  required={!isAutobid}
+                  className="text-lg"
+                />
+                <p className="text-xs text-gray-600">
+                  You'll never pay more than this amount per click. Minimum: $0.25
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -210,7 +300,8 @@ const EditProgram: React.FC = () => {
             </p>
             <ul className="text-xs text-blue-800 space-y-1">
               <li>✅ <strong>Budget</strong> - increase or decrease campaign budget</li>
-              <li>✅ <strong>Max Bid</strong> - adjust maximum bid per click (CPC only)</li>
+              <li>✅ <strong>Bidding Strategy</strong> - switch between auto and manual bidding</li>
+              <li>✅ <strong>Max Bid</strong> - set maximum bid per click (manual bidding only)</li>
               <li>✅ <strong>End Date</strong> - extend or shorten campaign duration</li>
               <li>✅ <strong>Pacing Method</strong> - paced or unpaced budget spending</li>
               <li>✅ <strong>Categories</strong> - update targeting categories</li>

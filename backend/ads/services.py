@@ -164,6 +164,17 @@ class YelpService:
             params['budget'] = int(budget_dollars * 100)
             logger.info(f"Edit: Budget ${budget_dollars} → {params['budget']} cents")
 
+        # Handle bidding strategy
+        if 'is_autobid' in payload:
+            is_autobid = payload['is_autobid']
+            params['is_autobid'] = str(is_autobid).lower()
+            logger.info(f"Edit: is_autobid = {is_autobid}")
+            
+            # If autobid enabled, remove max_bid
+            if is_autobid:
+                logger.info("Edit: Autobid enabled → max_bid will not be sent")
+        
+        # Max bid - only for manual bidding
         if 'max_bid' in payload:
             max_bid = payload['max_bid']
             # Always convert from dollars to cents (frontend always sends dollars)
@@ -172,6 +183,11 @@ class YelpService:
                 raise ValueError("Max bid must be at least $0.25")
             params['max_bid'] = int(max_bid_dollars * 100)
             logger.info(f"Edit: Max bid ${max_bid_dollars} → {params['max_bid']} cents")
+            
+            # If max_bid is set without explicit is_autobid, disable autobid
+            if 'is_autobid' not in payload:
+                params['is_autobid'] = 'false'
+                logger.info("Edit: Max bid set without is_autobid → automatically disabling autobid")
 
         if 'future_budget_date' in payload:
             params['future_budget_date'] = payload['future_budget_date']
