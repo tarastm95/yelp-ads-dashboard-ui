@@ -97,14 +97,23 @@ const EditProgram: React.FC = () => {
       if (categories) editData.ad_categories = categories.split(',').map((c) => c.trim()).filter(Boolean);
       
       // Start date is ONLY editable for INACTIVE programs
+      console.log('🔍 Edit Debug - Program Status:', program.program_status);
+      console.log('🔍 Edit Debug - Start Date:', startDate);
+      console.log('🔍 Edit Debug - Is INACTIVE?', program.program_status === 'INACTIVE');
+      
       if (startDate && program.program_status === 'INACTIVE') {
         editData.start = startDate;
+        console.log('✅ Start date added to payload:', startDate);
+      } else {
+        console.log('⚠️ Start date NOT added. Reason:', 
+          !startDate ? 'startDate is empty' : `program_status is ${program.program_status}`);
       }
       
       if (endDate) editData.end = endDate;
       if (pacingMethod) editData.pacing_method = pacingMethod;
       
-      console.log('Submitting edit with program_id:', actualProgramId, 'data:', editData);
+      console.log('📤 Submitting edit with program_id:', actualProgramId);
+      console.log('📤 Full payload:', JSON.stringify(editData, null, 2));
       
       const result = await editProgram({
         partner_program_id: actualProgramId,  // Use program_id from Yelp API
@@ -134,8 +143,27 @@ const EditProgram: React.FC = () => {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">Edit Program</CardTitle>
-        <CardDescription>Modify advertising program parameters</CardDescription>
+        <CardTitle className="flex items-center gap-2">
+          Edit Program
+          {program?.program_status && (
+            <span className={`text-sm px-2 py-1 rounded ${
+              program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+              program.program_status === 'INACTIVE' ? 'bg-blue-100 text-blue-700' :
+              program.program_status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' :
+              'bg-gray-100 text-gray-700'
+            }`}>
+              {program.program_status}
+            </span>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Modify advertising program parameters
+          {program?.program_id && (
+            <span className="block text-xs text-gray-500 mt-1">
+              ID: {program.program_id}
+            </span>
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -150,7 +150,12 @@ class YelpService:
     @classmethod
     def edit_program(cls, program_id, payload):
         """Edit existing program."""
-        logger.info(f"Editing program {program_id} with payload: {payload}")
+        logger.info(f"🔧 Edit: program_id = {program_id}")
+        logger.info(f"🔧 Edit: Received payload = {json.dumps(payload, indent=2)}")
+        logger.info(f"🔧 Edit: Payload keys = {list(payload.keys())}")
+        logger.info(f"🔧 Edit: 'start' in payload? {('start' in payload)}")
+        logger.info(f"🔧 Edit: 'end' in payload? {('end' in payload)}")
+        
         url = f'{cls.PARTNER_BASE}/v1/reseller/program/{program_id}/edit'
 
         params = {}
@@ -203,8 +208,11 @@ class YelpService:
         
         if 'end' in payload:
             params['end'] = payload['end']
+            logger.info(f"Edit: End date = {payload['end']}")
 
-        logger.info(f"Edit program API parameters: {params}")
+        logger.info(f"📋 Edit: Final params for Yelp API = {json.dumps(params, indent=2)}")
+        logger.info(f"📋 Edit: Total params count = {len(params)}")
+        logger.info(f"🌐 Edit: Request URL = {url}")
 
         try:
             params_filtered = {k: v for k, v in params.items() if v is not None}
