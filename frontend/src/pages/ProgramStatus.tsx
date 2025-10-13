@@ -96,8 +96,8 @@ const ProgramStatus: React.FC = () => {
       <div className="flex items-center justify-between">
         <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
+        Back
+      </Button>
         <Button onClick={() => navigate(`/program-features/${programId}`)} className="gap-2">
           <Target className="w-4 h-4" />
           Manage Features
@@ -151,7 +151,7 @@ const ProgramStatus: React.FC = () => {
                       <div key={index} className="space-y-6">
                         {/* Header with Status Badges */}
                         <div className="flex items-center justify-between">
-                          <div>
+                        <div>
                             <h2 className="text-3xl font-bold text-gray-900">{program.program_type} Campaign</h2>
                             <p className="text-gray-500 mt-1">Monitor your advertising performance</p>
                           </div>
@@ -174,18 +174,18 @@ const ProgramStatus: React.FC = () => {
                         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-xl">
                           <CardContent className="p-8">
                             <div className="flex items-start justify-between mb-6">
-                              <div>
+                        <div>
                                 <p className="text-blue-100 text-sm font-medium mb-2">CAMPAIGN BUDGET</p>
                                 <div className="flex items-baseline gap-3">
                                   <h3 className="text-5xl font-bold">${budget.toFixed(2)}</h3>
                                   <span className="text-xl text-blue-100">{metrics?.currency}</span>
-                                </div>
-                              </div>
+                        </div>
+                        </div>
                               <div className="bg-white/20 rounded-full p-4">
                                 <DollarSign className="w-8 h-8" />
-                              </div>
-                            </div>
-
+                        </div>
+                      </div>
+                      
                             {/* Budget Progress Bar */}
                             <div className="space-y-3">
                               <div className="flex justify-between text-sm">
@@ -205,15 +205,15 @@ const ProgramStatus: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <div>
+                        <div>
                                   <p className="text-blue-100">Spent</p>
                                   <p className="text-lg font-bold">${adCost.toFixed(2)}</p>
-                                </div>
+                        </div>
                                 <div className="text-right">
                                   <p className="text-blue-100">Remaining</p>
                                   <p className="text-lg font-bold">${remaining.toFixed(2)}</p>
-                                </div>
-                              </div>
+                        </div>
+                      </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -228,13 +228,13 @@ const ProgramStatus: React.FC = () => {
                                 <Badge variant="outline" className="text-purple-600 border-purple-300">
                                   Clicks
                                 </Badge>
-                              </div>
-                              <div>
+                            </div>
+                            <div>
                                 <p className="text-3xl font-bold text-gray-900">
                                   {formatNumber(metrics?.billed_clicks || 0)}
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">Total clicks</p>
-                              </div>
+                            </div>
                             </CardContent>
                           </Card>
 
@@ -246,13 +246,13 @@ const ProgramStatus: React.FC = () => {
                                 <Badge variant="outline" className="text-green-600 border-green-300">
                                   Views
                                 </Badge>
-                              </div>
+                          </div>
                               <div>
                                 <p className="text-3xl font-bold text-gray-900">
                                   {formatNumber(metrics?.billed_impressions || 0)}
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">Total impressions</p>
-                              </div>
+                        </div>
                             </CardContent>
                           </Card>
 
@@ -264,7 +264,7 @@ const ProgramStatus: React.FC = () => {
                                 <Badge variant="outline" className="text-orange-600 border-orange-300">
                                   CTR
                                 </Badge>
-                              </div>
+                          </div>
                               <div>
                                 <p className="text-3xl font-bold text-gray-900">
                                   {metrics?.billed_impressions && metrics.billed_impressions > 0
@@ -273,7 +273,7 @@ const ProgramStatus: React.FC = () => {
                                   }%
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">Click rate</p>
-                              </div>
+                        </div>
                             </CardContent>
                           </Card>
 
@@ -285,7 +285,7 @@ const ProgramStatus: React.FC = () => {
                                 <Badge variant="outline" className="text-blue-600 border-blue-300">
                                   CPC
                                 </Badge>
-                              </div>
+                        </div>
                               <div>
                                 <p className="text-3xl font-bold text-gray-900">
                                   ${metrics?.billed_clicks && metrics.billed_clicks > 0
@@ -310,24 +310,24 @@ const ProgramStatus: React.FC = () => {
                           <CardContent>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-4">
-                                <div>
+                            <div>
                                   <label className="text-xs text-gray-500 uppercase tracking-wide">Start Date</label>
                                   <p className="text-lg font-semibold mt-1">{program.start_date}</p>
-                                </div>
-                                <div>
+                            </div>
+                            <div>
                                   <label className="text-xs text-gray-500 uppercase tracking-wide">End Date</label>
                                   <p className="text-lg font-semibold mt-1">{program.end_date || 'Ongoing'}</p>
-                                </div>
-                                <div>
+                            </div>
+                            <div>
                                   <label className="text-xs text-gray-500 uppercase tracking-wide">Business ID</label>
                                   <code className="text-sm bg-gray-100 px-3 py-1.5 rounded mt-1 block font-mono">
                                     {program.yelp_business_id}
                                   </code>
-                                </div>
-                              </div>
+                          </div>
+                        </div>
                               
                               <div className="space-y-4">
-                                <div>
+                                  <div>
                                   <label className="text-xs text-gray-500 uppercase tracking-wide">Auto-bidding</label>
                                   <div className="flex items-center gap-2 mt-1">
                                     {metrics?.is_autobid ? (
@@ -395,7 +395,7 @@ const ProgramStatus: React.FC = () => {
                                   <span className="text-2xl font-bold text-gray-900">
                                     ${adCost.toFixed(2)}
                                   </span>
-                                </div>
+                          </div>
                                 <Progress 
                                   value={budgetUsedPercent} 
                                   className={`h-3 ${
@@ -407,7 +407,7 @@ const ProgramStatus: React.FC = () => {
                                 <p className="text-xs text-gray-500 mt-1">
                                   {budgetUsedPercent.toFixed(1)}% of ${budget.toFixed(2)} budget
                                 </p>
-                              </div>
+                        </div>
                             </CardContent>
                           </Card>
                         )}
@@ -431,7 +431,7 @@ const ProgramStatus: React.FC = () => {
                                     {feature.replace(/_/g, ' ')}
                                   </Badge>
                                 ))}
-                              </div>
+                            </div>
                               <Button 
                                 variant="outline" 
                                 className="mt-4 w-full"
@@ -461,7 +461,7 @@ const ProgramStatus: React.FC = () => {
                                 {program.future_budget_changes.map((change: any, idx: number) => (
                                   <div key={idx} className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
                                     <div className="flex items-center justify-between">
-                                      <div>
+                          <div>
                                         <p className="text-sm text-gray-600">Effective Date</p>
                                         <p className="text-lg font-semibold">{change.date}</p>
                                       </div>
@@ -470,8 +470,8 @@ const ProgramStatus: React.FC = () => {
                                         <p className="text-lg font-semibold text-yellow-700">
                                           ${(Number(change.budget) / 100).toFixed(2)} {change.currency}
                                         </p>
-                                      </div>
-                                    </div>
+                          </div>
+                        </div>
                                   </div>
                                 ))}
                               </div>
@@ -500,21 +500,21 @@ const ProgramStatus: React.FC = () => {
                                   </code>
                                 </div>
                               )}
-                            </div>
-                            
-                            {/* JSON data (collapsed) */}
+                      </div>
+
+                      {/* JSON data (collapsed) */}
                             <details className="mt-4">
                               <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-900 flex items-center gap-2">
                                 <BarChart3 className="w-4 h-4" />
                                 View Full JSON Data
-                              </summary>
+                        </summary>
                               <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-auto mt-3 max-h-96 font-mono">
-                                {JSON.stringify(program, null, 2)}
-                              </pre>
-                            </details>
+                          {JSON.stringify(program, null, 2)}
+                        </pre>
+                      </details>
                           </CardContent>
                         </Card>
-                      </div>
+                    </div>
                     );
                   })}
                 </div>
