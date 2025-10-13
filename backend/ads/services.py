@@ -196,9 +196,10 @@ class YelpService:
         if 'ad_categories' in payload and payload['ad_categories']:
             params['ad_categories'] = ','.join(payload['ad_categories'])
         
-        # NOTE: 'start' date CANNOT be edited via Yelp API - only set at creation
+        # Start date CAN be edited for INACTIVE programs, but NOT for ACTIVE programs
         if 'start' in payload:
-            logger.warning(f"⚠️ Ignoring 'start' date in edit request - Yelp API does not allow changing start date")
+            params['start'] = payload['start']
+            logger.info(f"Edit: Start date = {payload['start']} (allowed for INACTIVE programs)")
         
         if 'end' in payload:
             params['end'] = payload['end']

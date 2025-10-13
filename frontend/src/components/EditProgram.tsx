@@ -95,7 +95,12 @@ const EditProgram: React.FC = () => {
       }
       
       if (categories) editData.ad_categories = categories.split(',').map((c) => c.trim()).filter(Boolean);
-      // NOTE: start date is NOT editable via Yelp API - ignored by backend
+      
+      // Start date is ONLY editable for INACTIVE programs
+      if (startDate && program.program_status === 'INACTIVE') {
+        editData.start = startDate;
+      }
+      
       if (endDate) editData.end = endDate;
       if (pacingMethod) editData.pacing_method = pacingMethod;
       
@@ -240,18 +245,27 @@ const EditProgram: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="startDate" className="flex items-center gap-2">
                 Start Date
-                <span className="text-xs text-gray-500">(read-only)</span>
+                {program?.program_status === 'ACTIVE' && (
+                  <span className="text-xs text-gray-500">(read-only)</span>
+                )}
               </Label>
               <Input
                 id="startDate"
                 type="date"
                 value={startDate}
-                disabled
-                className="bg-gray-100 cursor-not-allowed"
+                onChange={(e) => setStartDate(e.target.value)}
+                disabled={program?.program_status === 'ACTIVE'}
+                className={program?.program_status === 'ACTIVE' ? 'bg-gray-100 cursor-not-allowed' : ''}
               />
-              <p className="text-xs text-amber-600">
-                ⚠️ Start date cannot be changed via Yelp API
-              </p>
+              {program?.program_status === 'ACTIVE' ? (
+                <p className="text-xs text-amber-600">
+                  ⚠️ Start date cannot be changed for ACTIVE programs
+                </p>
+              ) : (
+                <p className="text-xs text-green-600">
+                  ✅ Can be updated for INACTIVE programs
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate">End Date</Label>
@@ -302,10 +316,14 @@ const EditProgram: React.FC = () => {
               <li>✅ <strong>Budget</strong> - increase or decrease campaign budget</li>
               <li>✅ <strong>Bidding Strategy</strong> - switch between auto and manual bidding</li>
               <li>✅ <strong>Max Bid</strong> - set maximum bid per click (manual bidding only)</li>
+              {program?.program_status === 'INACTIVE' ? (
+                <li>✅ <strong>Start Date</strong> - can be changed for INACTIVE programs</li>
+              ) : (
+                <li>❌ <strong>Start Date</strong> - cannot be changed for ACTIVE programs</li>
+              )}
               <li>✅ <strong>End Date</strong> - extend or shorten campaign duration</li>
               <li>✅ <strong>Pacing Method</strong> - paced or unpaced budget spending</li>
               <li>✅ <strong>Categories</strong> - update targeting categories</li>
-              <li>❌ <strong>Start Date</strong> - cannot be changed after program creation</li>
             </ul>
             <p className="text-xs text-blue-700 mt-2 pt-2 border-t border-blue-200">
               💡 Leave fields empty to keep current values. Only changed fields will be sent to Yelp.
