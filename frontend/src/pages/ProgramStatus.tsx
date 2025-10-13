@@ -458,22 +458,57 @@ const ProgramStatus: React.FC = () => {
                             </CardHeader>
                             <CardContent>
                               <div className="space-y-3">
-                                {program.future_budget_changes.map((change: any, idx: number) => (
-                                  <div key={idx} className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                                    <div className="flex items-center justify-between">
-                          <div>
-                                        <p className="text-sm text-gray-600">Effective Date</p>
-                                        <p className="text-lg font-semibold">{change.date}</p>
+                                {program.future_budget_changes.map((change: any, idx: number) => {
+                                  // Safe budget extraction with fallbacks
+                                  const budgetValue = change.budget || change.new_budget || change.amount || 0;
+                                  const effectiveDate = change.date || change.effective_date || 'TBD';
+                                  const currency = change.currency || 'USD';
+                                  const budgetInDollars = Number(budgetValue) / 100;
+                                  const currentBudget = Number(metrics?.budget || 0) / 100;
+                                  
+                                  return (
+                                    <div key={idx} className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm text-gray-600 font-medium">Effective Date</p>
+                                          <p className="text-lg font-semibold text-gray-900">{effectiveDate}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-sm text-gray-600 font-medium">New Budget</p>
+                                          <p className="text-2xl font-bold text-yellow-700">
+                                            ${budgetInDollars.toFixed(2)}
+                                          </p>
+                                          <p className="text-xs text-gray-500">{currency}</p>
+                                        </div>
                                       </div>
-                                      <div className="text-right">
-                                        <p className="text-sm text-gray-600">New Budget</p>
-                                        <p className="text-lg font-semibold text-yellow-700">
-                                          ${(Number(change.budget) / 100).toFixed(2)} {change.currency}
-                                        </p>
-                          </div>
-                        </div>
-                                  </div>
-                                ))}
+                                      
+                                      {currentBudget > 0 && currentBudget !== budgetInDollars && (
+                                        <div className="mt-3 pt-3 border-t border-yellow-300">
+                                          <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">
+                                              Current: <span className="font-semibold">${currentBudget.toFixed(2)}</span>
+                                            </span>
+                                            <span className="text-yellow-700 font-medium">
+                                              → ${budgetInDollars.toFixed(2)}
+                                            </span>
+                                            <span className={budgetInDollars > currentBudget ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                              {budgetInDollars > currentBudget ? '+' : ''}{((budgetInDollars - currentBudget) / currentBudget * 100).toFixed(1)}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {program.program_status === 'INACTIVE' && (
+                                        <div className="mt-3 pt-3 border-t border-yellow-300">
+                                          <p className="text-xs text-yellow-800 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            This budget will become active when the program starts on {program.start_date}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </CardContent>
                           </Card>
