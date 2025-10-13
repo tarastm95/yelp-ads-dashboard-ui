@@ -50,8 +50,8 @@ const PartnerProgramInfo: React.FC = () => {
 
   const program = data.programs[0];
   const metrics = program.program_metrics;
-  const budget = metrics ? Number(metrics.budget) / 100 : 0;
-  const adCost = metrics ? Number(metrics.ad_cost) / 100 : 0;
+  const budget = metrics?.budget ? Number(metrics.budget) / 100 : 0;
+  const adCost = metrics?.ad_cost ? Number(metrics.ad_cost) / 100 : 0;
   const remaining = budget - adCost;
   const budgetUsedPercent = budget > 0 ? Math.min(100, (adCost / budget) * 100) : 0;
 
