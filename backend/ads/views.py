@@ -88,6 +88,58 @@ class TerminateProgramView(APIView):
             raise
 
 
+class UpdateProgramCustomNameView(APIView):
+    """Update custom name for a program (local DB only)"""
+    
+    def post(self, request, program_id):
+        """Update custom name for a program"""
+        from .models import ProgramRegistry
+        
+        # Get username
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        custom_name = request.data.get('custom_name', '').strip()
+        
+        logger.info(f"📝 Updating custom name for program {program_id} to: '{custom_name}'")
+        
+        try:
+            # Find program in registry
+            program = ProgramRegistry.objects.get(
+                username=username,
+                program_id=program_id
+            )
+            
+            # Update custom name
+            program.custom_name = custom_name if custom_name else None
+            program.save()
+            
+            logger.info(f"✅ Updated custom name for program {program_id}")
+            
+            return Response({
+                'program_id': program_id,
+                'custom_name': program.custom_name,
+                'message': 'Custom name updated successfully'
+            })
+            
+        except ProgramRegistry.DoesNotExist:
+            logger.error(f"❌ Program {program_id} not found in registry for user {username}")
+            return Response(
+                {"error": "Program not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"❌ Error updating custom name for program {program_id}: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class PauseProgramView(APIView):
     def post(self, request, program_id):
         logger.info(f"Pausing program {program_id}")
@@ -307,22 +359,375 @@ class FetchReportView(APIView):
             raise
 
 
+class ProgramSyncView(APIView):
+    """
+    Синхронізує програми при відкритті сторінки /programs.
+    Повертає статус синхронізації.
+    """
+    
+    def post(self, request):
+        """Запускає синхронізацію програм для поточного користувача."""
+        from .sync_service import ProgramSyncService
+        
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        logger.info(f"🔄 Sync requested by {username}")
+        
+        try:
+            # Запускаємо синхронізацію
+            result = ProgramSyncService.sync_programs(username, batch_size=20)
+            
+            return Response(result)
+            
+        except Exception as e:
+            logger.error(f"❌ Sync failed for {username}: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ProgramSyncStreamView(APIView):
+    """
+    Синхронізація програм з прогресом в реальному часі через Server-Sent Events (SSE).
+    
+    Використовує StreamingHttpResponse для відправки подій прогресу клієнту.
+    """
+    
+    def post(self, request):
+        """Запускає паралельну синхронізацію з SSE streaming."""
+        from django.http import StreamingHttpResponse
+        from .sync_service import ProgramSyncService
+        import json
+        
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        
+        # Параметри для паралельної синхронізації (можна отримати з request)
+        # Збільшено max_workers для максимальної швидкості синхронізації
+        max_workers = int(request.data.get('max_workers', 50)) if hasattr(request, 'data') else 50
+        batch_size = int(request.data.get('batch_size', 40)) if hasattr(request, 'data') else 40
+        
+        logger.info(f"🚀 [SSE] Parallel sync stream requested by {username} (workers={max_workers}, batch={batch_size})")
+        
+        def event_stream():
+            """
+            Generator для SSE подій з паралельною синхронізацією.
+            
+            Yields:
+                SSE formatted events: data: {json}\n\n
+            """
+            try:
+                # Запускаємо ПАРАЛЕЛЬНУ синхронізацію з стрімінгом
+                for progress_event in ProgramSyncService.sync_with_streaming_parallel(
+                    username, 
+                    batch_size=batch_size,
+                    max_workers=max_workers
+                ):
+                    # Форматуємо подію для SSE
+                    event_data = json.dumps(progress_event)
+                    yield f"data: {event_data}\n\n"
+                    
+                logger.info(f"✅ [SSE] Parallel sync stream completed for {username}")
+                
+            except Exception as e:
+                logger.error(f"❌ [SSE] Stream error for {username}: {e}")
+                error_event = json.dumps({
+                    'type': 'error',
+                    'message': str(e)
+                })
+                yield f"data: {error_event}\n\n"
+        
+        # Створюємо streaming response з правильними headers для SSE
+        response = StreamingHttpResponse(
+            event_stream(),
+            content_type='text/event-stream'
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
+        
+        return response
+
+
 class ProgramListView(APIView):
-    """Return list of programs from Yelp API with pagination support."""
+    """
+    Повертає список програм з Yelp API з використанням БД для фільтрації по business_id.
+    
+    Логіка:
+    - Без фільтру: звичайний запит до API
+    - З business_id: використовує БД для отримання program_ids, потім витягує дані з API
+    """
+    
+    @staticmethod
+    def enrich_programs_with_custom_names(programs, username):
+        """
+        Збагачує програми custom_name з локальної бази даних та деталями бізнесу з Yelp Fusion API.
+        
+        Args:
+            programs: List of program dicts from Yelp API
+            username: Username for filtering
+            
+        Returns:
+            List of enriched programs with custom_name, business_name, and business_url fields
+        """
+        from .models import ProgramRegistry
+        from .services import YelpService
+        
+        if not programs or not username:
+            return programs
+        
+        # Отримуємо program_ids
+        program_ids = [p.get('program_id') for p in programs if p.get('program_id')]
+        
+        if not program_ids:
+            return programs
+        
+        # Отримуємо custom_name з БД одним запитом
+        registry_data = ProgramRegistry.objects.filter(
+            username=username,
+            program_id__in=program_ids
+        ).values('program_id', 'custom_name')
+        
+        # Створюємо словник program_id -> custom_name
+        custom_names = {item['program_id']: item['custom_name'] for item in registry_data}
+        
+        # Збираємо унікальні business_ids
+        business_ids = set()
+        for program in programs:
+            business_id = program.get('yelp_business_id')
+            if not business_id and program.get('businesses'):
+                business_id = program['businesses'][0].get('yelp_business_id')
+            if business_id:
+                business_ids.add(business_id)
+        
+        # Отримуємо деталі бізнесів з Yelp Fusion API
+        business_details = {}
+        for business_id in business_ids:
+            try:
+                details = YelpService.get_business_details(business_id)
+                if details:
+                    business_details[business_id] = {
+                        'name': details.get('name'),
+                        'url': details.get('url'),
+                        'alias': details.get('alias')
+                    }
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to get business details for {business_id}: {e}")
+                continue
+        
+        # Додаємо custom_name та business details до кожної програми
+        for program in programs:
+            program_id = program.get('program_id')
+            
+            # Додаємо custom_name
+            if program_id and program_id in custom_names:
+                program['custom_name'] = custom_names[program_id]
+            
+            # Додаємо business details
+            business_id = program.get('yelp_business_id')
+            if not business_id and program.get('businesses'):
+                business_id = program['businesses'][0].get('yelp_business_id')
+            
+            if business_id and business_id in business_details:
+                program['business_name'] = business_details[business_id]['name']
+                program['business_url'] = business_details[business_id]['url']
+                program['business_alias'] = business_details[business_id]['alias']
+        
+        return programs
 
     def get(self, request):
-        # Отримуємо параметри пагінації та фільтрації з запиту
+        from .sync_service import ProgramSyncService
+        from .models import ProgramRegistry
+        
+        # Параметри
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 20))
         program_status = request.query_params.get('program_status', 'CURRENT')
+        business_id = request.query_params.get('business_id', None)
+        program_type = request.query_params.get('program_type', None)
         
-        logger.info(f"Getting programs list from Yelp API - offset: {offset}, limit: {limit}, status: {program_status}")
+        # Автентифікація
+        username = None
+        if request.user and request.user.is_authenticated:
+            username = request.user.username
+        
+        logger.info(f"Getting programs - offset: {offset}, limit: {limit}, status: {program_status}, business_id: {business_id}, program_type: {program_type}, user: {username}")
+        
+        # Yelp API не підтримує фільтр program_status=ACTIVE/INACTIVE
+        # Тому завжди запитуємо ALL і фільтруємо локально
+        api_status = 'ALL' if program_status in ['ACTIVE', 'INACTIVE'] else program_status
+        logger.info(f"🔄 Mapping frontend status '{program_status}' -> API status '{api_status}'")
+        
         try:
-            data = YelpService.get_all_programs(offset=offset, limit=limit, program_status=program_status)
-            logger.info(f"Retrieved {len(data.get('programs', []))} programs from Yelp API")
-            return Response(data)
+            # Фільтрація по business_id через БД
+            if business_id and business_id != 'all' and username:
+                logger.info(f"🔍 Filtering by business_id: {business_id}, status: {program_status}, program_type: {program_type} from DB")
+                
+                # Отримуємо program_ids для цього бізнесу з БД з фільтром по статусу та типу програми
+                program_ids = ProgramSyncService.get_program_ids_for_business(
+                    username, 
+                    business_id, 
+                    status=program_status,
+                    program_type=program_type
+                )
+                
+                if not program_ids:
+                    logger.warning(f"⚠️  No programs found for business {business_id}")
+                    return Response({
+                        'programs': [],
+                        'total_count': 0,
+                        'offset': offset,
+                        'limit': limit,
+                        'business_id': business_id,
+                        'from_db': True
+                    })
+                
+                total_count = len(program_ids)
+                logger.info(f"📊 Found {total_count} program_ids for business {business_id}")
+                
+                # Пагінація program_ids
+                paginated_ids = program_ids[offset:offset + limit]
+                
+                # Витягуємо повні дані цих програм з API
+                programs = []
+                invalid_program_ids = []
+                for program_id in paginated_ids:
+                    try:
+                        # Отримуємо програму з API
+                        # Тут можна оптимізувати batch запитом, але поки по одній
+                        program_data = YelpService.get_program_info(program_id)
+                        if program_data and program_data.get('programs'):
+                            programs.append(program_data['programs'][0])
+                        elif program_data and program_data.get('errors'):
+                            # Program ID exists in DB but not in Yelp API (stale data)
+                            logger.warning(f"⚠️  Program {program_id} not found in Yelp API (stale data): {program_data.get('errors')}")
+                            invalid_program_ids.append(program_id)
+                    except Exception as e:
+                        logger.warning(f"⚠️  Failed to get program {program_id}: {e}")
+                        continue
+                
+                if invalid_program_ids:
+                    logger.warning(f"⚠️  Found {len(invalid_program_ids)} invalid/stale program IDs in database. Sync recommended.")
+                
+                logger.info(f"✅ Returning {len(programs)} valid programs out of {len(paginated_ids)} program IDs for business {business_id}")
+                
+                # Збагачуємо програми custom_name з БД
+                programs = self.enrich_programs_with_custom_names(programs, username)
+                
+                response_data = {
+                    'programs': programs,
+                    'total_count': len(programs),  # Return actual count of valid programs
+                    'offset': offset,
+                    'limit': limit,
+                    'business_id': business_id,
+                    'from_db': True
+                }
+                
+                # Add warning if there are stale programs
+                if invalid_program_ids:
+                    response_data['warning'] = f'{len(invalid_program_ids)} programs in database no longer exist in Yelp API. Click "Sync Programs" to update.'
+                    response_data['stale_count'] = len(invalid_program_ids)
+                
+                return Response(response_data)
+            else:
+                # Фільтрація по program_type без business_id
+                if program_type and program_type != 'ALL' and username:
+                    logger.info(f"🔍 Filtering by program_type: {program_type} from DB")
+                    
+                    # Отримуємо всі program_ids з фільтром по статусу та типу
+                    query = ProgramRegistry.objects.filter(username=username)
+                    
+                    if program_status and program_status != 'ALL':
+                        query = query.filter(status=program_status)
+                    
+                    query = query.filter(program_name=program_type)
+                    
+                    program_ids = list(query.values_list('program_id', flat=True))
+                    
+                    if not program_ids:
+                        logger.warning(f"⚠️  No programs found for program_type {program_type}")
+                        return Response({
+                            'programs': [],
+                            'total_count': 0,
+                            'offset': offset,
+                            'limit': limit,
+                            'program_type': program_type,
+                            'from_db': True
+                        })
+                    
+                    total_count = len(program_ids)
+                    logger.info(f"📊 Found {total_count} program_ids for program_type {program_type}")
+                    
+                    # Пагінація program_ids
+                    paginated_ids = program_ids[offset:offset + limit]
+                    
+                    # Витягуємо повні дані цих програм з API
+                    programs = []
+                    invalid_program_ids = []
+                    for program_id in paginated_ids:
+                        try:
+                            program_data = YelpService.get_program_info(program_id)
+                            if program_data and program_data.get('programs'):
+                                programs.append(program_data['programs'][0])
+                            elif program_data and program_data.get('errors'):
+                                # Program ID exists in DB but not in Yelp API (stale data)
+                                logger.warning(f"⚠️  Program {program_id} not found in Yelp API (stale data): {program_data.get('errors')}")
+                                invalid_program_ids.append(program_id)
+                        except Exception as e:
+                            logger.warning(f"⚠️  Failed to get program {program_id}: {e}")
+                            continue
+                    
+                    if invalid_program_ids:
+                        logger.warning(f"⚠️  Found {len(invalid_program_ids)} invalid/stale program IDs in database. Sync recommended.")
+                    
+                    logger.info(f"✅ Returning {len(programs)} valid programs out of {len(paginated_ids)} program IDs for program_type {program_type}")
+                    
+                    # Збагачуємо програми custom_name з БД
+                    programs = self.enrich_programs_with_custom_names(programs, username)
+                    
+                    response_data = {
+                        'programs': programs,
+                        'total_count': len(programs),  # Return actual count of valid programs
+                        'offset': offset,
+                        'limit': limit,
+                        'program_type': program_type,
+                        'from_db': True
+                    }
+                    
+                    # Add warning if there are stale programs
+                    if invalid_program_ids:
+                        response_data['warning'] = f'{len(invalid_program_ids)} programs in database no longer exist in Yelp API. Click "Sync Programs" to update.'
+                        response_data['stale_count'] = len(invalid_program_ids)
+                    
+                    return Response(response_data)
+                else:
+                    # Без фільтру - звичайний запит до API
+                    data = YelpService.get_all_programs(
+                        offset=offset,
+                        limit=limit,
+                        program_status=api_status,  # Використовуємо змапований статус
+                        username=username
+                    )
+                    logger.info(f"Retrieved {len(data.get('programs', []))} programs from Yelp API")
+                    
+                    # Збагачуємо програми custom_name з БД
+                    if 'programs' in data:
+                        data['programs'] = self.enrich_programs_with_custom_names(data['programs'], username)
+                    
+                    return Response(data)
+                
         except Exception as e:
-            logger.error(f"Error getting programs list from Yelp API: {e}")
+            logger.error(f"Error getting programs list: {e}")
             status_code = getattr(getattr(e, 'response', None), 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
             return Response({"detail": str(e)}, status=status_code)
 
@@ -994,5 +1399,145 @@ class CustomSuggestedKeywordsView(APIView):
             logger.error(f"Error deleting custom suggested keywords for {program_id}: {e}")
             return Response(
                 {"error": f"Failed to delete custom suggested keywords: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class BusinessIdsView(APIView):
+    """
+    Повертає список унікальних business_id з локальної БД.
+    Підтримує фільтрацію по статусу програм та типу програми.
+    Business names беруться з БД (завантажуються під час синхронізації).
+    """
+    
+    def get(self, request):
+        """Отримує business IDs з БД для поточного користувача з фільтром по статусу та типу програми."""
+        from .sync_service import ProgramSyncService
+        
+        try:
+            # Get username from authenticated user
+            if not request.user or not request.user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            username = request.user.username
+            
+            # Отримуємо фільтри з query params
+            program_status = request.query_params.get('program_status', None)
+            program_type = request.query_params.get('program_type', None)
+            
+            logger.info(f"🔍 BusinessIdsView: Fetching business IDs for {username} with status filter: {program_status or 'ALL'}, program_type filter: {program_type or 'ALL'}")
+            
+            # Отримуємо business IDs з БД з фільтром по статусу та типу програми
+            businesses = ProgramSyncService.get_business_ids_for_user(
+                username, 
+                status=program_status,
+                program_type=program_type
+            )
+            
+            logger.info(f"📊 Got {len(businesses)} business IDs with names from DB")
+            
+            # Businesses вже містять business_name з БД - не треба додаткових API запитів
+            enriched_businesses = []
+            for biz in businesses:
+                enriched_businesses.append({
+                    'business_id': biz['business_id'],
+                    'business_name': biz.get('business_name', biz['business_id']),  # Фоллбек на ID
+                    'program_count': biz.get('program_count', 0),
+                    'active_count': biz.get('active_count', 0),
+                })
+            
+            logger.info(f"✅ Returning {len(enriched_businesses)} business IDs (filtered by status: {program_status or 'ALL'}, program_type: {program_type or 'ALL'})")
+            
+            return Response({
+                'total': len(enriched_businesses),
+                'businesses': enriched_businesses,
+                'from_db': True,
+                'filtered_by_status': program_status
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Error in BusinessIdsView: {e}", exc_info=True)
+            return Response(
+                {"error": f"Failed to fetch business IDs: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LogsView(APIView):
+    """
+    API endpoint for viewing application logs.
+    Useful for debugging and monitoring.
+    """
+    
+    def get(self, request):
+        """
+        Get application logs with filtering.
+        
+        Query parameters:
+        - level: Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        - hours: Number of hours to look back (default: 1)
+        - limit: Maximum number of logs to return (default: 100, max: 1000)
+        - search: Search in message or path
+        """
+        from django.db.models import Q
+        from django.utils import timezone
+        from datetime import timedelta
+        from .models import LogEntry
+        
+        try:
+            # Get query parameters
+            level = request.query_params.get('level', None)
+            hours = int(request.query_params.get('hours', 1))
+            limit = min(int(request.query_params.get('limit', 100)), 1000)  # Max 1000
+            search = request.query_params.get('search', None)
+            
+            # Base query - logs from last N hours
+            since = timezone.now() - timedelta(hours=hours)
+            logs = LogEntry.objects.filter(timestamp__gte=since)
+            
+            # Apply filters
+            if level:
+                logs = logs.filter(level=level.upper())
+            
+            if search:
+                logs = logs.filter(
+                    Q(message__icontains=search) | 
+                    Q(path__icontains=search)
+                )
+            
+            # Order and limit
+            logs = logs.order_by('-timestamp')[:limit]
+            
+            # Serialize
+            data = [{
+                'timestamp': log.timestamp.isoformat(),
+                'level': log.level,
+                'logger': log.logger_name,
+                'message': log.message,
+                'method': log.method,
+                'path': log.path,
+                'status': log.status_code,
+                'duration': log.duration,
+                'user': log.user,
+            } for log in logs]
+            
+            return Response({
+                'count': len(data),
+                'filters': {
+                    'level': level,
+                    'hours': hours,
+                    'search': search,
+                    'limit': limit,
+                },
+                'logs': data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error retrieving logs: {e}")
+            return Response(
+                {"error": f"Failed to retrieve logs: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

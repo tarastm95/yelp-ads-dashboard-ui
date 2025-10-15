@@ -122,6 +122,19 @@ export const yelpApi = createApi({
       }),
       invalidatesTags: ['Program'],
     }),
+    
+    // Update program custom name
+    updateProgramCustomName: builder.mutation<
+      { program_id: string; custom_name: string | null; message: string },
+      { program_id: string; custom_name: string }
+    >({
+      query: ({ program_id, custom_name }) => ({
+        url: `/reseller/program/${program_id}/custom-name`,
+        method: 'POST',
+        body: { custom_name },
+      }),
+      invalidatesTags: ['Program'],
+    }),
 
     // Duplicate program (create a layer)
     duplicateProgram: builder.mutation<
@@ -174,18 +187,26 @@ export const yelpApi = createApi({
     }),
 
     // 5. Get product information
-    getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number }, { offset?: number; limit?: number; program_status?: string; _forceKey?: number }>({
-      query: ({ offset = 0, limit = 20, program_status = 'CURRENT', _forceKey } = {}) => ({
+    getPrograms: builder.query<{ programs: BusinessProgram[]; total_count?: number; from_cache?: boolean; warning?: string; stale_count?: number }, { offset?: number; limit?: number; program_status?: string; business_id?: string; program_type?: string; _forceKey?: number }>({
+      query: ({ offset = 0, limit = 20, program_status = 'CURRENT', business_id, program_type, _forceKey } = {}) => ({
         url: '/reseller/programs',
-        params: { offset, limit, program_status }, // do not send _forceKey to the server
+        params: { 
+          offset, 
+          limit, 
+          program_status,
+          ...(business_id ? { business_id } : {}), // Only include business_id if provided
+          ...(program_type ? { program_type } : {}), // Only include program_type if provided
+        }, // do not send _forceKey to the server
       }),
       // Disable caching for pagination - each request must be fresh
       keepUnusedDataFor: 0,
+      // Завжди робити новий запит при зміні аргументів
+      refetchOnMountOrArgChange: true,
       // Simpler tags without complex logic
       providesTags: ['Program'],
-      // Each parameter set is a separate query key, including forceKey
+      // Each parameter set is a separate query key, including forceKey, business_id, and program_type
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
-        return `${endpointName}_${queryArgs.offset}_${queryArgs.limit}_${queryArgs.program_status}_${queryArgs._forceKey || 0}`;
+        return `${endpointName}_${queryArgs.offset}_${queryArgs.limit}_${queryArgs.program_status}_${queryArgs.business_id || 'all'}_${queryArgs.program_type || 'all'}_${queryArgs._forceKey || 0}`;
       },
     }),
 
@@ -195,6 +216,50 @@ export const yelpApi = createApi({
         { type: 'Program', id: program_id },
         'Program'
       ],
+    }),
+
+    getBusinessIds: builder.query<{ 
+      total: number; 
+      businesses: Array<{
+        business_id: string;
+        business_name: string;
+        program_count: number;
+        active_count: number;
+      }>;
+      filtered_by_status?: string;
+    }, { programStatus?: string; programType?: string } | undefined>({
+      query: (args) => {
+        // Якщо передано статус або тип - додаємо як параметри
+        const params = new URLSearchParams();
+        if (args?.programStatus) {
+          params.append('program_status', args.programStatus);
+        }
+        if (args?.programType) {
+          params.append('program_type', args.programType);
+        }
+        const queryString = params.toString();
+        return `/reseller/business-ids${queryString ? `?${queryString}` : ''}`;
+      },
+      keepUnusedDataFor: 10, // Короткий кеш бо дані залежать від статусу та типу
+      providesTags: (result, error, args) => [
+        { type: 'Program' as const, id: `business-ids-${args?.programStatus || 'all'}-${args?.programType || 'all'}` }
+      ],
+    }),
+
+    // Sync programs to database
+    syncPrograms: builder.mutation<{
+      total_api: number;
+      total_db_before: number;
+      total_db_after: number;
+      added: number;
+      status: string;
+      message: string;
+    }, void>({
+      query: () => ({
+        url: '/reseller/programs/sync',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Program'], // Refresh programs list after sync
     }),
 
     // 6. Get encrypted business_id
@@ -429,6 +494,7 @@ export const {
   useCreateProgramMutation,
   useEditProgramMutation,
   useTerminateProgramMutation,
+  useUpdateProgramCustomNameMutation,
   useDuplicateProgramMutation,
   usePauseProgramMutation,
   useResumeProgramMutation,
@@ -438,6 +504,8 @@ export const {
   useGetJobHistoryQuery,
   useGetProgramsQuery,
   useGetProgramInfoQuery,
+  useGetBusinessIdsQuery,
+  useSyncProgramsMutation,
   useGetBusinessMatchesQuery,
   useGetBusinessProgramsQuery,
   useLazyGetBusinessProgramsQuery,

@@ -4,8 +4,13 @@ import {
   useTerminateProgramMutation,
   usePauseProgramMutation,
   useResumeProgramMutation,
-  useDuplicateProgramMutation
+  useDuplicateProgramMutation,
+  useUpdateProgramCustomNameMutation,
+  useGetBusinessIdsQuery,
+  useSyncProgramsMutation
 } from '../store/api/yelpApi';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +21,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import ApiErrorMessage from './ApiErrorMessage';
 import DuplicateProgramDialog, { DuplicateFormData } from './DuplicateProgramDialog';
+import InlineTaskMonitor from './InlineTaskMonitor';
 import { BusinessProgram } from '../types/yelp';
 
 const ProgramsList: React.FC = () => {
@@ -25,14 +31,74 @@ const ProgramsList: React.FC = () => {
   const savedOffset = sessionStorage.getItem('programsList_offset');
   const savedLimit = sessionStorage.getItem('programsList_limit');
   const savedStatus = sessionStorage.getItem('programsList_status');
+  const savedProgramType = sessionStorage.getItem('programsList_programType');
   
   const [offset, setOffset] = useState(savedOffset ? parseInt(savedOffset) : 0);
   const [limit, setLimit] = useState(savedLimit ? parseInt(savedLimit) : 20);
+  
+  // Активні фільтри (використовуються для запиту)
   const [programStatus, setProgramStatus] = useState(savedStatus || 'CURRENT');
+  const [programType, setProgramType] = useState(savedProgramType || 'ALL');
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>(
+    sessionStorage.getItem('programsList_businessId') || 'all'
+  );
+  
+  // Тимчасові фільтри (редагуються користувачем до натискання "Пошук")
+  const [tempProgramStatus, setTempProgramStatus] = useState(savedStatus || 'CURRENT');
+  const [tempProgramType, setTempProgramType] = useState(savedProgramType || 'ALL');
+  const [tempSelectedBusinessId, setTempSelectedBusinessId] = useState<string>(
+    sessionStorage.getItem('programsList_businessId') || 'all'
+  );
+  
   const [isChangingPage, setIsChangingPage] = useState(false); // Page switching state
+  
+  // Loading state for business change
+  const [isChangingBusiness, setIsChangingBusiness] = useState(false);
   
   // Create a unique key to force refresh
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  
+  // Fetch business IDs for dropdown based on TEMPORARY filters (before search)
+  const { data: businessIdsData, refetch: refetchBusinessIds } = useGetBusinessIdsQuery({ 
+    programStatus: tempProgramStatus, 
+    programType: tempProgramType !== 'ALL' ? tempProgramType : undefined 
+  });
+  
+  // Refetch business IDs when TEMPORARY filters change (dynamically updates dropdown)
+  useEffect(() => {
+    console.log('🔄 [FILTER-CHANGE] Temp filters changed:', tempProgramStatus, tempProgramType);
+    refetchBusinessIds();
+  }, [tempProgramStatus, tempProgramType, refetchBusinessIds]);
+  
+  // Debug: log business IDs data
+  useEffect(() => {
+    console.log('📊 [DEBUG] businessIdsData:', businessIdsData);
+  }, [businessIdsData]);
+  
+  // Функція для застосування фільтрів (викликається кнопкою "Пошук")
+  const handleApplyFilters = async () => {
+    console.log('🔍 [SEARCH] Applying filters:', {
+      status: tempProgramStatus,
+      type: tempProgramType,
+      business: tempSelectedBusinessId
+    });
+    
+    setIsChangingPage(true);
+    
+    // Застосовуємо фільтри
+    setProgramStatus(tempProgramStatus);
+    setProgramType(tempProgramType);
+    setSelectedBusinessId(tempSelectedBusinessId);
+    
+    // Скидаємо на першу сторінку
+    setOffset(0);
+    
+    // Синхронізуємо один раз
+    await handleSyncWithSSE(true);
+    
+    // Оновлюємо дані
+    setForceRefreshKey(prev => prev + 1);
+  };
   
   // State for quick page jump
   const [jumpToPage, setJumpToPage] = useState('');
@@ -42,7 +108,9 @@ const ProgramsList: React.FC = () => {
     sessionStorage.setItem('programsList_offset', offset.toString());
     sessionStorage.setItem('programsList_limit', limit.toString());
     sessionStorage.setItem('programsList_status', programStatus);
-  }, [offset, limit, programStatus]);
+    sessionStorage.setItem('programsList_programType', programType);
+    sessionStorage.setItem('programsList_businessId', selectedBusinessId);
+  }, [offset, limit, programStatus, programType, selectedBusinessId]);
 
   // Generate page numbers with ellipsis
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
@@ -107,23 +175,24 @@ const ProgramsList: React.FC = () => {
     }
   };
   
-  // Regular programs with auto-refresh every 30 seconds
-  const { data, isLoading, error, isError, refetch } = useGetProgramsQuery({
+  // Regular programs without auto-refresh
+  const { data, isLoading, isFetching, error, isError, refetch } = useGetProgramsQuery({
     offset: offset, 
     limit: limit,
     program_status: programStatus,
+    business_id: selectedBusinessId !== 'all' ? selectedBusinessId : undefined,
+    program_type: programType !== 'ALL' ? programType : undefined,
     // Add force refresh key
     _forceKey: forceRefreshKey
-  }, {
-    pollingInterval: 30000, // Auto-refresh every 30 seconds
   });
 
   // Reset page switching state when data loaded or error
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isFetching) {
       setIsChangingPage(false);
+      setIsChangingBusiness(false);
     }
-  }, [isLoading]);
+  }, [isLoading, isFetching]);
 
   // Additional safety: reset state after timeout if something wrong
   useEffect(() => {
@@ -138,44 +207,193 @@ const ProgramsList: React.FC = () => {
     }
   }, [isChangingPage]);
   
+  // Safety timeout for business change
+  useEffect(() => {
+    if (isChangingBusiness) {
+      const timeoutId = setTimeout(() => {
+        setIsChangingBusiness(false);
+      }, 15000); // max 15 seconds (може бути довше ніж page switch)
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [isChangingBusiness]);
+  
   // State declarations FIRST (before using them)
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
   const [resumeProgram] = useResumeProgramMutation();
   const [duplicateProgram, { isLoading: isDuplicating }] = useDuplicateProgramMutation();
+  const [syncPrograms, { isLoading: isSyncing, data: syncData, error: syncError }] = useSyncProgramsMutation();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
   
   // State for duplicate dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
   
+  // State for active tasks monitoring
+  const [activeTasks, setActiveTasks] = useState<Record<string, { jobId: string; taskType: 'terminate' | 'pause' | 'resume' }>>({});
+  
+  // State for sync progress
+  const [showSyncProgress, setShowSyncProgress] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
+  
+  // State for editing custom name
+  const [editingCustomName, setEditingCustomName] = useState<string | null>(null);
+  const [customNameValue, setCustomNameValue] = useState<string>('');
+  
+  // Mutation for updating custom name
+  const [updateProgramCustomName] = useUpdateProgramCustomNameMutation();
+  
   // Track locally terminated programs (for immediate removal)
   // Restore from sessionStorage on mount
-  const getInitialTerminatedIds = (): Set<string> => {
+  // Removed terminatedProgramIds logic - no more local filtering
+  
+  // Get credentials from Redux state
+  const { username: reduxUsername, password: reduxPassword } = useSelector((state: RootState) => state.auth);
+  
+  // Fallback to localStorage if Redux state is empty
+  const getCredentialsFromStorage = () => {
     try {
-      const saved = sessionStorage.getItem('terminatedProgramIds');
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch {
-      return new Set();
+      const state = JSON.parse(localStorage.getItem('persist:root') || '{}');
+      const authState = state.auth ? JSON.parse(state.auth) : {};
+      return {
+        username: authState.username || '',
+        password: authState.password || ''
+      };
+    } catch (error) {
+      console.error('Error parsing localStorage:', error);
+      return { username: '', password: '' };
     }
   };
   
-  const [terminatedProgramIds, setTerminatedProgramIds] = useState<Set<string>>(getInitialTerminatedIds());
+  const { username, password } = reduxUsername && reduxPassword 
+    ? { username: reduxUsername, password: reduxPassword }
+    : getCredentialsFromStorage();
   
-  // Save terminated IDs to sessionStorage whenever they change
+  // Check if user is authenticated
+  const isAuthenticated = !!(username && password);
+  
+  // SSE-based sync with real-time progress
+  const handleSyncWithSSE = async (isAutomatic: boolean = false) => {
+    try {
+      console.log(`🔄 [SSE] ${isAutomatic ? 'Automatic' : 'Manual'} sync triggered`);
+      setShowSyncProgress(true);
+      setSyncResult({ type: 'start', message: 'Checking for updates...' });
+      
+      if (!username || !password) {
+        console.error('❌ [SSE] No credentials found! Redirecting to login...');
+        if (!isAutomatic) {
+          alert('Please login first to sync programs');
+        }
+        navigate('/login');
+        return;
+      }
+      
+      // Create EventSource for SSE
+      // Note: EventSource doesn't support custom headers, so we need to use fetch with streaming
+      const response = await fetch('/api/reseller/programs/sync-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${btoa(`${username}:${password}`)}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+      
+      console.log('📡 [SSE] Connected to sync stream');
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          console.log('✅ [SSE] Stream completed');
+          break;
+        }
+        
+        // Decode chunk
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        // Parse SSE events
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
+              console.log('📊 [SSE] Event received:', eventData);
+              
+              // Update state with progress
+              setSyncResult(eventData);
+              
+              // If complete or error, schedule hiding
+              if (eventData.type === 'complete' || eventData.type === 'error') {
+                // Refresh business IDs and programs after sync
+                setTimeout(() => {
+                  refetch();
+                  refetchBusinessIds();
+                  console.log('🔄 [SSE] Refreshing programs and business IDs');
+                }, 500);
+                
+                // Hide progress bar after delay
+                setTimeout(() => {
+                  setShowSyncProgress(false);
+                  setSyncResult(null);
+                  console.log('✅ [SSE] Progress bar hidden');
+                }, 5000);
+              }
+              
+            } catch (e) {
+              console.error('❌ [SSE] Failed to parse event:', e);
+            }
+          }
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('❌ [SSE] Sync failed:', error);
+      setSyncResult({
+        type: 'error',
+        message: error?.message || 'Sync failed'
+      });
+      
+      // Hide after error
+      setTimeout(() => {
+        setShowSyncProgress(false);
+        setSyncResult(null);
+      }, 5000);
+    }
+  };
+  
+  // Manual sync button handler
+  const handleSyncClick = () => {
+    handleSyncWithSSE(false);
+  };
+  
+  // Auto-sync on component mount
   useEffect(() => {
-    sessionStorage.setItem('terminatedProgramIds', JSON.stringify(Array.from(terminatedProgramIds)));
-  }, [terminatedProgramIds]);
+    if (isAuthenticated) {
+      console.log('🚀 [AUTO-SYNC] Component mounted, starting automatic sync...');
+      handleSyncWithSSE(true);
+    }
+  }, []); // Run only once on mount
   
   // Get programs from API and filter out terminated/inactive ones
+  // Note: business_id filtering is now done on backend, not here
   const allPrograms = data?.programs || [];
   const programs = allPrograms.filter(program => {
-    // FIRST: Filter out locally terminated programs (optimistic update)
-    if (terminatedProgramIds.has(program.program_id)) {
-      return false;
-    }
-    
-    // SECOND: Filter out INACTIVE and TERMINATED programs when viewing CURRENT
+    // Filter out INACTIVE and TERMINATED programs when viewing CURRENT
     if (programStatus === 'CURRENT') {
       return program.program_status !== 'INACTIVE' && 
              program.program_status !== 'TERMINATED' &&
@@ -230,18 +448,28 @@ const ProgramsList: React.FC = () => {
   const handleTerminate = async (programId: string) => {
     setLoadingActions(prev => ({ ...prev, [`${programId}-terminate`]: true }));
     try {
-      await terminateProgram(programId).unwrap();
+      const result = await terminateProgram(programId).unwrap();
       
-      // Immediately add to terminated list for optimistic update
-      setTerminatedProgramIds(prev => new Set(prev).add(programId));
-      
-      toast({
-        title: "Program Terminated",
-        description: `Program ${programId} has been removed from the list`,
-      });
-      
-      // Refresh in background to sync with Yelp
-      setTimeout(() => refetch(), 3000);
+      // Якщо є job_id - показуємо моніторинг
+      if (result?.job_id) {
+        setActiveTasks(prev => ({
+          ...prev,
+          [programId]: { jobId: result.job_id, taskType: 'terminate' }
+        }));
+        
+        toast({
+          title: "Program Termination Started",
+          description: `Task ${result.job_id} is now being monitored`,
+        });
+      } else {
+        toast({
+          title: "Program Terminated",
+          description: `Program ${programId} has been terminated`,
+        });
+        
+        // Refresh in background
+        setTimeout(() => refetch(), 3000);
+      }
       
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
@@ -255,27 +483,113 @@ const ProgramsList: React.FC = () => {
     }
   };
 
-  const handlePause = (programId: string) => {
-    handleAction(
-      () => pauseProgram(programId).unwrap(),
-      programId,
-      "Program paused",
-      "pause"
-    );
+  const handlePause = async (programId: string) => {
+    setLoadingActions(prev => ({ ...prev, [`${programId}-pause`]: true }));
+    try {
+      const result = await pauseProgram(programId).unwrap();
+      
+      // Якщо є job_id - показуємо моніторинг
+      if (result?.job_id) {
+        setActiveTasks(prev => ({
+          ...prev,
+          [programId]: { jobId: result.job_id, taskType: 'pause' }
+        }));
+        
+        toast({
+          title: "Program Pause Started",
+          description: `Task ${result.job_id} is now being monitored`,
+        });
+      } else {
+        toast({
+          title: "Program Paused",
+          description: `Program ${programId} has been paused`,
+        });
+      }
+      
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
+      toast({
+        title: title || "Pause Failed",
+        description,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`${programId}-pause`]: false }));
+    }
   };
 
-  const handleResume = (programId: string) => {
-    handleAction(
-      () => resumeProgram(programId).unwrap(),
-      programId,
-      "Program resumed",
-      "resume"
-    );
+  const handleResume = async (programId: string) => {
+    setLoadingActions(prev => ({ ...prev, [`${programId}-resume`]: true }));
+    try {
+      const result = await resumeProgram(programId).unwrap();
+      
+      // Якщо є job_id - показуємо моніторинг
+      if (result?.job_id) {
+        setActiveTasks(prev => ({
+          ...prev,
+          [programId]: { jobId: result.job_id, taskType: 'resume' }
+        }));
+        
+        toast({
+          title: "Program Resume Started",
+          description: `Task ${result.job_id} is now being monitored`,
+        });
+      } else {
+        toast({
+          title: "Program Resumed",
+          description: `Program ${programId} has been resumed`,
+        });
+      }
+      
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
+      toast({
+        title: title || "Resume Failed",
+        description,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`${programId}-resume`]: false }));
+    }
   };
 
   const handleDuplicateClick = (program: BusinessProgram) => {
     setProgramToDuplicate(program);
     setShowDuplicateDialog(true);
+  };
+  
+  const handleCustomNameEdit = (programId: string, currentName: string | null | undefined) => {
+    setEditingCustomName(programId);
+    setCustomNameValue(currentName || '');
+  };
+  
+  const handleCustomNameSave = async (programId: string) => {
+    try {
+      await updateProgramCustomName({
+        program_id: programId,
+        custom_name: customNameValue.trim() || '',
+      }).unwrap();
+      
+      toast({
+        title: "Name Updated",
+        description: "Program custom name has been updated successfully",
+      });
+      
+      setEditingCustomName(null);
+      refetch(); // Refresh the list to show new name
+    } catch (error: any) {
+      const { title, description } = formatErrorForToast(error);
+      toast({
+        title: title || "Update Failed",
+        description,
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleCustomNameCancel = () => {
+    setEditingCustomName(null);
+    setCustomNameValue('');
   };
 
   const handleDuplicateConfirm = async (data: DuplicateFormData) => {
@@ -311,8 +625,8 @@ const ProgramsList: React.FC = () => {
     }
   };
 
-  // Show main loader only on initial load (not during page switch)
-  if (isLoading && !isChangingPage) {
+  // Show main loader only on initial load (not during page switch or business change)
+  if (isLoading && !isChangingPage && !isChangingBusiness) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -342,26 +656,138 @@ const ProgramsList: React.FC = () => {
             Manage programs via Yelp Advertising API
           </p>
         </div>
-        <Button onClick={() => navigate('/create')}>Create Program</Button>
+        <div className="flex gap-2">
+          {isAuthenticated ? (
+            <Button onClick={handleSyncClick} disabled={isSyncing}>
+              {isSyncing ? 'Syncing...' : 'Sync Programs'}
+            </Button>
+          ) : (
+            <Button onClick={() => navigate('/login')} variant="outline">
+              Login to Sync
+            </Button>
+          )}
+          <Button onClick={() => navigate('/create')}>Create Program</Button>
+        </div>
       </div>
 
-
+      {/* Sync Progress Bar - SSE Version */}
+      {showSyncProgress && syncResult && (
+        <Card className={
+          syncResult.type === 'error'
+            ? "border-red-200 bg-red-50"
+            : syncResult.type === 'complete' && syncResult.status === 'up_to_date'
+            ? "border-green-200 bg-green-50"
+            : "border-blue-200 bg-blue-50"
+        }>
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* Loading spinner or checkmark */}
+                  {(syncResult.type === 'start' || syncResult.type === 'info' || syncResult.type === 'progress') ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  ) : syncResult.type === 'error' ? (
+                    <div className="h-5 w-5 rounded-full flex items-center justify-center bg-red-600">
+                      <span className="text-white text-xs">✗</span>
+                    </div>
+                  ) : (
+                    <div className="h-5 w-5 rounded-full flex items-center justify-center bg-green-600">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h3 className={`font-semibold ${
+                      syncResult.type === 'error' ? 'text-red-900' :
+                      syncResult.type === 'complete' ? 'text-green-900' :
+                      'text-blue-900'
+                    }`}>
+                      {/* Display title based on event type */}
+                      {syncResult.type === 'start' && '🔄 Starting synchronization...'}
+                      {syncResult.type === 'info' && `📊 Found ${syncResult.to_sync || 0} programs to sync`}
+                      {syncResult.type === 'progress' && `⏳ Syncing programs... ${syncResult.synced}/${syncResult.total}`}
+                      {syncResult.type === 'complete' && syncResult.status === 'up_to_date' && '✅ Already up to date'}
+                      {syncResult.type === 'complete' && syncResult.status === 'synced' && `✅ Synced ${syncResult.added} new programs`}
+                      {syncResult.type === 'error' && '❌ Sync failed'}
+                    </h3>
+                    <p className={`text-sm ${
+                      syncResult.type === 'error' ? 'text-red-700' :
+                      syncResult.type === 'complete' ? 'text-green-700' :
+                      'text-blue-700'
+                    }`}>
+                      {syncResult.message || ''}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Show percentage for progress */}
+                {syncResult.type === 'progress' && (
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {syncResult.percentage || 0}%
+                    </div>
+                    <p className="text-xs text-blue-600">
+                      {syncResult.added || 0} new
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Progress bar - only show during sync */}
+              {syncResult.type === 'progress' && (
+                <Progress 
+                  value={syncResult.percentage || 0} 
+                  className="h-2"
+                />
+              )}
+              
+              {/* Details */}
+              {syncResult.type === 'progress' && (
+                <div className="text-xs text-blue-600">
+                  <p>Synchronized {syncResult.synced || 0} of {syncResult.total || 0} programs</p>
+                  <p>Added {syncResult.added || 0} new programs</p>
+                </div>
+              )}
+              
+              {syncResult.type === 'info' && (
+                <div className="text-xs text-blue-600">
+                  <p>API Total: {syncResult.total_api || 0} programs</p>
+                  <p>Database: {syncResult.total_db || 0} programs</p>
+                  {syncResult.to_sync > 0 && <p>Need to sync: {syncResult.to_sync} programs</p>}
+                </div>
+              )}
+              
+              {syncResult.type === 'complete' && (
+                <div className="text-xs text-green-600">
+                  {syncResult.status === 'up_to_date' && <p>All {syncResult.total_synced || 0} programs are already synchronized</p>}
+                  {syncResult.status === 'synced' && (
+                    <>
+                      <p>✅ Successfully added {syncResult.added || 0} new programs</p>
+                      <p>Total programs in database: {syncResult.total_synced || 0}</p>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {syncResult.type === 'error' && (
+                <div className="text-xs text-red-600">
+                  <p>Error: {syncResult.message}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters and pagination */}
       <div>
         <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center flex-wrap">
             <div>
               <label className="text-sm font-medium">Status:</label>
               <select 
-                value={programStatus} 
-                onChange={(e) => {
-                  setIsChangingPage(true);
-                  setProgramStatus(e.target.value);
-                  setOffset(0); // Reset to first page
-                  // Force update data via forceKey
-                  setForceRefreshKey(prev => prev + 1);
-                }}
+                value={tempProgramStatus} 
+                onChange={(e) => setTempProgramStatus(e.target.value)}
                 className="ml-2 border rounded px-2 py-1"
               >
                 <option value="CURRENT">CURRENT</option>
@@ -372,11 +798,93 @@ const ProgramsList: React.FC = () => {
               </select>
             </div>
 
+            <div>
+              <label className="text-sm font-medium">Business:</label>
+              <select 
+                value={tempSelectedBusinessId} 
+                onChange={(e) => setTempSelectedBusinessId(e.target.value)}
+                className="ml-2 border-2 border-gray-300 rounded-lg px-4 py-2 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-w-[300px] text-sm font-medium shadow-sm"
+              >
+                <option value="all" className="font-semibold">📊 All Businesses ({businessIdsData?.total || 0})</option>
+                {businessIdsData?.businesses.map((business) => (
+                  <option 
+                    key={business.business_id} 
+                    value={business.business_id}
+                    className="py-2"
+                  >
+                    🏢 {business.business_name || business.business_id} • {business.business_id.substring(0, 12)}... ({business.program_count})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Program Type:</label>
+              <select 
+                value={tempProgramType} 
+                onChange={(e) => setTempProgramType(e.target.value)}
+                className="ml-2 border rounded px-2 py-1"
+              >
+                <option value="ALL">ALL</option>
+                <option value="BP">BP – Branded Profile</option>
+                <option value="EP">EP – Enhanced Profile</option>
+                <option value="CPC">CPC – Cost Per Click ads</option>
+                <option value="RCA">RCA – Remove Competitor Ads</option>
+                <option value="CTA">CTA – Call To Action</option>
+                <option value="SLIDESHOW">SLIDESHOW – Slideshow</option>
+                <option value="BH">BH – Business Highlights</option>
+                <option value="VL">VL – Verified License</option>
+                <option value="LOGO">LOGO – Logo Feature</option>
+                <option value="PORTFOLIO">PORTFOLIO – Portfolio Feature</option>
+              </select>
+            </div>
+
+            {/* Search button */}
+            <Button
+              onClick={handleApplyFilters}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
+              disabled={isChangingPage || isLoading || isFetching}
+            >
+              🔍 Search
+            </Button>
+
           </div>
         </div>
       </div>
 
-      {programs.length === 0 ? (
+      {/* Warning banner for stale programs */}
+      {data?.warning && (
+        <Card className="border-yellow-300 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-yellow-900">Stale Programs Detected</h3>
+                <p className="text-sm text-yellow-800 mt-1">{data.warning}</p>
+                {data.stale_count && (
+                  <p className="text-xs text-yellow-700 mt-2">
+                    {data.stale_count} program{data.stale_count > 1 ? 's' : ''} in your database no longer exist in the Yelp API.
+                  </p>
+                )}
+              </div>
+              <Button
+                onClick={handleSyncClick}
+                disabled={isSyncing}
+                className="flex-shrink-0 bg-yellow-600 hover:bg-yellow-700 text-white"
+                size="sm"
+              >
+                {isSyncing ? 'Syncing...' : 'Sync Now'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {programs.length === 0 && !isLoading && !isFetching ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -384,31 +892,50 @@ const ProgramsList: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+      ) : programs.length === 0 && (isLoading || isFetching) ? (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900">
+              Loading programs...
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Please wait...
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
-          {/* Show loader instead of list during page switching */}
-          {(isLoading || isChangingPage) ? (
+          {/* Show loader instead of list during page switching, business change, or fetching */}
+          {(isLoading || isFetching || isChangingPage || isChangingBusiness) ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
               <div className="text-center">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {isChangingPage ? 'Switching page...' : 'Loading programs...'}
+                  {isChangingBusiness 
+                    ? 'Changing business...' 
+                    : isChangingPage 
+                      ? 'Switching page...' 
+                      : 'Loading programs...'}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
-                  {isChangingPage 
-                    ? `Loading page ${Math.floor(offset / limit) + 1}...`
-                    : 'Please wait...'
+                  {isChangingBusiness
+                    ? 'Loading programs for selected business...'
+                    : isChangingPage 
+                      ? `Loading page ${Math.floor(offset / limit) + 1}...`
+                      : 'Please wait...'
                   }
                 </p>
               </div>
             </div>
           ) : (
-            /* Programs list */
+            /* List View */
           <div className="grid gap-4">
             {programs.map((program, index) => {
               const isTerminating = loadingActions[`${program.program_id}-terminate`];
               
               return (
+              <>
               <Card key={program.program_id || `program-${index}`} className={`relative hover:shadow-lg transition-shadow ${isTerminating ? 'opacity-60' : ''}`}>
                 {/* Terminating Overlay */}
                 {isTerminating && (
@@ -447,6 +974,63 @@ const ProgramsList: React.FC = () => {
                       </span>
                     </div>
                   </CardTitle>
+                  
+                  {/* Custom Name Section */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {editingCustomName === program.program_id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={customNameValue}
+                              onChange={(e) => setCustomNameValue(e.target.value)}
+                              placeholder="Enter custom name..."
+                              className="flex-1"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleCustomNameSave(program.program_id);
+                                } else if (e.key === 'Escape') {
+                                  handleCustomNameCancel();
+                                }
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleCustomNameSave(program.program_id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCustomNameCancel}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <span className="text-xs text-gray-500 uppercase font-semibold">Custom Name:</span>
+                              <p className="text-sm font-medium mt-1">
+                                {program.custom_name || <span className="text-gray-400 italic">No custom name set</span>}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleCustomNameEdit(program.program_id, program.custom_name)}
+                              className="ml-auto"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -456,8 +1040,31 @@ const ProgramsList: React.FC = () => {
                         <p className="font-mono text-xs break-all">{program.program_id}</p>
                       </div>
                       <div>
-                        <strong>Business ID:</strong>
-                        <p className="font-mono text-xs break-all">{program.yelp_business_id || 'N/A'}</p>
+                        <strong>Business:</strong>
+                        <div className="flex flex-col gap-1">
+                          {program.business_name && (
+                            <p className="font-medium text-blue-600">
+                              {program.business_url ? (
+                                <a 
+                                  href={program.business_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="hover:underline flex items-center gap-1"
+                                >
+                                  {program.business_name}
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              ) : (
+                                program.business_name
+                              )}
+                            </p>
+                          )}
+                          <p className="font-mono text-xs text-gray-500 break-all">
+                            ID: {program.yelp_business_id || 'N/A'}
+                          </p>
+                        </div>
                       </div>
                       <div>
                         <strong>Dates:</strong>
@@ -599,9 +1206,12 @@ const ProgramsList: React.FC = () => {
                         disabled={
                           loadingActions[`${program.program_id}-terminate`] ||
                           !program.program_id ||
-                          program.program_status === 'INACTIVE' || 
+                          // Забороняємо terminate тільки для:
+                          // 1. TERMINATED/EXPIRED статусів
+                          // 2. Програм з end_date в минулому (завершені)
                           program.program_status === 'TERMINATED' ||
-                          program.program_status === 'EXPIRED'
+                          program.program_status === 'EXPIRED' ||
+                          (program.end_date && new Date(program.end_date) < new Date())
                         }
                       >
                         {loadingActions[`${program.program_id}-terminate`] ? (
@@ -609,8 +1219,10 @@ const ProgramsList: React.FC = () => {
                         ) : (
                           <Trash2 className="w-4 h-4 mr-1" />
                         )}
-                        {program.program_status === 'INACTIVE' || program.program_status === 'TERMINATED' || program.program_status === 'EXPIRED' ? 
-                          'Inactive' : 'Terminate'
+                        {program.program_status === 'TERMINATED' || 
+                         program.program_status === 'EXPIRED' ||
+                         (program.end_date && new Date(program.end_date) < new Date()) ? 
+                          'Expired' : 'Terminate'
                         }
                       </Button>
 
@@ -679,7 +1291,25 @@ const ProgramsList: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-              );
+              
+              {/* Inline Task Monitor */}
+              {activeTasks[program.program_id] && (
+                <InlineTaskMonitor
+                  jobId={activeTasks[program.program_id].jobId}
+                  taskType={activeTasks[program.program_id].taskType}
+                  onClose={() => {
+                    setActiveTasks(prev => {
+                      const newState = { ...prev };
+                      delete newState[program.program_id];
+                      return newState;
+                    });
+                    // Refetch programs after closing monitor
+                    refetch();
+                  }}
+                />
+              )}
+              </>
+            );
             })}
           </div>
           )}
@@ -820,16 +1450,16 @@ const ProgramsList: React.FC = () => {
                       )}
                       
                       {/* Next page */}
-              <Button
-                variant="outline"
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => goToPage(currentPage + 1)}
                         disabled={currentPage === totalPages}
                         className="px-2"
                       >
                         <ChevronRight className="h-4 w-4" />
-              </Button>
-              
+                      </Button>
+                      
                       {/* Last page */}
                       <Button
                         variant="outline"
@@ -845,41 +1475,43 @@ const ProgramsList: React.FC = () => {
                 })()}
               </div>
               
-                            {/* Quick page jump */}
-              {(() => {
-                const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
-                if (totalPages > 10) {
-                  return (
-                    <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2 text-sm">
-                      <span className="text-gray-600">Go to page:</span>
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={totalPages}
-                          value={jumpToPage}
-                          onChange={(e) => setJumpToPage(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleJumpToPage();
-                            }
-                          }}
-                          className="w-20 h-8 text-center"
-                          placeholder="#"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={handleJumpToPage}
-                          disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > totalPages}
-                        >
-                          Go
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                }
-              return null;
-              })()}
+              {/* Quick Jump Input with "Go" button */}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  max={Math.ceil((data?.total_count || 0) / limit)}
+                  placeholder="Jump to..."
+                  value={jumpToPage}
+                  onChange={(e) => setJumpToPage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && jumpToPage) {
+                      const page = parseInt(jumpToPage);
+                      if (!isNaN(page) && page >= 1 && page <= Math.ceil((data?.total_count || 0) / limit)) {
+                        goToPage(page);
+                        setJumpToPage('');
+                      }
+                    }
+                  }}
+                  className="w-24 h-8 text-sm"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (jumpToPage) {
+                      const page = parseInt(jumpToPage);
+                      if (!isNaN(page) && page >= 1 && page <= Math.ceil((data?.total_count || 0) / limit)) {
+                        goToPage(page);
+                        setJumpToPage('');
+                      }
+                    }
+                  }}
+                  disabled={!jumpToPage || isNaN(parseInt(jumpToPage)) || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > Math.ceil((data?.total_count || 0) / limit)}
+                  className="h-8 px-3 text-xs"
+                >
+                  Go
+                </Button>
+              </div>
             </div>
           )}
         </div>
