@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  useGetProgramsQuery, 
+import {
   useTerminateProgramMutation,
   usePauseProgramMutation,
   useResumeProgramMutation,
   useDuplicateProgramMutation,
   useUpdateProgramCustomNameMutation,
-  useGetBusinessIdsQuery,
   useSyncProgramsMutation
 } from '../store/api/yelpApi';
 import { useSelector } from 'react-redux';
@@ -23,6 +21,12 @@ import ApiErrorMessage from './ApiErrorMessage';
 import DuplicateProgramDialog, { DuplicateFormData } from './DuplicateProgramDialog';
 import InlineTaskMonitor from './InlineTaskMonitor';
 import { BusinessProgram } from '../types/yelp';
+import useProgramsSearch from '../hooks/useProgramsSearch';
+import {
+  buildBusinessOptions,
+  filterPrograms,
+  formatBusinessOptionLabel,
+} from '../lib/programFilters';
 
 const ProgramsList: React.FC = () => {
   const navigate = useNavigate();
@@ -50,30 +54,14 @@ const ProgramsList: React.FC = () => {
     sessionStorage.getItem('programsList_businessId') || 'all'
   );
   
-  const [isChangingPage, setIsChangingPage] = useState(false); // Page switching state
   
-  // Loading state for business change
-  const [isChangingBusiness, setIsChangingBusiness] = useState(false);
-  
-  // Create a unique key to force refresh
-  const [forceRefreshKey, setForceRefreshKey] = useState(0);
-  
-  // Fetch business IDs for dropdown based on TEMPORARY filters (before search)
-  const { data: businessIdsData, refetch: refetchBusinessIds } = useGetBusinessIdsQuery({ 
-    programStatus: tempProgramStatus, 
-    programType: tempProgramType !== 'ALL' ? tempProgramType : undefined 
-  });
-  
-  // Refetch business IDs when TEMPORARY filters change (dynamically updates dropdown)
   useEffect(() => {
     console.log('🔄 [FILTER-CHANGE] Temp filters changed:', tempProgramStatus, tempProgramType);
-    refetchBusinessIds();
-  }, [tempProgramStatus, tempProgramType, refetchBusinessIds]);
-  
-  // Debug: log business IDs data
+  }, [tempProgramStatus, tempProgramType]);
+
   useEffect(() => {
-    console.log('📊 [DEBUG] businessIdsData:', businessIdsData);
-  }, [businessIdsData]);
+    console.log('📊 [DEBUG] businessOptions:', businessOptions);
+  }, [businessOptions]);
   
   // Функція для застосування фільтрів (викликається кнопкою "Пошук")
   const handleApplyFilters = async () => {
@@ -82,22 +70,12 @@ const ProgramsList: React.FC = () => {
       type: tempProgramType,
       business: tempSelectedBusinessId
     });
-    
-    setIsChangingPage(true);
-    
-    // Застосовуємо фільтри
+    await ensureStatus(tempProgramStatus);
+
     setProgramStatus(tempProgramStatus);
     setProgramType(tempProgramType);
     setSelectedBusinessId(tempSelectedBusinessId);
-    
-    // Скидаємо на першу сторінку
     setOffset(0);
-    
-    // Синхронізуємо один раз
-    await handleSyncWithSSE(true);
-    
-    // Оновлюємо дані
-    setForceRefreshKey(prev => prev + 1);
   };
   
   // State for quick page jump
@@ -156,70 +134,95 @@ const ProgramsList: React.FC = () => {
     return pages;
   };
 
-  // Navigate to page
-  const goToPage = (page: number) => {
-    const newOffset = (page - 1) * limit;
-    setIsChangingPage(true);
-    setOffset(newOffset);
-    setForceRefreshKey(prev => prev + 1);
-  };
+  const {
+    programs: cachedPrograms,
+    totalCount: cachedTotal,
+    fetchedAt,
+    warning,
+    staleCount,
+    fromCache,
+    isLoading: isLoadingPrograms,
+    isFetching: isFetchingPrograms,
+    error: programsError,
+    refresh: refreshPrograms,
+    ensureStatus,
+    getCachedEntry,
+    isStatusFetching,
+    cacheVersion,
+  } = useProgramsSearch(programStatus);
 
-  // Handle quick page jump
-  const handleJumpToPage = () => {
-    const pageNumber = parseInt(jumpToPage);
-    const totalPages = data?.total_count ? Math.ceil(data.total_count / limit) : 1;
-    
+  useEffect(() => {
+    if (tempProgramStatus !== programStatus) {
+      ensureStatus(tempProgramStatus).catch(() => {
+        // Prefetch errors surfaced via hook error state
+      });
+    }
+  }, [tempProgramStatus, programStatus, ensureStatus]);
+
+  const allPrograms = cachedPrograms;
+
+  const filteredPrograms = React.useMemo(
+    () => filterPrograms(allPrograms, {
+      programStatus,
+      programType,
+      businessId: selectedBusinessId,
+    }),
+    [allPrograms, programStatus, programType, selectedBusinessId],
+  );
+
+  const paginatedPrograms = React.useMemo(
+    () => filteredPrograms.slice(offset, offset + limit),
+    [filteredPrograms, offset, limit],
+  );
+
+  const totalFiltered = filteredPrograms.length;
+
+  useEffect(() => {
+    if (offset >= totalFiltered && totalFiltered > 0) {
+      const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+      const newOffset = (totalPages - 1) * limit;
+      setOffset(newOffset);
+    }
+  }, [offset, totalFiltered, limit]);
+
+  const goToPage = React.useCallback((page: number) => {
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+    const safePage = Math.min(Math.max(page, 1), totalPages);
+    setOffset((safePage - 1) * limit);
+  }, [totalFiltered, limit]);
+
+  const handleJumpToPage = React.useCallback(() => {
+    const pageNumber = parseInt(jumpToPage, 10);
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+
     if (pageNumber && pageNumber >= 1 && pageNumber <= totalPages) {
       goToPage(pageNumber);
       setJumpToPage('');
     }
-  };
-  
-  // Regular programs without auto-refresh
-  const { data, isLoading, isFetching, error, isError, refetch } = useGetProgramsQuery({
-    offset: offset, 
-    limit: limit,
-    program_status: programStatus,
-    business_id: selectedBusinessId !== 'all' ? selectedBusinessId : undefined,
-    program_type: programType !== 'ALL' ? programType : undefined,
-    // Add force refresh key
-    _forceKey: forceRefreshKey
-  });
+  }, [jumpToPage, totalFiltered, limit, goToPage]);
 
-  // Reset page switching state when data loaded or error
-  useEffect(() => {
-    if (!isLoading && !isFetching) {
-      setIsChangingPage(false);
-      setIsChangingBusiness(false);
-    }
-  }, [isLoading, isFetching]);
+  const tempStatusEntry = getCachedEntry(tempProgramStatus);
+  const sourceForBusinessOptions = tempProgramStatus === programStatus
+    ? allPrograms
+    : tempStatusEntry?.programs ?? [];
 
-  // Additional safety: reset state after timeout if something wrong
-  useEffect(() => {
-    if (isChangingPage) {
-      const timeoutId = setTimeout(() => {
-        setIsChangingPage(false);
-      }, 10000); // max 10 seconds
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [isChangingPage]);
-  
-  // Safety timeout for business change
-  useEffect(() => {
-    if (isChangingBusiness) {
-      const timeoutId = setTimeout(() => {
-        setIsChangingBusiness(false);
-      }, 15000); // max 15 seconds (може бути довше ніж page switch)
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [isChangingBusiness]);
-  
+  const businessOptions = React.useMemo(
+    () => buildBusinessOptions(sourceForBusinessOptions, tempProgramType),
+    [sourceForBusinessOptions, tempProgramType, cacheVersion],
+  );
+
+  const isBusinessOptionsLoading = tempProgramStatus !== programStatus
+    ? isStatusFetching(tempProgramStatus) && !tempStatusEntry
+    : isFetchingPrograms;
+
+  const totalBusinessOptions = businessOptions.length;
+  const filteredOutCount = Math.max(0, cachedPrograms.length - totalFiltered);
+
+  const isLoading = isLoadingPrograms;
+  const isFetching = isFetchingPrograms;
+  const error = programsError as any;
+  const isError = Boolean(programsError);
+
   // State declarations FIRST (before using them)
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
@@ -341,9 +344,12 @@ const ProgramsList: React.FC = () => {
               if (eventData.type === 'complete' || eventData.type === 'error') {
                 // Refresh business IDs and programs after sync
                 setTimeout(() => {
-                  refetch();
-                  refetchBusinessIds();
-                  console.log('🔄 [SSE] Refreshing programs and business IDs');
+                  refreshPrograms();
+                  void ensureStatus(programStatus, { force: true });
+                  if (tempProgramStatus !== programStatus) {
+                    void ensureStatus(tempProgramStatus, { force: true });
+                  }
+                  console.log('🔄 [SSE] Refreshing cached programs');
                 }, 500);
                 
                 // Hide progress bar after delay
@@ -389,31 +395,7 @@ const ProgramsList: React.FC = () => {
     }
   }, []); // Run only once on mount
   
-  // Get programs from API and filter out terminated/inactive ones
-  // Note: business_id filtering is now done on backend, not here
-  const allPrograms = data?.programs || [];
-  const programs = allPrograms.filter(program => {
-    // Filter out INACTIVE and TERMINATED programs when viewing CURRENT
-    if (programStatus === 'CURRENT') {
-      return program.program_status !== 'INACTIVE' && 
-             program.program_status !== 'TERMINATED' &&
-             program.program_status !== 'EXPIRED';
-    }
-    return true; // For other filters, show all
-  });
-  
-  // Auto-navigate to previous page if current page becomes empty after filtering
-  useEffect(() => {
-    if (!isLoading && programs.length === 0 && offset > 0 && data?.total_count && data.total_count > 0) {
-      // Current page is empty but there are programs on other pages
-      const newPage = Math.max(1, Math.floor(offset / limit));
-      if (newPage > 1) {
-        const newOffset = (newPage - 1) * limit;
-        setOffset(newOffset);
-        setForceRefreshKey(prev => prev + 1);
-      }
-    }
-  }, [programs.length, offset, limit, isLoading, data?.total_count]);
+  const programs = paginatedPrograms;
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -428,7 +410,7 @@ const ProgramsList: React.FC = () => {
         title: successMessage,
         description: `Program ID: ${programId}`,
       });
-      refetch(); // Refresh programs list
+      refreshPrograms(); // Refresh programs list
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
       toast({
@@ -468,7 +450,9 @@ const ProgramsList: React.FC = () => {
         });
         
         // Refresh in background
-        setTimeout(() => refetch(), 3000);
+        setTimeout(() => {
+          refreshPrograms();
+        }, 3000);
       }
       
     } catch (error: any) {
@@ -576,7 +560,7 @@ const ProgramsList: React.FC = () => {
       });
       
       setEditingCustomName(null);
-      refetch(); // Refresh the list to show new name
+      refreshPrograms(); // Refresh the list to show new name
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
       toast({
@@ -626,7 +610,7 @@ const ProgramsList: React.FC = () => {
   };
 
   // Show main loader only on initial load (not during page switch or business change)
-  if (isLoading && !isChangingPage && !isChangingBusiness) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -800,19 +784,26 @@ const ProgramsList: React.FC = () => {
 
             <div>
               <label className="text-sm font-medium">Business:</label>
-              <select 
-                value={tempSelectedBusinessId} 
+              <select
+                value={tempSelectedBusinessId}
                 onChange={(e) => setTempSelectedBusinessId(e.target.value)}
                 className="ml-2 border-2 border-gray-300 rounded-lg px-4 py-2 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-w-[300px] text-sm font-medium shadow-sm"
               >
-                <option value="all" className="font-semibold">📊 All Businesses ({businessIdsData?.total || 0})</option>
-                {businessIdsData?.businesses.map((business) => (
-                  <option 
-                    key={business.business_id} 
-                    value={business.business_id}
+                <option value="all" className="font-semibold">
+                  📊 All Businesses ({totalBusinessOptions})
+                </option>
+                {isBusinessOptionsLoading && businessOptions.length === 0 && (
+                  <option value="loading" disabled>
+                    Loading businesses...
+                  </option>
+                )}
+                {businessOptions.map((business) => (
+                  <option
+                    key={business.id}
+                    value={business.id}
                     className="py-2"
                   >
-                    🏢 {business.business_name || business.business_id} • {business.business_id.substring(0, 12)}... ({business.program_count})
+                    🏢 {formatBusinessOptionLabel(business)} ({business.programCount})
                   </option>
                 ))}
               </select>
@@ -843,7 +834,7 @@ const ProgramsList: React.FC = () => {
             <Button
               onClick={handleApplyFilters}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
-              disabled={isChangingPage || isLoading || isFetching}
+              disabled={isLoading || isFetching}
             >
               🔍 Search
             </Button>
@@ -853,7 +844,7 @@ const ProgramsList: React.FC = () => {
       </div>
 
       {/* Warning banner for stale programs */}
-      {data?.warning && (
+      {warning && (
         <Card className="border-yellow-300 bg-yellow-50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -864,10 +855,10 @@ const ProgramsList: React.FC = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-yellow-900">Stale Programs Detected</h3>
-                <p className="text-sm text-yellow-800 mt-1">{data.warning}</p>
-                {data.stale_count && (
+                <p className="text-sm text-yellow-800 mt-1">{warning}</p>
+                {typeof staleCount === 'number' && (
                   <p className="text-xs text-yellow-700 mt-2">
-                    {data.stale_count} program{data.stale_count > 1 ? 's' : ''} in your database no longer exist in the Yelp API.
+                    {staleCount} program{staleCount > 1 ? 's' : ''} in your database no longer exist in the Yelp API.
                   </p>
                 )}
               </div>
@@ -906,25 +897,16 @@ const ProgramsList: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Show loader instead of list during page switching, business change, or fetching */}
-          {(isLoading || isFetching || isChangingPage || isChangingBusiness) ? (
+          {/* Show loader instead of list during background fetching */}
+          {(isLoading || isFetching) ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
               <div className="text-center">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {isChangingBusiness 
-                    ? 'Changing business...' 
-                    : isChangingPage 
-                      ? 'Switching page...' 
-                      : 'Loading programs...'}
+                  Loading programs...
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
-                  {isChangingBusiness
-                    ? 'Loading programs for selected business...'
-                    : isChangingPage 
-                      ? `Loading page ${Math.floor(offset / limit) + 1}...`
-                      : 'Please wait...'
-                  }
+                  Please wait...
                 </p>
               </div>
             </div>
@@ -1304,7 +1286,7 @@ const ProgramsList: React.FC = () => {
                       return newState;
                     });
                     // Refetch programs after closing monitor
-                    refetch();
+                    refreshPrograms();
                   }}
                 />
               )}
@@ -1315,18 +1297,26 @@ const ProgramsList: React.FC = () => {
           )}
 
           {/* Modern pagination with page numbers */}
-          {!(isLoading || isChangingPage) && data?.total_count && (
+          {totalFiltered > 0 && (
             <div className="flex flex-col items-center space-y-4 bg-gray-50 p-4 rounded">
               {/* Results info and quick page size change */}
               <div className="flex flex-col sm:flex-row items-center justify-between w-full space-y-2 sm:space-y-0">
                 <div className="text-sm text-gray-600 text-center sm:text-left">
-                  Showing {programs.length} of {data.total_count} programs
-                  {allPrograms.length !== programs.length && (
-                    <span className="text-orange-600 font-medium ml-1">({allPrograms.length - programs.length} filtered)</span>
+                  Showing {programs.length} of {totalFiltered} matching programs
+                  {filteredOutCount > 0 && (
+                    <span className="text-orange-600 font-medium ml-1">({filteredOutCount} filtered out)</span>
                   )}
-                  <span className="hidden sm:inline text-gray-500"> • Page {Math.floor(offset / limit) + 1} of {Math.ceil((data?.total_count || 0) / limit)}</span>
+                  {cachedTotal && cachedTotal !== totalFiltered && (
+                    <span className="text-gray-500 ml-1">• Synced total: {cachedTotal}</span>
+                  )}
+                  {fromCache && (
+                    <span className="text-xs text-gray-500 block sm:inline sm:ml-1">(served from local cache)</span>
+                  )}
+                  {fetchedAt && (
+                    <span className="hidden sm:inline text-gray-500"> • Page {Math.floor(offset / limit) + 1} of {Math.max(1, Math.ceil(totalFiltered / limit))}</span>
+                  )}
                 </div>
-                
+
                 <div className="flex items-center space-x-2 text-sm">
                   <span className="text-gray-600">Per page:</span>
                   {[10, 20, 50].map((pageSize) => (
@@ -1335,10 +1325,8 @@ const ProgramsList: React.FC = () => {
                       variant={limit === pageSize ? "default" : "outline"}
                       size="sm"
                       onClick={() => {
-                        setIsChangingPage(true);
                         setLimit(pageSize);
                         setOffset(0);
-                        setForceRefreshKey(prev => prev + 1);
                       }}
                       className="h-7 px-2 text-xs"
                     >
@@ -1347,13 +1335,13 @@ const ProgramsList: React.FC = () => {
                   ))}
                 </div>
               </div>
-              
+
               {/* Pagination progress indicator */}
               {(() => {
                 const currentPage = Math.floor(offset / limit) + 1;
-                const totalPages = Math.ceil(data.total_count / limit);
+                const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
                 const progress = (currentPage / totalPages) * 100;
-                
+
                 if (totalPages > 1) {
                   return (
                     <div className="w-full max-w-md">
@@ -1362,7 +1350,7 @@ const ProgramsList: React.FC = () => {
                         <span>of {totalPages}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${progress}%` }}
                         ></div>
@@ -1372,15 +1360,15 @@ const ProgramsList: React.FC = () => {
                 }
                 return null;
               })()}
-              
+
               {/* Pagination */}
               <div className="flex flex-wrap items-center justify-center gap-1">
                 {(() => {
                   const currentPage = Math.floor(offset / limit) + 1;
-                  const totalPages = Math.ceil(data.total_count / limit);
-                  
+                  const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+
                   if (totalPages <= 1) return null;
-                  
+
                   return (
                     <>
                       {/* First page */}
@@ -1393,7 +1381,7 @@ const ProgramsList: React.FC = () => {
                       >
                         <ChevronsLeft className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Previous page */}
                       <Button
                         variant="outline"
@@ -1404,7 +1392,7 @@ const ProgramsList: React.FC = () => {
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Quick jump -5 pages (only on desktop if many pages) */}
                       {totalPages > 10 && currentPage > 6 && (
                         <Button
@@ -1417,7 +1405,7 @@ const ProgramsList: React.FC = () => {
                           -5
                         </Button>
                       )}
-                      
+
                       {/* Page numbers */}
                       {generatePageNumbers(currentPage, totalPages).map((page, index) => (
                         <div key={index}>
@@ -1435,7 +1423,7 @@ const ProgramsList: React.FC = () => {
                           )}
                         </div>
                       ))}
-                      
+
                       {/* Quick jump +5 pages (only on desktop if many pages) */}
                       {totalPages > 10 && currentPage < totalPages - 5 && (
                         <Button
@@ -1448,7 +1436,7 @@ const ProgramsList: React.FC = () => {
                           +5
                         </Button>
                       )}
-                      
+
                       {/* Next page */}
                       <Button
                         variant="outline"
@@ -1459,7 +1447,7 @@ const ProgramsList: React.FC = () => {
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Last page */}
                       <Button
                         variant="outline"
@@ -1474,20 +1462,21 @@ const ProgramsList: React.FC = () => {
                   );
                 })()}
               </div>
-              
+
               {/* Quick Jump Input with "Go" button */}
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min="1"
-                  max={Math.ceil((data?.total_count || 0) / limit)}
+                  max={Math.max(1, Math.ceil(totalFiltered / limit))}
                   placeholder="Jump to..."
                   value={jumpToPage}
                   onChange={(e) => setJumpToPage(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && jumpToPage) {
-                      const page = parseInt(jumpToPage);
-                      if (!isNaN(page) && page >= 1 && page <= Math.ceil((data?.total_count || 0) / limit)) {
+                      const page = parseInt(jumpToPage, 10);
+                      const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+                      if (!Number.isNaN(page) && page >= 1 && page <= totalPages) {
                         goToPage(page);
                         setJumpToPage('');
                       }
@@ -1499,14 +1488,15 @@ const ProgramsList: React.FC = () => {
                   size="sm"
                   onClick={() => {
                     if (jumpToPage) {
-                      const page = parseInt(jumpToPage);
-                      if (!isNaN(page) && page >= 1 && page <= Math.ceil((data?.total_count || 0) / limit)) {
+                      const page = parseInt(jumpToPage, 10);
+                      const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
+                      if (!Number.isNaN(page) && page >= 1 && page <= totalPages) {
                         goToPage(page);
                         setJumpToPage('');
                       }
                     }
                   }}
-                  disabled={!jumpToPage || isNaN(parseInt(jumpToPage)) || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > Math.ceil((data?.total_count || 0) / limit)}
+                  disabled={!jumpToPage || Number.isNaN(parseInt(jumpToPage, 10)) || parseInt(jumpToPage, 10) < 1 || parseInt(jumpToPage, 10) > Math.max(1, Math.ceil(totalFiltered / limit))}
                   className="h-8 px-3 text-xs"
                 >
                   Go
