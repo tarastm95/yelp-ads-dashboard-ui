@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import JobTracker from './JobTracker';
 
 const EditProgram: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
@@ -18,6 +19,9 @@ const EditProgram: React.FC = () => {
   
   // Extract first program from Yelp API response
   const program = programData?.programs?.[0];
+
+  // State for job tracking
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const [budget, setBudget] = useState('');
   const [maxBid, setMaxBid] = useState('');
@@ -120,12 +124,8 @@ const EditProgram: React.FC = () => {
         data: editData,
       }).unwrap();
 
-      toast({
-        title: 'Program updating',
-        description: `Job ID: ${result.job_id}`,
-      });
-
-      navigate('/programs');
+      // Set active job ID to start tracking
+      setActiveJobId(result.job_id);
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
       toast({
@@ -141,10 +141,11 @@ const EditProgram: React.FC = () => {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Edit Program
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Edit Program
           {program?.program_status && (
             <span className={`text-sm px-2 py-1 rounded ${
               program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
@@ -368,9 +369,25 @@ const EditProgram: React.FC = () => {
               'Save'
             )}
           </Button>
+
+          {/* Job Tracker - показується внизу під кнопкою */}
+          {activeJobId && (
+            <JobTracker 
+              jobId={activeJobId} 
+              jobType="edit"
+              programId={program?.program_id}
+              onComplete={(success) => {
+                if (!success) {
+                  setActiveJobId(null); // Reset on failure so user can try again
+                }
+                // On success, JobTracker will handle redirect
+              }}
+            />
+          )}
         </form>
       </CardContent>
     </Card>
+    </div>
   );
 };
 

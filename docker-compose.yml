@@ -15,10 +15,25 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8004:8000"
@@ -29,6 +44,7 @@ services:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
     networks:
       - app-network
 
@@ -55,3 +71,4 @@ networks:
 
 volumes:
   db_data:
+  redis_data:

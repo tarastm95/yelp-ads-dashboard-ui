@@ -5,3 +5,9 @@ django-environ
 pytest
 pytest-django
 requests
+redis>=5.0.0
+hiredis>=2.2.0
+aiohttp>=3.9.1
+aiohttp-retry>=2.8.3
+asyncpg>=0.29.0
+httpx[http2]==0.27.0

@@ -29,8 +29,221 @@ class PartnerCredential(models.Model):
     def __str__(self) -> str:  # pragma: no cover - simple display
         return self.username
 
+
+class Business(models.Model):
+    """
+    Кеш business details з Yelp Fusion API.
+    Окрема таблиця для нормалізації (один бізнес → багато програм).
+    """
+    yelp_business_id = models.CharField(max_length=100, unique=True, db_index=True)
+    name = models.CharField(max_length=255, null=True, blank=True)
+    url = models.URLField(max_length=500, null=True, blank=True)
+    alias = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Metadata
+    cached_at = models.DateTimeField(auto_now=True, help_text="Last updated from API")
+    fetch_failed = models.BooleanField(default=False, help_text="API fetch failed")
+    
+    class Meta:
+        db_table = 'ads_business'
+        indexes = [
+            models.Index(fields=['yelp_business_id', 'name']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.yelp_business_id})"
+
+
+class ProgramRegistry(models.Model):
+    """
+    Реєстр програм Yelp для швидкого сортування.
+    Зберігає program_id, business_id, статус та тип програми для швидкої фільтрації.
+    Решту даних витягуємо через API.
+    """
+    
+    # User association
+    username = models.CharField(max_length=255, db_index=True)
+    
+    # Program info
+    program_id = models.CharField(max_length=100, db_index=True)
+    yelp_business_id = models.CharField(max_length=100, db_index=True, null=True, blank=True)
+    business_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Business name from Yelp Fusion API (deprecated, use business FK)"
+    )
+    business = models.ForeignKey(
+        'Business',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='programs',
+        help_text="Link to business details"
+    )
+    
+    # Program details for filtering
+    status = models.CharField(
+        max_length=20,
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Program status: CURRENT, PAST, FUTURE, PAUSED"
+    )
+    program_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Program type: CPC, BP, etc."
+    )
+    
+    # Program dates
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Program start date"
+    )
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Program end date"
+    )
+    
+    # Program status details
+    program_status = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Program status from API: ACTIVE, INACTIVE, etc."
+    )
+    program_pause_status = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Pause status: NOT_PAUSED, PAUSED, etc."
+    )
+    
+    # Program metrics (for CPC programs)
+    budget = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Program budget in dollars"
+    )
+    currency = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        default="USD",
+        help_text="Currency code"
+    )
+    is_autobid = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Whether autobidding is enabled"
+    )
+    max_bid = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Maximum bid amount in dollars"
+    )
+    billed_impressions = models.IntegerField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Total billed impressions"
+    )
+    billed_clicks = models.IntegerField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Total billed clicks"
+    )
+    ad_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Total ad cost in dollars"
+    )
+    fee_period = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Fee period: Calendar Month, Not Billed, etc."
+    )
+    
+    # Business details
+    partner_business_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Partner business ID"
+    )
+    
+    # Features (stored as JSON)
+    active_features = models.JSONField(
+        null=True,
+        blank=True,
+        default=list,
+        help_text="List of active features"
+    )
+    available_features = models.JSONField(
+        null=True,
+        blank=True,
+        default=list,
+        help_text="List of available features"
+    )
+    businesses = models.JSONField(
+        null=True,
+        blank=True,
+        default=list,
+        help_text="List of businesses associated with this program"
+    )
+    
+    # Custom name (user-editable)
+    custom_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Custom name for the program (user-editable)"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('username', 'program_id')
+        indexes = [
+            # Існуючі індекси
+            models.Index(fields=['username', 'yelp_business_id']),
+            models.Index(fields=['username', 'program_id']),
+            models.Index(fields=['username', 'status']),
+            models.Index(fields=['username', 'yelp_business_id', 'status']),
+            
+            # Нові індекси для оптимізації
+            models.Index(fields=['username', 'program_name']),  # Фільтр по типу програми
+            models.Index(fields=['username', 'status', 'program_name']),  # Комбінований фільтр
+            models.Index(fields=['username', 'yelp_business_id', 'program_name']),  # Бізнес + тип
+            models.Index(fields=['username', 'yelp_business_id', 'status', 'program_name']),  # Повний фільтр
+            models.Index(fields=['yelp_business_id', 'business_name']),  # Для завантаження business_names
+            models.Index(fields=['username', 'program_status']),  # Фільтр по program_status з API
+            models.Index(fields=['username', 'start_date']),  # Сортування по даті початку
+            models.Index(fields=['username', 'updated_at']),  # Для пошуку останніх оновлень
+            models.Index(fields=['username', 'status', '-start_date']),  # Для сортування по даті з фільтром
+        ]
+    
+    def __str__(self):
+        return f"{self.username}: {self.program_id} ({self.yelp_business_id})"
+
+
 class YelpProgram(models.Model):
-    """Синхронізовані програми з Yelp Partner API"""
+    """[DEPRECATED] Стара складна модель - використовуй ProgramRegistry"""
     
     program_id = models.CharField(max_length=100, unique=True, db_index=True)
     program_type = models.CharField(max_length=20, db_index=True)  # CPC, BP, etc.
@@ -262,3 +475,37 @@ class PortfolioPhoto(models.Model):
     
     def __str__(self):
         return f"{self.photo_id} - {self.project.name}"
+
+
+class LogEntry(models.Model):
+    """Store application logs in database for easy viewing and debugging"""
+    
+    LEVEL_CHOICES = [
+        ('DEBUG', 'Debug'),
+        ('INFO', 'Info'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+        ('CRITICAL', 'Critical'),
+    ]
+    
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, db_index=True)
+    logger_name = models.CharField(max_length=100, db_index=True)
+    message = models.TextField()
+    path = models.CharField(max_length=500, null=True, blank=True)
+    method = models.CharField(max_length=10, null=True, blank=True)
+    status_code = models.IntegerField(null=True, blank=True)
+    user = models.CharField(max_length=100, null=True, blank=True)
+    duration = models.FloatField(null=True, blank=True, help_text="Request duration in seconds")
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Log Entry'
+        verbose_name_plural = 'Log Entries'
+        indexes = [
+            models.Index(fields=['-timestamp', 'level']),
+            models.Index(fields=['level', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"[{self.level}] {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {self.message[:50]}"

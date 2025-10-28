@@ -13,6 +13,12 @@ LOG_LEVEL = env('LOG_LEVEL', default=('DEBUG' if DEBUG else 'INFO'))
 YELP_API_KEY = env('YELP_API_KEY')
 YELP_API_SECRET = env('YELP_API_SECRET')
 YELP_FUSION_TOKEN = env('YELP_FUSION_TOKEN')
+YELP_FUSION_API_KEY = env('YELP_FUSION_API_KEY', default=env('YELP_FUSION_TOKEN', default=''))
+
+# Redis settings (for caching and batch processing)
+REDIS_HOST = env('REDIS_HOST', default='redis')
+REDIS_PORT = env.int('REDIS_PORT', default=6379)
+REDIS_DB = env.int('REDIS_DB', default=0)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -59,7 +65,23 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
-    'default': env.db('DATABASE_URL')
+    'default': {
+        **env.db('DATABASE_URL'),
+        'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
+    }
+}
+
+# Django Cache Configuration with Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}',
+        'KEY_PREFIX': 'yelp_ads',
+        'TIMEOUT': 60,  # 60 seconds default TTL
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS = []
@@ -100,6 +122,10 @@ LOGGING = {
             'formatter': 'verbose',
             'level': LOG_LEVEL,
         },
+        'database': {
+            'level': 'INFO',
+            'class': 'ads.logging_handlers.DatabaseLogHandler',
+        },
     },
     'loggers': {
         'ads': {
@@ -118,6 +144,11 @@ LOGGING = {
             'propagate': False,
         },
         'ads.requests': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'ads.auth': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

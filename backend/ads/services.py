@@ -11,17 +11,123 @@ from .models import Program, Report, PartnerCredential, CustomSuggestedKeyword
 
 logger = logging.getLogger(__name__)
 
+
+def make_yelp_request_with_retry(method, url, **kwargs):
+    """
+    Make HTTP request to Yelp API with automatic retry on server errors.
+    
+    Retries up to 3 times with exponential backoff (2s, 4s, 8s) for 5xx errors.
+    Does NOT retry on 4xx errors (client errors) as those are permanent.
+    
+    Args:
+        method: HTTP method ('GET', 'POST', 'PUT', 'DELETE')
+        url: Full URL to request
+        **kwargs: Additional arguments to pass to requests (auth, params, json, etc.)
+    
+    Returns:
+        requests.Response object
+    
+    Raises:
+        requests.HTTPError: For non-retryable errors or after max retries
+    """
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            logger.debug(f"Making {method} request to {url} (attempt {attempt}/{max_attempts})")
+            resp = requests.request(method, url, **kwargs)
+            
+            # Only retry on server errors (5xx)
+            if resp.status_code >= 500:
+                error_msg = f"Server error {resp.status_code} from {url}"
+                if attempt < max_attempts:
+                    wait_time = 2 ** (attempt - 1)  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(f"{error_msg}, retrying in {wait_time}s (attempt {attempt}/{max_attempts})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"{error_msg}, max retries reached")
+                    resp.raise_for_status()
+            
+            # For client errors (4xx) and success (2xx-3xx), don't retry
+            resp.raise_for_status()
+            return resp
+            
+        except requests.RequestException as e:
+            # Network errors (connection refused, timeout, etc.) - retry
+            if attempt < max_attempts and not isinstance(e, requests.HTTPError):
+                wait_time = 2 ** (attempt - 1)
+                logger.warning(f"Network error: {e}, retrying in {wait_time}s (attempt {attempt}/{max_attempts})")
+                time.sleep(wait_time)
+                continue
+            raise
+    
+    # Should never reach here, but just in case
+    raise requests.HTTPError(f"Failed after {max_attempts} attempts")
+
 class YelpService:
     PARTNER_BASE = 'https://partner-api.yelp.com'
     FUSION_BASE = 'https://api.yelp.com'
     headers_fusion = {'Authorization': f'Bearer {settings.YELP_FUSION_TOKEN}'}
+    
+    @classmethod
+    def get_business_details(cls, business_id):
+        """
+        Get business details from Yelp Fusion API.
+        
+        Args:
+            business_id: Yelp business ID
+            
+        Returns:
+            dict: Business details including name, id, location, etc.
+        """
+        try:
+            url = f"{cls.FUSION_BASE}/v3/businesses/{business_id}"
+            logger.info(f"🔍 Getting business details for {business_id}")
+            
+            response = make_yelp_request_with_retry('GET', url, headers=cls.headers_fusion)
+            business_data = response.json()
+            
+            logger.info(f"✅ Got business details: {business_data.get('name')} ({business_data.get('id')})")
+            
+            return {
+                'id': business_data.get('id'),
+                'name': business_data.get('name'),
+                'alias': business_data.get('alias'),
+                'image_url': business_data.get('image_url'),
+                'is_closed': business_data.get('is_closed'),
+                'url': business_data.get('url'),
+                'phone': business_data.get('phone'),
+                'display_phone': business_data.get('display_phone'),
+                'review_count': business_data.get('review_count'),
+                'categories': business_data.get('categories', []),
+                'rating': business_data.get('rating'),
+                'location': business_data.get('location', {}),
+                'coordinates': business_data.get('coordinates', {}),
+            }
+        except Exception as e:
+            logger.error(f"❌ Failed to get business details for {business_id}: {e}")
+            # Повертаємо базову інформацію якщо не вдалося отримати деталі
+            return {
+                'id': business_id,
+                'name': business_id,  # Фоллбек на ID якщо немає назви
+                'error': str(e)
+            }
 
     @classmethod
-    def _get_partner_auth(cls):
-        """Return credentials from database first, then fall back to settings."""
+    def _get_partner_auth(cls, username=None):
+        """
+        Return credentials from database first, then fall back to settings.
+        
+        Args:
+            username: Optional username to get specific credentials for
+        """
         try:
             # Спочатку намагаємося отримати з бази даних
-            cred = PartnerCredential.objects.order_by('-updated_at').first()
+            if username:
+                cred = PartnerCredential.objects.filter(username=username).first()
+            else:
+                cred = PartnerCredential.objects.order_by('-updated_at').first()
+                
             if cred and cred.username and cred.password:
                 logger.info(f"🔐 YelpService._get_partner_auth: Using credentials from database for user '{cred.username}'")
                 return cred.username, cred.password
@@ -90,13 +196,12 @@ class YelpService:
         logger.info(f"Final API parameters: {params}")
         
         try:
-            logger.debug(f"Making request to: {url}")
+            logger.debug(f"Making request to: {url} with retry logic")
             # Partner Advertising API expects query params, not JSON body
             params_filtered = {k: v for k, v in params.items() if v is not None}
-            resp = requests.post(url, params=params_filtered, auth=cls._get_partner_auth())
+            resp = make_yelp_request_with_retry('POST', url, params=params_filtered, auth=cls._get_partner_auth())
             logger.debug(f"Response status: {resp.status_code}")
             logger.debug(f"Response text: {resp.text}")
-            resp.raise_for_status()
             
             data = resp.json()
             logger.info(f"Program creation response: {data}")
@@ -216,10 +321,9 @@ class YelpService:
 
         try:
             params_filtered = {k: v for k, v in params.items() if v is not None}
-            resp = requests.post(url, params=params_filtered, auth=cls._get_partner_auth())
+            resp = make_yelp_request_with_retry('POST', url, params=params_filtered, auth=cls._get_partner_auth())
             logger.debug(f"Edit response status: {resp.status_code}")
             logger.debug(f"Edit response text: {resp.text}")
-            resp.raise_for_status()
             
             data = resp.json()
             job_id = data.get('job_id')
@@ -261,7 +365,7 @@ class YelpService:
 
     @classmethod
     def validate_program_active(cls, program_id):
-        """Ensure program exists and is currently active."""
+        """Ensure program exists and can be terminated."""
         try:
             info = cls.get_program_info(program_id)
         except requests.HTTPError as e:
@@ -273,15 +377,15 @@ class YelpService:
         if 'programs' in info and len(info['programs']) > 0:
             program = info['programs'][0]
             status = program.get("program_status")
-            if status != "ACTIVE":
-                if status == "INACTIVE":
-                    raise ValueError("PROGRAM_HAS_EXPIRED")
-                else:
-                    raise ValueError(f"PROGRAM_NOT_ACTIVE_{status}")
+            # Дозволяємо terminate для ACTIVE та INACTIVE (FUTURE) програм
+            # Забороняємо тільки для дійсно завершених програм
+            if status not in ["ACTIVE", "INACTIVE"]:
+                raise ValueError(f"PROGRAM_NOT_ACTIVE_{status}")
         else:
             # Fallback for old format
             status = info.get("program_status") or info.get("status")
-            if status != "ACTIVE":
+            # Дозволяємо terminate для ACTIVE та INACTIVE програм
+            if status not in ["ACTIVE", "INACTIVE"]:
                 raise ValueError("PROGRAM_HAS_EXPIRED")
 
         return info
@@ -309,19 +413,23 @@ class YelpService:
         logger.info(f"🔐 YelpService.pause_program: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
         
         try:
-            logger.info(f"📤 YelpService.pause_program: Making POST request to pause program...")
-            resp = requests.post(url, auth=auth_creds)
+            logger.info(f"📤 YelpService.pause_program: Making POST request to pause program with retry logic...")
+            resp = make_yelp_request_with_retry('POST', url, auth=auth_creds)
             logger.info(f"📥 YelpService.pause_program: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.pause_program: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.pause_program: Raw response text: {resp.text}")
             
-            resp.raise_for_status()
             logger.info(f"✅ YelpService.pause_program: Successfully paused program {program_id}")
             return {'status': resp.status_code}
         except requests.HTTPError as e:
             logger.error(f"❌ YelpService.pause_program: HTTP Error for {program_id}: {e}")
-            logger.error(f"❌ YelpService.pause_program: Response status: {e.response.status_code}")
-            logger.error(f"❌ YelpService.pause_program: Response text: {e.response.text}")
+            if e.response is not None:
+                logger.error(f"❌ YelpService.pause_program: Response status: {e.response.status_code}")
+                logger.error(f"❌ YelpService.pause_program: Response text: {e.response.text}")
+                
+                # Special handling for 404 - likely means endpoint requires special access
+                if e.response.status_code == 404:
+                    logger.warning(f"⚠️ YelpService.pause_program: 404 error - This endpoint requires special configuration from Yelp. Please contact Yelp to enable pause/resume access for your account.")
             raise
         except Exception as e:
             logger.error(f"❌ YelpService.pause_program: Unexpected error for {program_id}: {e}")
@@ -338,19 +446,23 @@ class YelpService:
         logger.info(f"🔐 YelpService.resume_program: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
         
         try:
-            logger.info(f"📤 YelpService.resume_program: Making POST request to resume program...")
-            resp = requests.post(url, auth=auth_creds)
+            logger.info(f"📤 YelpService.resume_program: Making POST request to resume program with retry logic...")
+            resp = make_yelp_request_with_retry('POST', url, auth=auth_creds)
             logger.info(f"📥 YelpService.resume_program: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.resume_program: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.resume_program: Raw response text: {resp.text}")
             
-            resp.raise_for_status()
             logger.info(f"✅ YelpService.resume_program: Successfully resumed program {program_id}")
             return {'status': resp.status_code}
         except requests.HTTPError as e:
             logger.error(f"❌ YelpService.resume_program: HTTP Error for {program_id}: {e}")
-            logger.error(f"❌ YelpService.resume_program: Response status: {e.response.status_code}")
-            logger.error(f"❌ YelpService.resume_program: Response text: {e.response.text}")
+            if e.response is not None:
+                logger.error(f"❌ YelpService.resume_program: Response status: {e.response.status_code}")
+                logger.error(f"❌ YelpService.resume_program: Response text: {e.response.text}")
+                
+                # Special handling for 404 - likely means endpoint requires special access
+                if e.response.status_code == 404:
+                    logger.warning(f"⚠️ YelpService.resume_program: 404 error - This endpoint requires special configuration from Yelp. Please contact Yelp to enable pause/resume access for your account.")
             raise
         except Exception as e:
             logger.error(f"❌ YelpService.resume_program: Unexpected error for {program_id}: {e}")
@@ -542,13 +654,20 @@ class YelpService:
     def get_program_info(cls, program_id):
         """Return detailed information for a specific program."""
         url = f'{cls.PARTNER_BASE}/v1/programs/info/{program_id}'
-        resp = requests.get(url, auth=cls._get_partner_auth())
-        resp.raise_for_status()
+        resp = make_yelp_request_with_retry('GET', url, auth=cls._get_partner_auth())
         return resp.json()
 
     @classmethod
-    def get_all_programs(cls, offset=0, limit=20, program_status='CURRENT'):
-        """Return list of programs from Yelp API with pagination. Enriches data with full program info."""
+    def get_all_programs(cls, offset=0, limit=20, program_status='CURRENT', username=None):
+        """
+        Return list of programs from Yelp API with pagination. Enriches data with full program info.
+        
+        Args:
+            offset: Offset for pagination
+            limit: Limit for pagination
+            program_status: Status filter
+            username: Optional username for authentication
+        """
         logger.info(f"Getting programs list from Yelp API - offset: {offset}, limit: {limit}, status: {program_status}")
         url = f'{cls.PARTNER_BASE}/programs/v1'
         
@@ -562,16 +681,15 @@ class YelpService:
         logger.info(f"📝 YelpService.get_all_programs: Request params: {params}")
         
         # Логуємо автентифікацію
-        auth_creds = cls._get_partner_auth()
+        auth_creds = cls._get_partner_auth(username=username)
         logger.info(f"🔐 YelpService.get_all_programs: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
         
         try:
-            logger.info(f"📤 YelpService.get_all_programs: Making GET request to Yelp API...")
-            resp = requests.get(url, params=params, auth=auth_creds)
+            logger.info(f"📤 YelpService.get_all_programs: Making GET request to Yelp API with retry logic...")
+            resp = make_yelp_request_with_retry('GET', url, params=params, auth=auth_creds)
             logger.info(f"📥 YelpService.get_all_programs: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.get_all_programs: Response headers: {dict(resp.headers)}")
 
-            resp.raise_for_status()
             data = resp.json()
             logger.info(f"✅ YelpService.get_all_programs: Successfully parsed JSON response")
 
@@ -607,6 +725,15 @@ class YelpService:
                                 logger.info(f"✅ Enriched {program_id} with budget: ${full_program['program_metrics'].get('budget', 0) / 100}")
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to enrich program {program_id}: {e}")
+                
+                # Add yelp_business_id to top level for easier access
+                businesses = program.get('businesses', [])
+                if businesses and len(businesses) > 0:
+                    program['yelp_business_id'] = businesses[0].get('yelp_business_id')
+                    program['partner_business_id'] = businesses[0].get('partner_business_id')
+                else:
+                    program['yelp_business_id'] = None
+                    program['partner_business_id'] = None
                 
                 enriched_programs.append(program)
 
@@ -645,13 +772,12 @@ class YelpService:
         logger.info(f"🔐 YelpService.get_program_features: Using auth credentials - username: '{auth_creds[0]}', password: '{auth_creds[1][:4]}***'")
         
         try:
-            logger.info(f"📤 YelpService.get_program_features: Making GET request to Yelp API...")
-            resp = requests.get(url, auth=auth_creds)
+            logger.info(f"📤 YelpService.get_program_features: Making GET request to Yelp API with retry logic...")
+            resp = make_yelp_request_with_retry('GET', url, auth=auth_creds)
             logger.info(f"📥 YelpService.get_program_features: Response status code: {resp.status_code}")
             logger.info(f"📥 YelpService.get_program_features: Response headers: {dict(resp.headers)}")
             logger.info(f"📥 YelpService.get_program_features: Raw response text: {resp.text}")
             
-            resp.raise_for_status()
             data = resp.json()
             logger.info(f"✅ YelpService.get_program_features: Successfully parsed JSON response")
             logger.info(f"📊 YelpService.get_program_features: Program {program_id} features: {list(data.get('features', {}).keys())}")

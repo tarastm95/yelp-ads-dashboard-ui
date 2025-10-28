@@ -64,10 +64,25 @@ const rawBaseQuery = fetchBaseQuery({
   prepareHeaders: (headers, { getState }) => {
     headers.set('Content-Type', 'application/json');
     const { auth } = (getState() as RootState);
+    
+    // 🔍 DEBUG: Детальні логи для authentication
+    console.log('🔐 [prepareHeaders] Auth state:', {
+      hasUsername: !!auth.username,
+      hasPassword: !!auth.password,
+      username: auth.username ? `${auth.username.substring(0, 10)}...` : 'empty',
+    });
+    
     if (auth.username && auth.password) {
       const encoded = btoa(`${auth.username}:${auth.password}`);
       headers.set('Authorization', `Basic ${encoded}`);
+      console.log('✅ [prepareHeaders] Authorization header set:', {
+        headerPresent: headers.has('Authorization'),
+        encodedLength: encoded.length
+      });
+    } else {
+      console.warn('⚠️ [prepareHeaders] No credentials! Skipping Authorization header');
     }
+    
     return headers;
   },
 });
@@ -198,16 +213,34 @@ export const yelpApi = createApi({
           ...(program_type ? { program_type } : {}), // Only include program_type if provided
         }, // do not send _forceKey to the server
       }),
-      // Disable caching for pagination - each request must be fresh
-      keepUnusedDataFor: 0,
-      // Завжди робити новий запит при зміні аргументів
-      refetchOnMountOrArgChange: true,
+      // ✅ OPTIMIZED: Cache for 5 minutes instead of 0
+      keepUnusedDataFor: 300, // 5 minutes
+      // ✅ OPTIMIZED: Don't refetch automatically on mount
+      refetchOnMountOrArgChange: false,
+      // ✅ OPTIMIZED: Don't refetch on window focus or reconnect
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
       // Simpler tags without complex logic
       providesTags: ['Program'],
       // Each parameter set is a separate query key, including forceKey, business_id, and program_type
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         return `${endpointName}_${queryArgs.offset}_${queryArgs.limit}_${queryArgs.program_status}_${queryArgs.business_id || 'all'}_${queryArgs.program_type || 'all'}_${queryArgs._forceKey || 0}`;
       },
+    }),
+
+    // ⚡ ШВИДКЕ ЗАВАНТАЖЕННЯ: отримати ВСІ програми одним запитом
+    getAllProgramsFast: builder.query<{ programs: BusinessProgram[]; total_count: number; loaded_all: boolean }, { program_status?: string }>({
+      query: ({ program_status = 'ALL' } = {}) => ({
+        url: '/reseller/programs',
+        params: { 
+          all: 'true',  // ⚡ Завантажити все одразу
+          program_status,
+          offset: 0,
+          limit: 10000  // Large fallback (буде проігноровано через all=true)
+        },
+      }),
+      keepUnusedDataFor: 60, // Кешуємо на 1 хвилину
+      providesTags: ['Program'],
     }),
 
     getProgramInfo: builder.query<Program, string>({
@@ -244,6 +277,40 @@ export const yelpApi = createApi({
       providesTags: (result, error, args) => [
         { type: 'Program' as const, id: `business-ids-${args?.programStatus || 'all'}-${args?.programType || 'all'}` }
       ],
+    }),
+
+    // 🧠 РОЗУМНІ ФІЛЬТРИ: Отримати доступні опції на основі поточного вибору
+    getAvailableFilters: builder.query<{
+      statuses: string[];
+      program_types: string[];
+      businesses: Array<{
+        business_id: string;
+        business_name: string;
+        program_count: number;
+      }>;
+      total_programs: number;
+      applied_filters: {
+        program_status: string;
+        program_type: string;
+        business_id: string;
+      };
+    }, { programStatus?: string; programType?: string; businessId?: string }>({
+      query: (args) => {
+        const params = new URLSearchParams();
+        if (args.programStatus && args.programStatus !== 'ALL') {
+          params.append('program_status', args.programStatus);
+        }
+        if (args.programType && args.programType !== 'ALL') {
+          params.append('program_type', args.programType);
+        }
+        if (args.businessId && args.businessId !== 'all') {
+          params.append('business_id', args.businessId);
+        }
+        const queryString = params.toString();
+        return `/reseller/available-filters${queryString ? `?${queryString}` : ''}`;
+      },
+      keepUnusedDataFor: 5, // Дуже короткий кеш - дані змінюються при кожній зміні фільтру
+      providesTags: ['Program'],
     }),
 
     // Sync programs to database
@@ -503,8 +570,12 @@ export const {
   useGetActiveJobsQuery,
   useGetJobHistoryQuery,
   useGetProgramsQuery,
+  useLazyGetProgramsQuery,
+  useGetAllProgramsFastQuery,  // ⚡ NEW: Fast loading hook
+  useLazyGetAllProgramsFastQuery,  // ⚡ NEW: Lazy fast loading hook
   useGetProgramInfoQuery,
   useGetBusinessIdsQuery,
+  useGetAvailableFiltersQuery,  // 🧠 NEW: Smart Filters hook
   useSyncProgramsMutation,
   useGetBusinessMatchesQuery,
   useGetBusinessProgramsQuery,

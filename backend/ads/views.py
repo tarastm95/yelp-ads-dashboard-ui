@@ -380,7 +380,7 @@ class ProgramSyncView(APIView):
         
         try:
             # Запускаємо синхронізацію
-            result = ProgramSyncService.sync_programs(username, batch_size=20)
+            result = ProgramSyncService.sync_programs(username, batch_size=40)
             
             return Response(result)
             
@@ -396,13 +396,16 @@ class ProgramSyncStreamView(APIView):
     """
     Синхронізація програм з прогресом в реальному часі через Server-Sent Events (SSE).
     
-    Використовує StreamingHttpResponse для відправки подій прогресу клієнту.
+    🚀 ASYNC VERSION - Використовує AsyncIO для максимальної швидкості!
+    - Автоматично визначає кількість сторінок
+    - Виконує ВСІ запити паралельно
+    - Швидкість: ~2-5 секунд для 1913 програм
     """
     
     def post(self, request):
-        """Запускає паралельну синхронізацію з SSE streaming."""
+        """Запускає ASYNC синхронізацію з SSE streaming."""
         from django.http import StreamingHttpResponse
-        from .sync_service import ProgramSyncService
+        from .async_sync_service import AsyncProgramSyncService
         import json
         
         if not request.user or not request.user.is_authenticated:
@@ -413,38 +416,39 @@ class ProgramSyncStreamView(APIView):
         
         username = request.user.username
         
-        # Параметри для паралельної синхронізації (можна отримати з request)
-        # Збільшено max_workers для максимальної швидкості синхронізації
-        max_workers = int(request.data.get('max_workers', 50)) if hasattr(request, 'data') else 50
+        # Параметри для async синхронізації
         batch_size = int(request.data.get('batch_size', 40)) if hasattr(request, 'data') else 40
         
-        logger.info(f"🚀 [SSE] Parallel sync stream requested by {username} (workers={max_workers}, batch={batch_size})")
+        logger.info(f"🚀 [ASYNC-SSE] Async sync stream requested by {username} (batch_size={batch_size})")
         
         def event_stream():
             """
-            Generator для SSE подій з паралельною синхронізацією.
+            Generator для SSE подій з ASYNC синхронізацією.
             
             Yields:
                 SSE formatted events: data: {json}\n\n
             """
             try:
-                # Запускаємо ПАРАЛЕЛЬНУ синхронізацію з стрімінгом
-                for progress_event in ProgramSyncService.sync_with_streaming_parallel(
+                # Запускаємо ASYNC синхронізацію з стрімінгом
+                # Автоматично визначає кількість сторінок та робить ВСІ запити паралельно
+                event_count = 0
+                for progress_event in AsyncProgramSyncService.sync_with_asyncio(
                     username, 
-                    batch_size=batch_size,
-                    max_workers=max_workers
+                    batch_size=batch_size
                 ):
                     # Форматуємо подію для SSE
-                    event_data = json.dumps(progress_event)
+                    event_data = json.dumps(progress_event, ensure_ascii=False)
+                    event_count += 1
+                    logger.debug(f"📤 [SSE] Sending event #{event_count}: {progress_event.get('type')}")
                     yield f"data: {event_data}\n\n"
                     
-                logger.info(f"✅ [SSE] Parallel sync stream completed for {username}")
+                logger.info(f"✅ [ASYNC-SSE] Async sync stream completed for {username} ({event_count} events sent)")
                 
             except Exception as e:
-                logger.error(f"❌ [SSE] Stream error for {username}: {e}")
+                logger.error(f"❌ [ASYNC-SSE] Stream error for {username}: {e}", exc_info=True)
                 error_event = json.dumps({
                     'type': 'error',
-                    'message': str(e)
+                    'message': f'Async sync failed: {str(e)}'
                 })
                 yield f"data: {error_event}\n\n"
         
@@ -492,14 +496,20 @@ class ProgramListView(APIView):
         if not program_ids:
             return programs
         
-        # Отримуємо custom_name з БД одним запитом
+        # Отримуємо custom_name та business_name з БД одним запитом
         registry_data = ProgramRegistry.objects.filter(
             username=username,
             program_id__in=program_ids
-        ).values('program_id', 'custom_name')
+        ).values('program_id', 'custom_name', 'yelp_business_id', 'business_name')
         
         # Створюємо словник program_id -> custom_name
         custom_names = {item['program_id']: item['custom_name'] for item in registry_data}
+        
+        # Створюємо словник business_id -> business_name з БД
+        business_names_from_db = {}
+        for item in registry_data:
+            if item['yelp_business_id'] and item['business_name']:
+                business_names_from_db[item['yelp_business_id']] = item['business_name']
         
         # Збираємо унікальні business_ids
         business_ids = set()
@@ -510,9 +520,12 @@ class ProgramListView(APIView):
             if business_id:
                 business_ids.add(business_id)
         
-        # Отримуємо деталі бізнесів з Yelp Fusion API
+        # Отримуємо деталі бізнесів (спочатку з БД, потім з API тільки якщо немає в БД)
         business_details = {}
-        for business_id in business_ids:
+        business_ids_without_names = business_ids - set(business_names_from_db.keys())
+        
+        # Для бізнесів без назв в БД - запитуємо API (обмежено для запобігання rate limit)
+        for business_id in list(business_ids_without_names)[:10]:
             try:
                 details = YelpService.get_business_details(business_id)
                 if details:
@@ -521,9 +534,24 @@ class ProgramListView(APIView):
                         'url': details.get('url'),
                         'alias': details.get('alias')
                     }
+                    # Зберігаємо в БД для наступних використань
+                    if details.get('name'):
+                        ProgramRegistry.objects.filter(
+                            username=username,
+                            yelp_business_id=business_id
+                        ).update(business_name=details['name'])
             except Exception as e:
                 logger.warning(f"⚠️ Failed to get business details for {business_id}: {e}")
                 continue
+        
+        # Додаємо назви з БД до business_details
+        for business_id, name in business_names_from_db.items():
+            if business_id not in business_details:
+                business_details[business_id] = {
+                    'name': name,
+                    'url': None,  # URL не зберігається в БД
+                    'alias': None
+                }
         
         # Додаємо custom_name та business details до кожної програми
         for program in programs:
@@ -548,10 +576,13 @@ class ProgramListView(APIView):
     def get(self, request):
         from .sync_service import ProgramSyncService
         from .models import ProgramRegistry
+        from django.core.cache import cache
+        import hashlib
         
         # Параметри
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 20))
+        load_all = request.query_params.get('all', 'false').lower() == 'true'  # ⚡ НОВИЙ: завантажити все одразу
         program_status = request.query_params.get('program_status', 'CURRENT')
         business_id = request.query_params.get('business_id', None)
         program_type = request.query_params.get('program_type', None)
@@ -563,15 +594,28 @@ class ProgramListView(APIView):
         
         logger.info(f"Getting programs - offset: {offset}, limit: {limit}, status: {program_status}, business_id: {business_id}, program_type: {program_type}, user: {username}")
         
+        # Create cache key
+        cache_key = f"programs:{username}:{program_status}:{business_id or 'all'}:{program_type or 'all'}:{offset}:{limit}:{load_all}"
+        cache_key_hash = hashlib.md5(cache_key.encode()).hexdigest()
+        
+        # Check cache (60 second TTL)
+        cached_data = cache.get(cache_key_hash)
+        if cached_data:
+            logger.info(f"✅ [CACHE HIT] Returning cached data for key: {cache_key[:50]}...")
+            cached_data['from_cache'] = True
+            return Response(cached_data)
+        
+        logger.info(f"❌ [CACHE MISS] Fetching from database for key: {cache_key[:50]}...")
+        
         # Yelp API не підтримує фільтр program_status=ACTIVE/INACTIVE
         # Тому завжди запитуємо ALL і фільтруємо локально
         api_status = 'ALL' if program_status in ['ACTIVE', 'INACTIVE'] else program_status
         logger.info(f"🔄 Mapping frontend status '{program_status}' -> API status '{api_status}'")
         
         try:
-            # Фільтрація по business_id через БД
+            # Фільтрація по business_id через API
             if business_id and business_id != 'all' and username:
-                logger.info(f"🔍 Filtering by business_id: {business_id}, status: {program_status}, program_type: {program_type} from DB")
+                logger.info(f"🔍 Filtering by business_id: {business_id}, status: {program_status}, program_type: {program_type} from API")
                 
                 # Отримуємо program_ids для цього бізнесу з БД з фільтром по статусу та типу програми
                 program_ids = ProgramSyncService.get_program_ids_for_business(
@@ -583,14 +627,17 @@ class ProgramListView(APIView):
                 
                 if not program_ids:
                     logger.warning(f"⚠️  No programs found for business {business_id}")
-                    return Response({
+                    response_data = {
                         'programs': [],
                         'total_count': 0,
                         'offset': offset,
                         'limit': limit,
                         'business_id': business_id,
                         'from_db': True
-                    })
+                    }
+                    # Cache the result for 60 seconds
+                    cache.set(cache_key_hash, response_data, 60)
+                    return Response(response_data)
                 
                 total_count = len(program_ids)
                 logger.info(f"📊 Found {total_count} program_ids for business {business_id}")
@@ -598,45 +645,81 @@ class ProgramListView(APIView):
                 # Пагінація program_ids
                 paginated_ids = program_ids[offset:offset + limit]
                 
-                # Витягуємо повні дані цих програм з API
+                # 🚀 ОПТИМІЗАЦІЯ: Отримуємо ВСІ програми ОДНИМ запитом використовуючи .values()
+                logger.info(f"⚡ Fetching {len(paginated_ids)} programs from DB using values()...")
+                
+                # Get data as dictionaries (NO ORM object creation)
+                programs_data = list(ProgramRegistry.objects.filter(
+                    username=username,
+                    program_id__in=paginated_ids
+                ).select_related('business').values(
+                    'program_id', 'program_name', 'program_status', 'program_pause_status',
+                    'yelp_business_id', 'start_date', 'end_date', 'custom_name',
+                    'status', 'budget', 'currency', 'is_autobid', 'max_bid',
+                    'billed_impressions', 'billed_clicks', 'ad_cost', 'fee_period',
+                    'businesses', 'active_features', 'available_features',
+                    'business__name'  # From related business
+                ))
+                
+                # Create map for preserving order
+                programs_map = {p['program_id']: p for p in programs_data}
+                
+                # Convert to frontend format (preserving order)
                 programs = []
-                invalid_program_ids = []
                 for program_id in paginated_ids:
+                    program_registry = programs_map.get(program_id)
+                    if not program_registry:
+                        continue
+                    
                     try:
-                        # Отримуємо програму з API
-                        # Тут можна оптимізувати batch запитом, але поки по одній
-                        program_data = YelpService.get_program_info(program_id)
-                        if program_data and program_data.get('programs'):
-                            programs.append(program_data['programs'][0])
-                        elif program_data and program_data.get('errors'):
-                            # Program ID exists in DB but not in Yelp API (stale data)
-                            logger.warning(f"⚠️  Program {program_id} not found in Yelp API (stale data): {program_data.get('errors')}")
-                            invalid_program_ids.append(program_id)
+                        # Convert directly from dictionary (faster than ORM objects)
+                        program_data = {
+                            'program_id': program_registry['program_id'],
+                            'program_type': program_registry['program_name'],
+                            'program_status': program_registry['program_status'] or program_registry['status'],
+                            'program_pause_status': program_registry['program_pause_status'],
+                            'yelp_business_id': program_registry['yelp_business_id'],
+                            'business_id': program_registry['yelp_business_id'],
+                            'business_name': program_registry['business__name'] or program_registry['yelp_business_id'],
+                            'start_date': program_registry['start_date'].isoformat() if program_registry['start_date'] else None,
+                            'end_date': program_registry['end_date'].isoformat() if program_registry['end_date'] else None,
+                            'custom_name': program_registry['custom_name'],
+                            'businesses': program_registry['businesses'] or [],
+                            'active_features': program_registry['active_features'] or [],
+                            'available_features': program_registry['available_features'] or [],
+                        }
+                        
+                        # Add program_metrics if available
+                        if program_registry['budget'] is not None:
+                            program_data['program_metrics'] = {
+                                'budget': int(float(program_registry['budget']) * 100),
+                                'currency': program_registry['currency'] or 'USD',
+                                'is_autobid': program_registry['is_autobid'],
+                                'max_bid': int(float(program_registry['max_bid']) * 100) if program_registry['max_bid'] else None,
+                                'billed_impressions': program_registry['billed_impressions'] or 0,
+                                'billed_clicks': program_registry['billed_clicks'] or 0,
+                                'ad_cost': int(float(program_registry['ad_cost']) * 100) if program_registry['ad_cost'] else 0,
+                                'fee_period': program_registry['fee_period'],
+                            }
+                        
+                        programs.append(program_data)
                     except Exception as e:
-                        logger.warning(f"⚠️  Failed to get program {program_id}: {e}")
+                        logger.warning(f"⚠️  Failed to process program {program_id}: {e}")
                         continue
                 
-                if invalid_program_ids:
-                    logger.warning(f"⚠️  Found {len(invalid_program_ids)} invalid/stale program IDs in database. Sync recommended.")
-                
-                logger.info(f"✅ Returning {len(programs)} valid programs out of {len(paginated_ids)} program IDs for business {business_id}")
-                
-                # Збагачуємо програми custom_name з БД
-                programs = self.enrich_programs_with_custom_names(programs, username)
+                logger.info(f"✅ Returning {len(programs)} programs from database for business {business_id}")
                 
                 response_data = {
                     'programs': programs,
-                    'total_count': len(programs),  # Return actual count of valid programs
+                    'total_count': len(programs),
                     'offset': offset,
                     'limit': limit,
                     'business_id': business_id,
                     'from_db': True
                 }
                 
-                # Add warning if there are stale programs
-                if invalid_program_ids:
-                    response_data['warning'] = f'{len(invalid_program_ids)} programs in database no longer exist in Yelp API. Click "Sync Programs" to update.'
-                    response_data['stale_count'] = len(invalid_program_ids)
+                # Cache the result for 60 seconds
+                cache.set(cache_key_hash, response_data, 60)
                 
                 return Response(response_data)
             else:
@@ -656,14 +739,17 @@ class ProgramListView(APIView):
                     
                     if not program_ids:
                         logger.warning(f"⚠️  No programs found for program_type {program_type}")
-                        return Response({
+                        response_data = {
                             'programs': [],
                             'total_count': 0,
                             'offset': offset,
                             'limit': limit,
                             'program_type': program_type,
                             'from_db': True
-                        })
+                        }
+                        # Cache the result for 60 seconds
+                        cache.set(cache_key_hash, response_data, 60)
+                        return Response(response_data)
                     
                     total_count = len(program_ids)
                     logger.info(f"📊 Found {total_count} program_ids for program_type {program_type}")
@@ -671,29 +757,69 @@ class ProgramListView(APIView):
                     # Пагінація program_ids
                     paginated_ids = program_ids[offset:offset + limit]
                     
-                    # Витягуємо повні дані цих програм з API
+                    # 🚀 ОПТИМІЗАЦІЯ: Отримуємо ВСІ програми ОДНИМ запитом використовуючи .values()
+                    logger.info(f"⚡ Fetching {len(paginated_ids)} programs from DB using values()...")
+                    
+                    # Get data as dictionaries (NO ORM object creation)
+                    programs_data = list(ProgramRegistry.objects.filter(
+                        username=username,
+                        program_id__in=paginated_ids
+                    ).select_related('business').values(
+                        'program_id', 'program_name', 'program_status', 'program_pause_status',
+                        'yelp_business_id', 'start_date', 'end_date', 'custom_name',
+                        'status', 'budget', 'currency', 'is_autobid', 'max_bid',
+                        'billed_impressions', 'billed_clicks', 'ad_cost', 'fee_period',
+                        'businesses', 'active_features', 'available_features',
+                        'business__name'  # From related business
+                    ))
+                    
+                    # Create map for preserving order
+                    programs_map = {p['program_id']: p for p in programs_data}
+                    
+                    # Convert to frontend format (preserving order)
                     programs = []
-                    invalid_program_ids = []
                     for program_id in paginated_ids:
+                        program_registry = programs_map.get(program_id)
+                        if not program_registry:
+                            continue
+                            
                         try:
-                            program_data = YelpService.get_program_info(program_id)
-                            if program_data and program_data.get('programs'):
-                                programs.append(program_data['programs'][0])
-                            elif program_data and program_data.get('errors'):
-                                # Program ID exists in DB but not in Yelp API (stale data)
-                                logger.warning(f"⚠️  Program {program_id} not found in Yelp API (stale data): {program_data.get('errors')}")
-                                invalid_program_ids.append(program_id)
+                            # Convert directly from dictionary (faster than ORM objects)
+                            program_data = {
+                                'program_id': program_registry['program_id'],
+                                'program_type': program_registry['program_name'],
+                                'program_status': program_registry['program_status'] or program_registry['status'],
+                                'program_pause_status': program_registry['program_pause_status'],
+                                'yelp_business_id': program_registry['yelp_business_id'],
+                                'business_id': program_registry['yelp_business_id'],
+                                'business_name': program_registry['business__name'] or program_registry['yelp_business_id'],
+                                'start_date': program_registry['start_date'].isoformat() if program_registry['start_date'] else None,
+                                'end_date': program_registry['end_date'].isoformat() if program_registry['end_date'] else None,
+                                'custom_name': program_registry['custom_name'],
+                                'businesses': program_registry['businesses'] or [],
+                                'active_features': program_registry['active_features'] or [],
+                                'available_features': program_registry['available_features'] or [],
+                            }
+                            
+                            # Add program_metrics if available
+                            if program_registry['budget'] is not None:
+                                program_data['program_metrics'] = {
+                                    'budget': int(float(program_registry['budget']) * 100),
+                                    'currency': program_registry['currency'] or 'USD',
+                                    'is_autobid': program_registry['is_autobid'],
+                                    'max_bid': int(float(program_registry['max_bid']) * 100) if program_registry['max_bid'] else None,
+                                    'billed_impressions': program_registry['billed_impressions'] or 0,
+                                    'billed_clicks': program_registry['billed_clicks'] or 0,
+                                    'ad_cost': int(float(program_registry['ad_cost']) * 100) if program_registry['ad_cost'] else 0,
+                                    'fee_period': program_registry['fee_period'],
+                                }
+                            
+                            programs.append(program_data)
                         except Exception as e:
-                            logger.warning(f"⚠️  Failed to get program {program_id}: {e}")
+                            logger.warning(f"⚠️  Failed to process program {program_id}: {e}")
                             continue
                     
-                    if invalid_program_ids:
-                        logger.warning(f"⚠️  Found {len(invalid_program_ids)} invalid/stale program IDs in database. Sync recommended.")
-                    
-                    logger.info(f"✅ Returning {len(programs)} valid programs out of {len(paginated_ids)} program IDs for program_type {program_type}")
-                    
-                    # Збагачуємо програми custom_name з БД
-                    programs = self.enrich_programs_with_custom_names(programs, username)
+                    logger.info(f"✅ Returning {len(programs)} programs from ProgramRegistry for program_type {program_type}")
                     
                     response_data = {
                         'programs': programs,
@@ -704,27 +830,127 @@ class ProgramListView(APIView):
                         'from_db': True
                     }
                     
-                    # Add warning if there are stale programs
-                    if invalid_program_ids:
-                        response_data['warning'] = f'{len(invalid_program_ids)} programs in database no longer exist in Yelp API. Click "Sync Programs" to update.'
-                        response_data['stale_count'] = len(invalid_program_ids)
+                    # Cache the result for 60 seconds
+                    cache.set(cache_key_hash, response_data, 60)
                     
                     return Response(response_data)
                 else:
-                    # Без фільтру - звичайний запит до API
-                    data = YelpService.get_all_programs(
-                        offset=offset,
-                        limit=limit,
-                        program_status=api_status,  # Використовуємо змапований статус
-                        username=username
-                    )
-                    logger.info(f"Retrieved {len(data.get('programs', []))} programs from Yelp API")
+                    # Без фільтру - отримуємо всі програми з БД
+                    logger.info(f"🔍 Getting all programs from DB with status: {program_status}")
                     
-                    # Збагачуємо програми custom_name з БД
-                    if 'programs' in data:
-                        data['programs'] = self.enrich_programs_with_custom_names(data['programs'], username)
+                    query = ProgramRegistry.objects.filter(username=username)
                     
-                    return Response(data)
+                    if program_status and program_status != 'ALL':
+                        query = query.filter(status=program_status)
+                    
+                    # Загальна кількість після фільтрів
+                    total_count = query.count()
+                    
+                    # ⚡ ШВИДКИЙ РЕЖИМ: Якщо load_all=true, завантажуємо ВСЕ одразу без пагінації
+                    if load_all:
+                        logger.info(f"⚡ FAST MODE: Loading ALL {total_count} programs in ONE request...")
+                        program_ids = list(query.values_list('program_id', flat=True))
+                        # Оновлюємо offset та limit для response
+                        actual_offset = 0
+                        actual_limit = total_count
+                    else:
+                        # Отримуємо program_ids з пагінацією
+                        program_ids = list(query.values_list('program_id', flat=True)[offset:offset + limit])
+                        actual_offset = offset
+                        actual_limit = limit
+                    
+                    if not program_ids:
+                        logger.info(f"⚠️  No programs found")
+                        response_data = {
+                            'programs': [],
+                            'total_count': 0,
+                            'offset': offset,
+                            'limit': limit,
+                            'from_db': True
+                        }
+                        # Cache the result for 60 seconds
+                        cache.set(cache_key_hash, response_data, 60)
+                        return Response(response_data)
+                    
+                    logger.info(f"📊 Found {len(program_ids)} program_ids (total: {total_count})")
+                    
+                    # 🚀 ОПТИМІЗАЦІЯ: Отримуємо ВСІ програми ОДНИМ запитом використовуючи .values()
+                    logger.info(f"⚡ Fetching {len(program_ids)} programs from DB using values()...")
+                    
+                    # Get data as dictionaries (NO ORM object creation)
+                    programs_data = list(ProgramRegistry.objects.filter(
+                        username=username,
+                        program_id__in=program_ids
+                    ).select_related('business').values(
+                        'program_id', 'program_name', 'program_status', 'program_pause_status',
+                        'yelp_business_id', 'start_date', 'end_date', 'custom_name',
+                        'status', 'budget', 'currency', 'is_autobid', 'max_bid',
+                        'billed_impressions', 'billed_clicks', 'ad_cost', 'fee_period',
+                        'businesses', 'active_features', 'available_features',
+                        'business__name'  # From related business
+                    ))
+                    
+                    # Create map for preserving order
+                    programs_map = {p['program_id']: p for p in programs_data}
+                    
+                    # Convert to frontend format (preserving order)
+                    programs = []
+                    for program_id in program_ids:
+                        program_registry = programs_map.get(program_id)
+                        if not program_registry:
+                            continue
+                            
+                        try:
+                            # Convert directly from dictionary (faster than ORM objects)
+                            program_data = {
+                                'program_id': program_registry['program_id'],
+                                'program_type': program_registry['program_name'],
+                                'program_status': program_registry['program_status'] or program_registry['status'],
+                                'program_pause_status': program_registry['program_pause_status'],
+                                'yelp_business_id': program_registry['yelp_business_id'],
+                                'business_id': program_registry['yelp_business_id'],
+                                'business_name': program_registry['business__name'] or program_registry['yelp_business_id'],
+                                'start_date': program_registry['start_date'].isoformat() if program_registry['start_date'] else None,
+                                'end_date': program_registry['end_date'].isoformat() if program_registry['end_date'] else None,
+                                'custom_name': program_registry['custom_name'],
+                                'businesses': program_registry['businesses'] or [],
+                                'active_features': program_registry['active_features'] or [],
+                                'available_features': program_registry['available_features'] or [],
+                            }
+                            
+                            # Add program_metrics if available
+                            if program_registry['budget'] is not None:
+                                program_data['program_metrics'] = {
+                                    'budget': int(float(program_registry['budget']) * 100),
+                                    'currency': program_registry['currency'] or 'USD',
+                                    'is_autobid': program_registry['is_autobid'],
+                                    'max_bid': int(float(program_registry['max_bid']) * 100) if program_registry['max_bid'] else None,
+                                    'billed_impressions': program_registry['billed_impressions'] or 0,
+                                    'billed_clicks': program_registry['billed_clicks'] or 0,
+                                    'ad_cost': int(float(program_registry['ad_cost']) * 100) if program_registry['ad_cost'] else 0,
+                                    'fee_period': program_registry['fee_period'],
+                                }
+                            
+                            programs.append(program_data)
+                        except Exception as e:
+                            logger.warning(f"⚠️  Failed to process program {program_id}: {e}")
+                            continue
+                    
+                    logger.info(f"✅ Returning {len(programs)} programs from database")
+                    
+                    response_data = {
+                        'programs': programs,
+                        'total_count': total_count,
+                        'offset': actual_offset,
+                        'limit': actual_limit,
+                        'from_db': True,
+                        'loaded_all': load_all  # Індикатор що завантажено все
+                    }
+                    
+                    # Cache the result for 60 seconds
+                    cache.set(cache_key_hash, response_data, 60)
+                    
+                    return Response(response_data)
                 
         except Exception as e:
             logger.error(f"Error getting programs list: {e}")
@@ -1462,6 +1688,166 @@ class BusinessIdsView(APIView):
             logger.error(f"❌ Error in BusinessIdsView: {e}", exc_info=True)
             return Response(
                 {"error": f"Failed to fetch business IDs: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AvailableFiltersView(APIView):
+    """
+    🧠 РОЗУМНІ ФІЛЬТРИ: Повертає доступні опції для фільтрів на основі поточного вибору.
+    
+    Приклад:
+    - GET /reseller/filters?program_status=CURRENT → {statuses: [...], program_types: ['BP', 'CPC'], businesses: [...]}
+    - GET /reseller/filters?program_status=CURRENT&program_type=CPC → {statuses: [...], program_types: [...], businesses: [...]}
+    """
+    
+    def get(self, request):
+        """
+        Отримує доступні опції для фільтрів на основі поточного вибору.
+        
+        Query parameters:
+        - program_status: фільтр по статусу (опціонально)
+        - program_type: фільтр по типу програми (опціонально)
+        - business_id: фільтр по бізнесу (опціонально)
+        """
+        from .models import ProgramRegistry
+        from django.db.models import Count, Q
+        
+        try:
+            # Authentication
+            if not request.user or not request.user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            username = request.user.username
+            
+            # Отримуємо фільтри з query params
+            program_status = request.query_params.get('program_status', None)
+            program_type = request.query_params.get('program_type', None)
+            business_id = request.query_params.get('business_id', None)
+            
+            logger.info(f"🧠 [SMART FILTER] Request for {username}: status={program_status}, type={program_type}, business={business_id}")
+            
+            # Базовий queryset
+            from django.utils import timezone
+            today = timezone.now().date()
+            query = ProgramRegistry.objects.filter(username=username).select_related('business')
+            
+            # ⚠️ ВАЖЛИВО: Логіка статусів відрізняється від прямого маппінгу:
+            # - CURRENT: program_status == "ACTIVE"
+            # - PAST: program_status == "INACTIVE" + program_pause_status == "NOT_PAUSED"
+            # - FUTURE: start_date > today (незалежно від program_status)
+            # - PAUSED: program_pause_status == "PAUSED" (незалежно від program_status)
+            
+            if program_status and program_status != 'ALL':
+                if program_status == 'CURRENT':
+                    # Активні програми (program_status=ACTIVE)
+                    query = query.filter(program_status='ACTIVE')
+                elif program_status == 'PAST':
+                    # Минулі програми (INACTIVE + NOT_PAUSED)
+                    query = query.filter(
+                        program_status='INACTIVE',
+                        program_pause_status='NOT_PAUSED'
+                    )
+                elif program_status == 'FUTURE':
+                    # Майбутні програми (дата старту > сьогодні)
+                    query = query.filter(start_date__gt=today)
+                elif program_status == 'PAUSED':
+                    # Призупинені програми (program_pause_status=PAUSED)
+                    query = query.filter(program_pause_status='PAUSED')
+            
+            if program_type and program_type != 'ALL':
+                # ⚠️ ВАЖЛИВО: В БД поле називається 'program_name', а не 'program_type'!
+                # program_name зберігає тип програми (CPC, BP, EP, тощо)
+                query = query.filter(program_name=program_type)
+            
+            if business_id and business_id != 'all':
+                query = query.filter(yelp_business_id=business_id)
+            
+            # 1. Доступні статуси - розраховуємо на основі реальних даних
+            from django.db.models import Q, Exists, OuterRef
+            base_query = ProgramRegistry.objects.filter(username=username)
+            
+            available_statuses = ['ALL']  # ALL завжди доступний
+            
+            # CURRENT: є програми з program_status=ACTIVE
+            if base_query.filter(program_status='ACTIVE').exists():
+                available_statuses.append('CURRENT')
+            
+            # PAST: є програми з INACTIVE + NOT_PAUSED
+            if base_query.filter(
+                program_status='INACTIVE',
+                program_pause_status='NOT_PAUSED'
+            ).exists():
+                available_statuses.append('PAST')
+            
+            # FUTURE: є програми з start_date > today
+            if base_query.filter(start_date__gt=today).exists():
+                available_statuses.append('FUTURE')
+            
+            # PAUSED: є програми з program_pause_status=PAUSED
+            if base_query.filter(program_pause_status='PAUSED').exists():
+                available_statuses.append('PAUSED')
+            
+            # 2. Доступні program types (на основі вибраного статусу та бізнесу)
+            # ⚠️ ВАЖЛИВО: В БД поле називається 'program_name', а не 'program_type'!
+            available_program_types = list(
+                query
+                .exclude(program_name__isnull=True)
+                .exclude(program_name='')
+                .values_list('program_name', flat=True)
+                .distinct()
+                .order_by('program_name')
+            )
+            available_program_types.insert(0, 'ALL')
+            
+            # 3. Доступні businesses (на основі вибраного статусу та program type)
+            available_businesses_qs = (
+                query
+                .exclude(yelp_business_id__isnull=True)
+                .exclude(yelp_business_id='')
+                .values('yelp_business_id')
+                .annotate(
+                    program_count=Count('program_id'),
+                    business_name=models.Max('business__name')  # Беремо з Business FK
+                )
+                .order_by('-program_count')
+            )
+            
+            available_businesses = [
+                {
+                    'business_id': b['yelp_business_id'],
+                    'business_name': b['business_name'] or b['yelp_business_id'],
+                    'program_count': b['program_count']
+                }
+                for b in available_businesses_qs
+            ]
+            
+            # Підрахунок загальної кількості програм для поточних фільтрів
+            total_programs = query.count()
+            
+            logger.info(f"🧠 [SMART FILTER] Response: {len(available_statuses)} statuses, "
+                       f"{len(available_program_types)} types, {len(available_businesses)} businesses, "
+                       f"{total_programs} programs")
+            
+            return Response({
+                'statuses': available_statuses,
+                'program_types': available_program_types,
+                'businesses': available_businesses,
+                'total_programs': total_programs,
+                'applied_filters': {
+                    'program_status': program_status or 'ALL',
+                    'program_type': program_type or 'ALL',
+                    'business_id': business_id or 'all'
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Error in AvailableFiltersView: {e}", exc_info=True)
+            return Response(
+                {"error": f"Failed to fetch available filters: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

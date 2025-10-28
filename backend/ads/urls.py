@@ -3,6 +3,7 @@ from .views import (
     CreateProgramView,
     EditProgramView,
     TerminateProgramView,
+    UpdateProgramCustomNameView,
     PauseProgramView,
     ResumeProgramView,
     JobStatusView,
@@ -11,6 +12,8 @@ from .views import (
     RequestReportView,
     FetchReportView,
     ProgramListView,
+    ProgramSyncView,  # NEW
+    ProgramSyncStreamView,  # NEW - SSE streaming sync
     ProgramInfoView,
     BusinessProgramsView,
     PartnerProgramInfoView,
@@ -31,6 +34,11 @@ from .views import (
     JobHistoryView,
     # Duplicate Program View
     DuplicateProgramView,
+    # Business IDs View
+    BusinessIdsView,
+    AvailableFiltersView,  # 🧠 NEW - Smart Filters
+    # Logs View
+    LogsView,
 )
 
 urlpatterns = [
@@ -50,6 +58,7 @@ urlpatterns = [
     path('reseller/program/<str:program_id>/duplicate', DuplicateProgramView.as_view()),
     path('reseller/program/<str:program_id>/edit', EditProgramView.as_view()),
     path('reseller/program/<str:program_id>/end', TerminateProgramView.as_view()),
+    path('reseller/program/<str:program_id>/custom-name', UpdateProgramCustomNameView.as_view()),
     path('program/<str:program_id>/pause/v1', PauseProgramView.as_view()),
     path('program/<str:program_id>/resume/v1', ResumeProgramView.as_view()),
     path('program/<str:program_id>/features/v1', ProgramFeaturesView.as_view()),
@@ -57,6 +66,10 @@ urlpatterns = [
     path('reseller/active-jobs', ActiveJobsView.as_view()),
     path('reseller/job-history', JobHistoryView.as_view()),
     path('reseller/programs', ProgramListView.as_view()),
+    path('reseller/programs/sync', ProgramSyncView.as_view()),  # NEW - синхронізація (старий метод)
+    path('reseller/programs/sync-stream', ProgramSyncStreamView.as_view()),  # NEW - синхронізація з SSE прогресом
+    path('reseller/business-ids', BusinessIdsView.as_view()),
+    path('reseller/available-filters', AvailableFiltersView.as_view()),  # 🧠 NEW - розумні фільтри
     path('reseller/get_program_info', ProgramInfoView.as_view()),
     path('reseller/business_programs/<str:business_id>', BusinessProgramsView.as_view()),
     path('reseller/program_info/<str:program_id>', PartnerProgramInfoView.as_view()),
@@ -70,6 +83,9 @@ urlpatterns = [
 
     # Custom Suggested Keywords endpoints
     path('program/<str:program_id>/custom-suggested-keywords', CustomSuggestedKeywordsView.as_view()),
+
+    # Logs endpoint (for debugging and monitoring)
+    path('logs/', LogsView.as_view()),
 
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/?$', RequestReportView.as_view()),
     re_path(r'^reporting/businesses/(?P<period>[^/]+)/(?P<report_id>[^/]+)/?$', FetchReportView.as_view()),

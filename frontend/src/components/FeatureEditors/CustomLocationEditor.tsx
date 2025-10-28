@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { MapPin, Save, X, Plus, Trash2, Building } from 'lucide-react';
+import { LocationAutocomplete } from '@/components/ui/location-autocomplete';
 
 interface BusinessLocation {
   business_id: string;
@@ -284,13 +285,22 @@ const LocationQuickAdd: React.FC<LocationQuickAddProps> = ({
   return (
     <div className="space-y-3 mt-2">
       <div className="flex gap-2">
-        <Input
-          value={newLocation}
-          onChange={(e) => setNewLocation(e.target.value)}
-          placeholder="Enter ZIP code, city, neighborhood, or state"
-          disabled={disabled}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
-        />
+        <div className="flex-1">
+          <LocationAutocomplete
+            value={newLocation}
+            onChange={setNewLocation}
+            onSelect={(location) => {
+              setNewLocation(location);
+              if (location.trim() && !existingLocations.includes(location.trim())) {
+                onAdd(location.trim());
+                setNewLocation('');
+              }
+            }}
+            placeholder="Enter ZIP code, city, neighborhood, or state"
+            disabled={disabled}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
+          />
+        </div>
         <Button 
           type="button" 
           onClick={handleAdd} 
@@ -335,6 +345,7 @@ interface BulkLocationAddProps {
 
 const BulkLocationAdd: React.FC<BulkLocationAddProps> = ({ onAdd, disabled }) => {
   const [bulkText, setBulkText] = useState('');
+  const [quickAddLocation, setQuickAddLocation] = useState('');
 
   const handleBulkAdd = () => {
     if (bulkText.trim()) {
@@ -343,9 +354,37 @@ const BulkLocationAdd: React.FC<BulkLocationAddProps> = ({ onAdd, disabled }) =>
     }
   };
 
+  const handleQuickAdd = (location: string) => {
+    if (location.trim()) {
+      setBulkText(prev => {
+        if (prev.trim()) {
+          return prev + ', ' + location.trim();
+        }
+        return location.trim();
+      });
+      setQuickAddLocation('');
+    }
+  };
+
   return (
     <div className="mt-3">
       <Label htmlFor="bulkLocations">Add multiple locations at once</Label>
+      
+      {/* Quick add with autocomplete */}
+      <div className="mt-2">
+        <LocationAutocomplete
+          value={quickAddLocation}
+          onChange={setQuickAddLocation}
+          onSelect={(location) => {
+            setQuickAddLocation(location);
+            handleQuickAdd(location);
+          }}
+          placeholder="Quick add location (autocomplete enabled)"
+          disabled={disabled}
+        />
+        <p className="text-xs text-gray-500 mt-1">Tip: Type to get suggestions, select to add to the list below</p>
+      </div>
+
       <Textarea
         id="bulkLocations"
         value={bulkText}

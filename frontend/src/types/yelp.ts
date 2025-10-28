@@ -118,6 +118,10 @@ export interface BusinessProgram {
   program_status: string;
   program_type: string;
   start_date: string;
+  custom_name?: string | null; // User-editable custom name (local DB only)
+  business_name?: string; // Business name from Yelp Fusion API
+  business_url?: string; // Business URL on Yelp
+  business_alias?: string; // Business alias for URL
   businesses?: Array<{
     yelp_business_id: string;
     partner_business_id: string | null;

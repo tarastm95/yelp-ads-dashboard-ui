@@ -10,8 +10,13 @@ class RequestLoggingMiddleware:
     def __call__(self, request):
         start_time = time.time()
         
-        # Детальний лог запиту
-        logger.info(f"🔵 REQUEST: {request.method} {request.path}")
+        # Детальний лог запиту з додатковою інформацією
+        log_extra = {
+            'path': request.path,
+            'method': request.method,
+            'user': str(request.user) if hasattr(request, 'user') else 'Anonymous',
+        }
+        logger.info(f"🔵 REQUEST: {request.method} {request.path}", extra=log_extra)
         
         # Додаткове логування для Program Features API
         if '/program/' in request.path and '/features/' in request.path:
@@ -33,7 +38,16 @@ class RequestLoggingMiddleware:
         response = self.get_response(request)
         
         duration = time.time() - start_time
-        logger.info(f"🔴 RESPONSE: {request.method} {request.path} -> {response.status_code} ({duration:.3f}s)")
+        
+        # Лог відповіді з повною інформацією для database handler
+        response_extra = {
+            'path': request.path,
+            'method': request.method,
+            'status_code': response.status_code,
+            'user': str(request.user) if hasattr(request, 'user') else 'Anonymous',
+            'duration': duration,
+        }
+        logger.info(f"🔴 RESPONSE: {request.method} {request.path} -> {response.status_code} ({duration:.3f}s)", extra=response_extra)
         
         # Додаткове логування відповіді для Program Features API
         if '/program/' in request.path and '/features/' in request.path:

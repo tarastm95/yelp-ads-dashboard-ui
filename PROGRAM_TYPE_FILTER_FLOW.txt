@@ -1,0 +1,131 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PROGRAM TYPE FILTERING - DATA FLOW                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                  USER INTERFACE                             │
+│                                                                             │
+│  ┌────────────┐  ┌────────────────────┐  ┌──────────────────────────┐     │
+│  │  Status:   │  │    Business:       │  │   Program Type:          │     │
+│  │ [CURRENT▼] │  │ [All Businesses▼]  │  │   [CPC ▼]                │     │
+│  └────────────┘  └────────────────────┘  └──────────────────────────┘     │
+│                                                    ↓                        │
+│                                          User selects "CPC"                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND (React)                               │
+│                                                                             │
+│  ProgramsList.tsx:                                                          │
+│    • setProgramType('CPC')                                                  │
+│    • setOffset(0)  // Reset to page 1                                      │
+│    • setForceRefreshKey(prev => prev + 1)                                  │
+│    • sessionStorage.setItem('programsList_programType', 'CPC')             │
+│                                                                             │
+│  API Calls:                                                                 │
+│    1. useGetBusinessIdsQuery({ programStatus: 'CURRENT', programType: 'CPC' })│
+│    2. useGetProgramsQuery({                                                 │
+│         program_status: 'CURRENT',                                          │
+│         program_type: 'CPC',                                                │
+│         offset: 0,                                                          │
+│         limit: 20                                                           │
+│       })                                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              API LAYER (RTK Query)                          │
+│                                                                             │
+│  yelpApi.ts:                                                                │
+│    GET /api/reseller/business-ids?program_status=CURRENT&program_type=CPC  │
+│    GET /api/reseller/programs?program_status=CURRENT&program_type=CPC&...  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BACKEND (Django REST Framework)                     │
+│                                                                             │
+│  views.py - ProgramListView:                                                │
+│    • program_type = request.query_params.get('program_type', None)         │
+│    • if program_type == 'CPC':                                              │
+│        query = query.filter(program_name='CPC')                             │
+│                                                                             │
+│  views.py - BusinessIdsView:                                                │
+│    • program_type = request.query_params.get('program_type', None)         │
+│    • businesses = ProgramSyncService.get_business_ids_for_user(             │
+│        username, status='CURRENT', program_type='CPC'                       │
+│      )                                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SERVICE LAYER (sync_service.py)                     │
+│                                                                             │
+│  get_business_ids_for_user(username, status='CURRENT', program_type='CPC'):│
+│    query = ProgramRegistry.objects.filter(username=username)                │
+│    if status: query = query.filter(status=status)                          │
+│    if program_type: query = query.filter(program_name=program_type)        │
+│    return query.values('yelp_business_id').annotate(...)                   │
+│                                                                             │
+│  get_program_ids_for_business(username, business_id, status, program_type):│
+│    query = ProgramRegistry.objects.filter(username, business_id)            │
+│    if status: query = query.filter(status=status)                          │
+│    if program_type: query = query.filter(program_name=program_type)        │
+│    return list(query.values_list('program_id', flat=True))                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DATABASE (PostgreSQL)                          │
+│                                                                             │
+│  ProgramRegistry table:                                                     │
+│  ┌──────────────┬──────────────┬─────────────────┬──────────┬─────────┐   │
+│  │ program_id   │ program_name │ yelp_business_id│  status  │  ...    │   │
+│  ├──────────────┼──────────────┼─────────────────┼──────────┼─────────┤   │
+│  │ prog-001     │ CPC          │ biz-123         │ CURRENT  │  ...    │ ✓ │
+│  │ prog-002     │ BP           │ biz-456         │ CURRENT  │  ...    │ ✗ │
+│  │ prog-003     │ CPC          │ biz-789         │ CURRENT  │  ...    │ ✓ │
+│  │ prog-004     │ EP           │ biz-123         │ PAST     │  ...    │ ✗ │
+│  └──────────────┴──────────────┴─────────────────┴──────────┴─────────┘   │
+│                                                                             │
+│  SQL Query:                                                                 │
+│  SELECT * FROM program_registry                                             │
+│  WHERE username = 'user' AND status = 'CURRENT' AND program_name = 'CPC'   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RESPONSE DATA                                  │
+│                                                                             │
+│  Business IDs Response:                                                     │
+│  {                                                                          │
+│    "total": 2,                                                              │
+│    "businesses": [                                                          │
+│      { "business_id": "biz-123", "business_name": "ABC Corp", "count": 1 },│
+│      { "business_id": "biz-789", "business_name": "XYZ Inc", "count": 1 }  │
+│    ]                                                                        │
+│  }                                                                          │
+│                                                                             │
+│  Programs Response:                                                         │
+│  {                                                                          │
+│    "programs": [                                                            │
+│      { "program_id": "prog-001", "program_type": "CPC", ... },             │
+│      { "program_id": "prog-003", "program_type": "CPC", ... }              │
+│    ],                                                                       │
+│    "total_count": 2                                                         │
+│  }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              UI UPDATE                                      │
+│                                                                             │
+│  • Business dropdown shows only businesses with CPC programs                │
+│  • Program list shows only CPC programs                                     │
+│  • Pagination shows "Showing 1-2 of 2 programs"                            │
+│  • Filter selection persisted in sessionStorage                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FILTER COMBINATIONS                                 │
+│                                                                             │
+│  1. Status ONLY:           WHERE status = 'CURRENT'                         │
+│  2. Program Type ONLY:     WHERE program_name = 'CPC'                       │
+│  3. Status + Type:         WHERE status = 'CURRENT' AND program_name = 'CPC'│
+│  4. Status + Type + Biz:   WHERE status = 'CURRENT' AND program_name = 'CPC'│
+│                                  AND yelp_business_id = 'biz-123'           │
+└─────────────────────────────────────────────────────────────────────────────┘

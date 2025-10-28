@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLazyGetProgramsQuery } from '../store/api/yelpApi';
+import { useLazyGetProgramsQuery, useLazyGetAllProgramsFastQuery } from '../store/api/yelpApi';
 import type { BusinessProgram } from '../types/yelp';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const PAGE_SIZE = 100;
+const FAST_LOAD_THRESHOLD = 500; // ⚡ Використовувати fast loading якщо програм >= 500
 
 type CacheEntry = {
   programs: BusinessProgram[];
@@ -41,6 +42,7 @@ export interface UseProgramsSearchResult {
 
 export const useProgramsSearch = (status: string): UseProgramsSearchResult => {
   const [trigger] = useLazyGetProgramsQuery();
+  const [triggerFast] = useLazyGetAllProgramsFastQuery();
   const cacheRef = useRef<Record<string, CacheEntry>>({});
   const pendingRef = useRef<Record<string, Promise<CacheEntry | undefined> | null>>({});
   const [loadingState, setLoadingState] = useState<LoadingState>({});
@@ -52,56 +54,158 @@ export const useProgramsSearch = (status: string): UseProgramsSearchResult => {
     const now = Date.now();
     const cached = cacheRef.current[statusKey];
 
+    console.log(`🔍 [useProgramsSearch] ensureStatus called for status: "${statusKey}"`, {
+      force: options.force,
+      hasCached: !!cached,
+      cacheAge: cached ? now - cached.fetchedAt : 'N/A',
+      cacheTTL: CACHE_TTL_MS
+    });
+
     if (!options.force && cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+      console.log(`✅ [useProgramsSearch] Using cached data for "${statusKey}":`, {
+        programsCount: cached.programs.length,
+        totalCount: cached.totalCount,
+        fromCache: cached.fromCache
+      });
       return cached;
     }
 
     if (pendingRef.current[statusKey]) {
+      console.log(`⏳ [useProgramsSearch] Request already pending for "${statusKey}"`);
       return pendingRef.current[statusKey] ?? undefined;
     }
 
     const fetchPromise = (async () => {
+      console.log(`🚀 [useProgramsSearch] Starting fetch for status: "${statusKey}"`);
       setLoadingState((prev) => ({ ...prev, [statusKey]: true }));
       setErrorState((prev) => ({ ...prev, [statusKey]: undefined }));
 
       try {
-        let offset = 0;
-        let aggregated: BusinessProgram[] = [];
-        let totalCount = 0;
-        let warning: string | undefined;
-        let staleCount: number | undefined;
-        let fromCache: boolean | undefined;
+        // ⚡ СПОЧАТКУ: Завантажуємо першу сторінку щоб дізнатись total_count
+        console.log(`📡 [useProgramsSearch] Fetching first page for "${statusKey}"...`);
+        const firstPage = await trigger(
+          { offset: 0, limit: PAGE_SIZE, program_status: statusKey },
+          true,
+        ).unwrap();
 
-        while (true) {
+        console.log(`📊 [useProgramsSearch] First page response:`, {
+          total_count: firstPage?.total_count,
+          programsLength: firstPage?.programs?.length,
+          from_db: (firstPage as any)?.from_db,
+          loaded_all: (firstPage as any)?.loaded_all
+        });
+
+        const totalCount = firstPage?.total_count ?? firstPage?.programs?.length ?? 0;
+        
+        // ⚡ ВИБІР СТРАТЕГІЇ: Fast loading для великих datasets
+        const shouldUseFastLoad = totalCount >= FAST_LOAD_THRESHOLD;
+
+        console.log(`📋 [useProgramsSearch] Strategy decision:`, {
+          totalCount,
+          threshold: FAST_LOAD_THRESHOLD,
+          shouldUseFastLoad
+        });
+
+        if (shouldUseFastLoad) {
+          console.log(`⚡ [useProgramsSearch] Fast loading ${totalCount} programs in ONE request...`);
+          
+          // Використовуємо fast endpoint для завантаження всіх програм одразу
+          const fastResponse = await triggerFast(
+            { program_status: statusKey },
+            true,
+          ).unwrap();
+
+          console.log(`⚡ [useProgramsSearch] Fast response:`, {
+            programsLength: fastResponse?.programs?.length,
+            total_count: fastResponse?.total_count,
+            from_db: (fastResponse as any)?.from_db,
+            loaded_all: (fastResponse as any)?.loaded_all
+          });
+
+          const entry: CacheEntry = {
+            programs: fastResponse?.programs ?? [],
+            totalCount: fastResponse?.total_count ?? 0,
+            fetchedAt: Date.now(),
+            fromCache: (fastResponse as any)?.from_db ?? false,
+          };
+
+          console.log(`💾 [useProgramsSearch] Caching fast load result:`, {
+            programsCount: entry.programs.length,
+            totalCount: entry.totalCount
+          });
+
+          cacheRef.current[statusKey] = entry;
+          setCacheVersion((prev) => prev + 1);
+          return entry;
+        }
+
+        // 📄 ПАГІНАЦІЯ: Для малих datasets (<500) використовуємо звичайну пагінацію
+        console.log(`📄 [useProgramsSearch] Paginated loading ${totalCount} programs...`);
+        
+        let offset = PAGE_SIZE; // Починаємо з другої сторінки (першу вже завантажили)
+        let aggregated: BusinessProgram[] = firstPage?.programs ?? [];
+        let warning: string | undefined = (firstPage as any)?.warning;
+        let staleCount: number | undefined = (firstPage as any)?.stale_count;
+        let fromCache: boolean | undefined = (firstPage as any)?.from_cache;
+
+        console.log(`📄 [useProgramsSearch] Starting pagination with:`, {
+          initialPrograms: aggregated.length,
+          totalCount,
+          offset,
+          PAGE_SIZE
+        });
+
+        while (aggregated.length < totalCount && offset < totalCount) {
+          console.log(`📄 [useProgramsSearch] Fetching page at offset ${offset}...`);
           const response = await trigger(
             { offset, limit: PAGE_SIZE, program_status: statusKey },
             true,
           ).unwrap();
 
           const pagePrograms = response?.programs ?? [];
+          console.log(`📄 [useProgramsSearch] Page response:`, {
+            offset,
+            pageProgramsLength: pagePrograms.length,
+            aggregatedLength: aggregated.length,
+            totalCount
+          });
+
           aggregated = aggregated.concat(pagePrograms);
-          totalCount = response?.total_count ?? aggregated.length;
           warning = warning ?? (response as any)?.warning;
           staleCount = staleCount ?? (response as any)?.stale_count;
           if (typeof (response as any)?.from_cache !== 'undefined') {
             fromCache = (response as any).from_cache;
           }
 
-          if (aggregated.length >= totalCount || pagePrograms.length < PAGE_SIZE) {
+          if (pagePrograms.length < PAGE_SIZE) {
+            console.log(`📄 [useProgramsSearch] Last page reached (${pagePrograms.length} < ${PAGE_SIZE})`);
             break;
           }
 
           offset += PAGE_SIZE;
         }
 
+        console.log(`📄 [useProgramsSearch] Pagination complete:`, {
+          finalAggregatedLength: aggregated.length,
+          totalCount,
+          warning,
+          staleCount,
+          fromCache
+        });
+
         const entry: CacheEntry = {
           programs: aggregated,
           totalCount,
           fetchedAt: Date.now(),
-          warning: warning ?? cacheRef.current[statusKey]?.warning,
-          staleCount: typeof staleCount === 'number' ? staleCount : cacheRef.current[statusKey]?.staleCount,
-          fromCache: typeof fromCache === 'boolean' ? fromCache : cacheRef.current[statusKey]?.fromCache,
+          warning,
+          staleCount,
+          fromCache,
         };
+
+        console.log(`💾 [useProgramsSearch] Caching paginated result:`, {
+          programsCount: entry.programs.length,
+          totalCount: entry.totalCount
+        });
 
         cacheRef.current[statusKey] = entry;
         setCacheVersion((prev) => prev + 1);
@@ -117,7 +221,7 @@ export const useProgramsSearch = (status: string): UseProgramsSearchResult => {
 
     pendingRef.current[statusKey] = fetchPromise;
     return fetchPromise;
-  }, [trigger]);
+  }, [trigger, triggerFast]);
 
   useEffect(() => {
     ensureStatus(status).catch(() => {

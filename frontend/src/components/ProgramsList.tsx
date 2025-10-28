@@ -1,20 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   useTerminateProgramMutation,
   usePauseProgramMutation,
   useResumeProgramMutation,
   useDuplicateProgramMutation,
   useUpdateProgramCustomNameMutation,
-  useSyncProgramsMutation
+  useSyncProgramsMutation,
+  useGetAvailableFiltersQuery,  // 🧠 NEW: Smart Filters
+  useGetProgramFeaturesQuery,
+  yelpApi
 } from '../store/api/yelpApi';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp, Clock, Sparkles } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import ApiErrorMessage from './ApiErrorMessage';
@@ -27,9 +38,90 @@ import {
   filterPrograms,
   formatBusinessOptionLabel,
 } from '../lib/programFilters';
+import { useDebouncedCallback } from 'use-debounce';
+import ProgramSkeleton from './ProgramSkeleton';
+
+// Component to display active features for a program
+const ActiveFeatures: React.FC<{ programId: string }> = ({ programId }) => {
+  const { data, isLoading } = useGetProgramFeaturesQuery(programId, {
+    skip: !programId,
+  });
+
+  // Function to determine if a feature is active (same logic as ProgramFeatures.tsx)
+  const isFeatureActive = (featureType: string, featureData: any): boolean => {
+    if (!featureData) return false;
+    
+    switch (featureType) {
+      case 'CUSTOM_RADIUS_TARGETING':
+        return featureData.custom_radius !== null && featureData.custom_radius !== undefined;
+      case 'CALL_TRACKING':
+        return featureData.enabled === true;
+      case 'LINK_TRACKING':
+        return !!(featureData.website || featureData.menu || featureData.url);
+      case 'CUSTOM_LOCATION_TARGETING':
+        return featureData.businesses?.some((b: any) => b.locations?.length > 0) || false;
+      case 'NEGATIVE_KEYWORD_TARGETING':
+        return featureData.blocked_keywords?.length > 0 || false;
+      case 'STRICT_CATEGORY_TARGETING':
+        return featureData.enabled === true;
+      case 'AD_SCHEDULING':
+        return featureData.uses_opening_hours === true;
+      case 'CUSTOM_AD_TEXT':
+        return !!(featureData.custom_text || featureData.custom_review_id);
+      case 'CUSTOM_AD_PHOTO':
+        return !!featureData.custom_photo_id;
+      case 'AD_GOAL':
+        return featureData.ad_goal !== 'DEFAULT';
+      case 'BUSINESS_LOGO':
+        return !!featureData.business_logo_url;
+      case 'YELP_PORTFOLIO':
+        return featureData.projects?.length > 0 || false;
+      case 'BUSINESS_HIGHLIGHTS':
+        return featureData.active_business_highlights?.length > 0 || false;
+      case 'VERIFIED_LICENSE':
+        return featureData.licenses?.length > 0 || false;
+      case 'SERVICE_OFFERINGS_TARGETING':
+        return featureData.enabled_service_offerings?.length > 0 || false;
+      default:
+        return true;
+    }
+  };
+
+  if (isLoading || !data) return null;
+
+  const features = data.features || {};
+  const activeFeatures = Object.keys(features).filter(featureType => 
+    isFeatureActive(featureType, features[featureType])
+  );
+
+  if (activeFeatures.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-200">
+      <div className="text-center mb-2">
+        <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">
+          Active Features ({activeFeatures.length})
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center items-center">
+        {activeFeatures.map((featureType) => (
+          <Badge 
+            key={featureType} 
+            variant="outline" 
+            className="bg-green-50 border-green-300 text-green-700 hover:bg-green-100 px-2.5 py-1 text-xs"
+          >
+            <Sparkles className="w-3 h-3 mr-1 inline" />
+            {featureType.replace(/_/g, ' ')}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const ProgramsList: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   
   // Restore pagination state from sessionStorage
   const savedOffset = sessionStorage.getItem('programsList_offset');
@@ -43,25 +135,25 @@ const ProgramsList: React.FC = () => {
   // Активні фільтри (використовуються для запиту)
   const [programStatus, setProgramStatus] = useState(savedStatus || 'CURRENT');
   const [programType, setProgramType] = useState(savedProgramType || 'ALL');
-  const [selectedBusinessId, setSelectedBusinessId] = useState<string>(
-    sessionStorage.getItem('programsList_businessId') || 'all'
-  );
+  
+  // ⚠️ ВАЖЛИВО: Завжди починаємо з 'all', щоб не фільтрувати по business_id з попереднього сеансу
+  // Якщо БД порожня (перша синхронізація), фільтр залишиться 'all'
+  // Якщо БД непорожня, користувач зможе вибрати конкретний бізнес вручну
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>('all');
   
   // Тимчасові фільтри (редагуються користувачем до натискання "Пошук")
   const [tempProgramStatus, setTempProgramStatus] = useState(savedStatus || 'CURRENT');
   const [tempProgramType, setTempProgramType] = useState(savedProgramType || 'ALL');
-  const [tempSelectedBusinessId, setTempSelectedBusinessId] = useState<string>(
-    sessionStorage.getItem('programsList_businessId') || 'all'
-  );
+  const [tempSelectedBusinessId, setTempSelectedBusinessId] = useState<string>('all');
   
+  // Debug: Log initial business filter
+  useEffect(() => {
+    console.log(`🔍 [MOUNT] Initial business filter: "${selectedBusinessId}" (always 'all' to prevent filtering on first load)`);
+  }, []);
   
   useEffect(() => {
     console.log('🔄 [FILTER-CHANGE] Temp filters changed:', tempProgramStatus, tempProgramType);
   }, [tempProgramStatus, tempProgramType]);
-
-  useEffect(() => {
-    console.log('📊 [DEBUG] businessOptions:', businessOptions);
-  }, [businessOptions]);
   
   // Функція для застосування фільтрів (викликається кнопкою "Пошук")
   const handleApplyFilters = async () => {
@@ -70,6 +162,21 @@ const ProgramsList: React.FC = () => {
       type: tempProgramType,
       business: tempSelectedBusinessId
     });
+    
+    // Це НЕ початкове завантаження, а пошук через кнопку Search
+    setIsInitialPageLoad(false);
+    
+    // ✅ ALWAYS sync when user clicks Search button (they expect fresh data)
+    console.log('🔄 [SYNC] User clicked Search - syncing to get fresh data...');
+    setIsInitialSyncRequired(true);
+    setIsInitialSyncComplete(false);
+    await handleSyncWithSSE(false);
+    
+    // Update last sync time
+    const now = Date.now();
+    localStorage.setItem('lastSyncTime', now.toString());
+    
+    // Після синхронізації застосовуємо фільтри
     await ensureStatus(tempProgramStatus);
 
     setProgramStatus(tempProgramStatus);
@@ -81,14 +188,28 @@ const ProgramsList: React.FC = () => {
   // State for quick page jump
   const [jumpToPage, setJumpToPage] = useState('');
   
-  // Save pagination state to sessionStorage whenever it changes
+  // ✅ OPTIMIZED: Debounced sessionStorage writes (500ms delay)
+  const debouncedSaveState = useDebouncedCallback(
+    (state: { offset: number; limit: number; status: string; programType: string; businessId: string }) => {
+      sessionStorage.setItem('programsList_offset', state.offset.toString());
+      sessionStorage.setItem('programsList_limit', state.limit.toString());
+      sessionStorage.setItem('programsList_status', state.status);
+      sessionStorage.setItem('programsList_programType', state.programType);
+      sessionStorage.setItem('programsList_businessId', state.businessId);
+    },
+    500 // 500ms delay - only save after user stops changing filters
+  );
+  
+  // Save pagination state to sessionStorage whenever it changes (debounced)
   useEffect(() => {
-    sessionStorage.setItem('programsList_offset', offset.toString());
-    sessionStorage.setItem('programsList_limit', limit.toString());
-    sessionStorage.setItem('programsList_status', programStatus);
-    sessionStorage.setItem('programsList_programType', programType);
-    sessionStorage.setItem('programsList_businessId', selectedBusinessId);
-  }, [offset, limit, programStatus, programType, selectedBusinessId]);
+    debouncedSaveState({ 
+      offset, 
+      limit, 
+      status: programStatus, 
+      programType, 
+      businessId: selectedBusinessId 
+    });
+  }, [offset, limit, programStatus, programType, selectedBusinessId, debouncedSaveState]);
 
   // Generate page numbers with ellipsis
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
@@ -162,11 +283,30 @@ const ProgramsList: React.FC = () => {
   const allPrograms = cachedPrograms;
 
   const filteredPrograms = React.useMemo(
-    () => filterPrograms(allPrograms, {
-      programStatus,
-      programType,
-      businessId: selectedBusinessId,
-    }),
+    () => {
+      console.log('🔍 [ProgramsList] Filtering programs:', {
+        allProgramsCount: allPrograms.length,
+        filters: { programStatus, programType, businessId: selectedBusinessId }
+      });
+      
+      const filtered = filterPrograms(allPrograms, {
+        programStatus,
+        programType,
+        businessId: selectedBusinessId,
+      });
+      
+      console.log('🔍 [ProgramsList] Filter result:', {
+        filteredCount: filtered.length,
+        sample: filtered.slice(0, 3).map(p => ({
+          program_id: p.program_id,
+          program_status: p.program_status,
+          program_type: p.program_type,
+          yelp_business_id: p.yelp_business_id
+        }))
+      });
+      
+      return filtered;
+    },
     [allPrograms, programStatus, programType, selectedBusinessId],
   );
 
@@ -218,10 +358,89 @@ const ProgramsList: React.FC = () => {
   const totalBusinessOptions = businessOptions.length;
   const filteredOutCount = Math.max(0, cachedPrograms.length - totalFiltered);
 
+  // 🧠 РОЗУМНІ ФІЛЬТРИ: API запит для отримання доступних опцій
+  const { data: availableFiltersData, isLoading: isLoadingAvailableFilters } = useGetAvailableFiltersQuery({
+    programStatus: tempProgramStatus,
+    programType: tempProgramType,
+    businessId: tempSelectedBusinessId,
+  });
+
+  // Логування відповіді від API
+  useEffect(() => {
+    if (availableFiltersData) {
+      console.log('🧠 [SMART FILTER API] Response:', {
+        totalPrograms: availableFiltersData.total_programs,
+        statusesCount: availableFiltersData.statuses.length,
+        programTypesCount: availableFiltersData.program_types.length,
+        businessesCount: availableFiltersData.businesses.length,
+        appliedFilters: availableFiltersData.applied_filters
+      });
+    }
+  }, [availableFiltersData]);
+
+  // 🧠 РОЗУМНІ ФІЛЬТРИ: Використовуємо дані з API (замість frontend фільтрації)
+  const availableFilters = React.useMemo(() => {
+    if (!availableFiltersData) {
+      // Fallback: показуємо всі опції поки API не відповість
+      return {
+        statuses: ['ALL', 'CURRENT', 'PAST', 'FUTURE', 'PAUSED'],
+        programTypes: ['ALL', 'BP', 'EP', 'CPC', 'RCA', 'CTA', 'SLIDESHOW', 'BH', 'VL', 'LOGO', 'PORTFOLIO'],
+        businesses: ['all'],
+        totalAvailable: 0,
+      };
+    }
+
+    // Маппимо дані з API до старого формату
+    return {
+      statuses: availableFiltersData.statuses,
+      programTypes: availableFiltersData.program_types,
+      businesses: ['all', ...availableFiltersData.businesses.map(b => b.business_id)],
+      totalAvailable: availableFiltersData.total_programs,
+    };
+  }, [availableFiltersData]);
+
+  // Перевірка чи є програми для поточної комбінації фільтрів
+  const hasAvailablePrograms = React.useMemo(() => {
+    return availableFilters.totalAvailable > 0 || allPrograms.length === 0;
+  }, [availableFilters.totalAvailable, allPrograms.length]);
+
   const isLoading = isLoadingPrograms;
   const isFetching = isFetchingPrograms;
   const error = programsError as any;
   const isError = Boolean(programsError);
+
+  // Debug logs for ProgramsList state (після оголошення isLoading, isFetching, error)
+  useEffect(() => {
+    console.log('📊 [ProgramsList] State update:', {
+      programStatus,
+      tempProgramStatus,
+      allProgramsCount: allPrograms.length,
+      cachedProgramsCount: cachedPrograms.length,
+      totalFiltered,
+      totalBusinessOptions: businessOptions.length,
+      isLoading,
+      isFetching,
+      error: !!error,
+      cacheVersion
+    });
+  }, [programStatus, tempProgramStatus, allPrograms.length, cachedPrograms.length, totalFiltered, businessOptions.length, isLoading, isFetching, error, cacheVersion]);
+
+  useEffect(() => {
+    console.log('📊 [ProgramsList] Programs data:', {
+      allPrograms: allPrograms.slice(0, 3).map(p => ({
+        program_id: p.program_id,
+        yelp_business_id: p.yelp_business_id,
+        business_name: p.business_name,
+        custom_name: p.custom_name
+      })),
+      totalCount: allPrograms.length
+    });
+  }, [allPrograms]);
+
+  // Debug log for businessOptions
+  useEffect(() => {
+    console.log('📊 [DEBUG] businessOptions:', businessOptions.slice(0, 5));
+  }, [businessOptions]);
 
   // State declarations FIRST (before using them)
   const [terminateProgram] = useTerminateProgramMutation();
@@ -241,6 +460,9 @@ const ProgramsList: React.FC = () => {
   // State for sync progress
   const [showSyncProgress, setShowSyncProgress] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [isInitialSyncRequired, setIsInitialSyncRequired] = useState(true);
+  const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
+  const [isInitialPageLoad, setIsInitialPageLoad] = useState(true); // Флаг для відрізнення початкового завантаження від Search
   
   // State for editing custom name
   const [editingCustomName, setEditingCustomName] = useState<string | null>(null);
@@ -275,6 +497,17 @@ const ProgramsList: React.FC = () => {
     ? { username: reduxUsername, password: reduxPassword }
     : getCredentialsFromStorage();
   
+  // 🔍 DEBUG: Логування credentials state
+  useEffect(() => {
+    console.log('🔐 [ProgramsList] Credentials state:', {
+      fromRedux: !!(reduxUsername && reduxPassword),
+      fromStorage: !(reduxUsername && reduxPassword),
+      hasUsername: !!username,
+      hasPassword: !!password,
+      username: username ? `${username.substring(0, 10)}...` : 'empty'
+    });
+  }, [username, password, reduxUsername, reduxPassword]);
+  
   // Check if user is authenticated
   const isAuthenticated = !!(username && password);
   
@@ -282,6 +515,12 @@ const ProgramsList: React.FC = () => {
   const handleSyncWithSSE = async (isAutomatic: boolean = false) => {
     try {
       console.log(`🔄 [SSE] ${isAutomatic ? 'Automatic' : 'Manual'} sync triggered`);
+      console.log(`🔄 [SSE] Current state before sync:`, {
+        allProgramsCount: allPrograms.length,
+        programStatus,
+        isLoading,
+        isFetching
+      });
       setShowSyncProgress(true);
       setSyncResult({ type: 'start', message: 'Checking for updates...' });
       
@@ -342,22 +581,70 @@ const ProgramsList: React.FC = () => {
               
               // If complete or error, schedule hiding
               if (eventData.type === 'complete' || eventData.type === 'error') {
-                // Refresh business IDs and programs after sync
-                setTimeout(() => {
-                  refreshPrograms();
-                  void ensureStatus(programStatus, { force: true });
-                  if (tempProgramStatus !== programStatus) {
-                    void ensureStatus(tempProgramStatus, { force: true });
-                  }
-                  console.log('🔄 [SSE] Refreshing cached programs');
-                }, 500);
+                console.log(`🔄 [SSE] Sync ${eventData.type}:`, eventData);
                 
-                // Hide progress bar after delay
-                setTimeout(() => {
-                  setShowSyncProgress(false);
-                  setSyncResult(null);
-                  console.log('✅ [SSE] Progress bar hidden');
-                }, 5000);
+                // Mark initial sync as complete
+                setIsInitialSyncComplete(true);
+                setIsInitialSyncRequired(false);
+                
+                // Refresh business IDs and programs after sync
+                // ⚠️ ВАЖЛИВО: Чекаємо поки credentials будуть доступні!
+                const waitForCredentialsAndRefresh = () => {
+                  // Перевіряємо чи є credentials
+                  if (!username || !password) {
+                    console.log('⏳ [SSE] Waiting for credentials before refresh...', {
+                      hasUsername: !!username,
+                      hasPassword: !!password
+                    });
+                    // Retry через 500ms
+                    setTimeout(waitForCredentialsAndRefresh, 500);
+                    return;
+                  }
+                  
+                  console.log(`🔄 [SSE] Refreshing data after sync with credentials...`);
+                  console.log(`🔄 [SSE] Before refresh:`, {
+                    allProgramsCount: allPrograms.length,
+                    programStatus,
+                    tempProgramStatus,
+                    hasCredentials: true
+                  });
+                  
+                  // ⚡ ВАЖЛИВО: Invalidate RTK Query cache перед refresh
+                  // Це потрібно щоб RTK Query не використовував старі закешовані параметри (business_id)
+                  console.log('🔄 [SSE] Invalidating RTK Query cache...');
+                  dispatch(yelpApi.util.invalidateTags(['Program']));
+                  
+                  // Даємо час для invalidate перед refresh (50ms)
+                  setTimeout(() => {
+                    refreshPrograms();
+                    void ensureStatus(programStatus, { force: true });
+                    if (tempProgramStatus !== programStatus) {
+                      void ensureStatus(tempProgramStatus, { force: true });
+                    }
+                    console.log('🔄 [SSE] Refreshing cached programs');
+                  }, 50);
+                };
+                
+                // Запускаємо через 500ms (щоб дати час Redux persist завантажити state)
+                setTimeout(waitForCredentialsAndRefresh, 500);
+                
+                // Якщо це початкове завантаження сторінки - приховуємо прогрес одразу
+                // Якщо це синхронізація через Search - показуємо результат 5 секунд
+                if (isInitialPageLoad) {
+                  // Початкове завантаження - приховуємо одразу після завершення
+                  setTimeout(() => {
+                    setShowSyncProgress(false);
+                    setSyncResult(null);
+                    console.log('✅ [SSE] Initial page load sync completed - hiding progress immediately');
+                  }, 500);
+                } else {
+                  // Синхронізація через Search - показуємо результат 5 секунд
+                  setTimeout(() => {
+                    setShowSyncProgress(false);
+                    setSyncResult(null);
+                    console.log('✅ [SSE] Search sync completed - hiding progress after 5s');
+                  }, 5000);
+                }
               }
               
             } catch (e) {
@@ -374,28 +661,63 @@ const ProgramsList: React.FC = () => {
         message: error?.message || 'Sync failed'
       });
       
+      // Mark sync as complete even on error
+      setIsInitialSyncComplete(true);
+      setIsInitialSyncRequired(false);
+      
+      // Якщо це початкове завантаження - приховуємо швидше
+      // Якщо це Search - показуємо помилку довше
+      const hideDelay = isInitialPageLoad ? 2000 : 5000;
+      
       // Hide after error
       setTimeout(() => {
         setShowSyncProgress(false);
         setSyncResult(null);
-      }, 5000);
+      }, hideDelay);
     }
   };
   
   // Manual sync button handler
   const handleSyncClick = () => {
+    setIsInitialPageLoad(false); // Мануальна синхронізація - показуємо результат
     handleSyncWithSSE(false);
   };
   
-  // Auto-sync on component mount
+  // Track changes after sync completion
+  useEffect(() => {
+    if (isInitialSyncComplete && !isLoading && !isFetching) {
+      console.log(`📊 [ProgramsList] After sync completion:`, {
+        allProgramsCount: allPrograms.length,
+        cachedProgramsCount: cachedPrograms.length,
+        filteredCount: filteredPrograms.length,
+        paginatedCount: paginatedPrograms.length,
+        businessOptionsCount: businessOptions.length,
+        programStatus,
+        tempProgramStatus
+      });
+    }
+  }, [isInitialSyncComplete, isLoading, isFetching, allPrograms.length, cachedPrograms.length, filteredPrograms.length, paginatedPrograms.length, businessOptions.length, programStatus, tempProgramStatus]);
+
+  // Auto-sync on component mount - ALWAYS sync when page loads
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('🚀 [AUTO-SYNC] Component mounted, starting automatic sync...');
-      handleSyncWithSSE(true);
+      // ✅ ALWAYS sync when user visits /programs page (they expect fresh data)
+      console.log('🚀 [AUTO-SYNC] Component mounted - syncing to get fresh data...');
+      setIsInitialSyncRequired(true);
+      setIsInitialSyncComplete(false);
+      setShowSyncProgress(true);
+      handleSyncWithSSE(true).then(() => {
+        localStorage.setItem('lastSyncTime', Date.now().toString());
+      });
+    } else {
+      // If not authenticated, allow showing programs without sync
+      setIsInitialSyncRequired(false);
+      setIsInitialSyncComplete(true);
     }
   }, []); // Run only once on mount
   
-  const programs = paginatedPrograms;
+  // ✅ OPTIMIZED: Memoize programs to prevent unnecessary re-renders
+  const programs = useMemo(() => paginatedPrograms, [paginatedPrograms]);
 
   const handleAction = async (
     action: () => Promise<any>, 
@@ -609,6 +931,160 @@ const ProgramsList: React.FC = () => {
     }
   };
 
+  // Show sync progress if initial sync is required and not complete
+  if (isInitialSyncRequired && !isInitialSyncComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
+        <div className="w-full max-w-2xl">
+          {/* Sync Progress - Centered Design */}
+          {syncResult ? (
+            <Card className={`shadow-2xl border-0 ${
+              syncResult.type === 'error'
+                ? "bg-gradient-to-br from-red-50 to-red-100"
+                : syncResult.type === 'complete' && syncResult.status === 'up_to_date'
+                ? "bg-gradient-to-br from-green-50 to-green-100"
+                : "bg-gradient-to-br from-blue-50 to-indigo-100"
+            }`}>
+              <CardContent className="p-8">
+                <div className="space-y-6">
+                  {/* Icon and Title - Centered */}
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    {/* Large animated icon */}
+                    <div className={`relative ${
+                      (syncResult.type === 'start' || syncResult.type === 'info' || syncResult.type === 'progress') 
+                        ? 'animate-pulse' 
+                        : ''
+                    }`}>
+                      {(syncResult.type === 'start' || syncResult.type === 'info' || syncResult.type === 'progress') ? (
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                          <Loader2 className="h-16 w-16 animate-spin text-blue-600 relative z-10" />
+                        </div>
+                      ) : syncResult.type === 'error' ? (
+                        <div className="h-16 w-16 rounded-full flex items-center justify-center bg-red-600 shadow-lg">
+                          <span className="text-white text-3xl">✗</span>
+                        </div>
+                      ) : (
+                        <div className="h-16 w-16 rounded-full flex items-center justify-center bg-green-600 shadow-lg animate-bounce">
+                          <span className="text-white text-3xl">✓</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Title */}
+                    <div className="space-y-2">
+                      <h3 className={`text-2xl font-bold ${
+                        syncResult.type === 'error' ? 'text-red-900' :
+                        syncResult.type === 'complete' ? 'text-green-900' :
+                        'text-blue-900'
+                      }`}>
+                        {syncResult.type === 'start' && 'Starting Synchronization'}
+                        {syncResult.type === 'info' && `Found ${syncResult.to_sync || 0} programs to sync`}
+                        {syncResult.type === 'progress' && 'Syncing Programs'}
+                        {syncResult.type === 'complete' && syncResult.status === 'up_to_date' && 'Already Up to Date'}
+                        {syncResult.type === 'complete' && syncResult.status === 'synced' && 'Sync Complete'}
+                        {syncResult.type === 'error' && 'Sync Failed'}
+                      </h3>
+                      
+                      {/* Subtitle */}
+                      <p className={`text-base ${
+                        syncResult.type === 'error' ? 'text-red-700' :
+                        syncResult.type === 'complete' ? 'text-green-700' :
+                        'text-blue-700'
+                      }`}>
+                        {syncResult.type === 'progress' && (
+                          <span className="font-semibold">
+                            {syncResult.synced} / {syncResult.total} programs
+                          </span>
+                        )}
+                        {syncResult.message && syncResult.type !== 'progress' && syncResult.message}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Progress percentage - Large display */}
+                  {syncResult.type === 'progress' && (
+                    <div className="text-center">
+                      <div className="text-5xl font-bold text-blue-600 mb-2">
+                        {syncResult.percentage || 0}%
+                      </div>
+                      <p className="text-sm text-blue-600 font-medium">
+                        {syncResult.added || 0} new programs added
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Progress bar - Modern design */}
+                  {syncResult.type === 'progress' && (
+                    <div className="space-y-3">
+                      <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                          className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out rounded-full shadow-lg"
+                          style={{ width: `${syncResult.percentage || 0}%` }}
+                        >
+                          <div className="absolute inset-0 bg-white opacity-20 animate-pulse"></div>
+                        </div>
+                      </div>
+                      
+                      {/* Stats */}
+                      <div className="flex justify-between text-xs text-gray-600 font-medium">
+                        <span>Synchronized: {syncResult.synced}</span>
+                        <span>Total: {syncResult.total}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Additional info */}
+                  {syncResult.type === 'info' && (
+                    <div className="text-center space-y-2 text-sm text-blue-700">
+                      {syncResult.total_api && <p>API Total: {syncResult.total_api} programs</p>}
+                      {syncResult.total_db !== undefined && <p>Database: {syncResult.total_db} programs</p>}
+                    </div>
+                  )}
+                  
+                  {syncResult.type === 'complete' && (
+                    <div className="text-center space-y-1 text-sm text-green-700 font-medium">
+                      {syncResult.status === 'synced' && (
+                        <>
+                          <p>✅ Successfully added {syncResult.added || 0} new programs</p>
+                          <p>Total programs in database: {syncResult.total_synced || 0}</p>
+                        </>
+                      )}
+                      {syncResult.status === 'up_to_date' && (
+                        <p>All {syncResult.total_synced || 0} programs are synchronized</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {syncResult.type === 'error' && (
+                    <div className="text-center text-sm text-red-700 bg-red-50 p-4 rounded-lg border border-red-200">
+                      <p className="font-medium">Error: {syncResult.message}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="shadow-2xl border-0 bg-gradient-to-br from-blue-50 to-indigo-100">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                    <Loader2 className="h-16 w-16 animate-spin text-blue-600 relative z-10" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-blue-900 mb-2">Initializing</h3>
+                    <p className="text-blue-700">Preparing synchronization...</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Show main loader only on initial load (not during page switch or business change)
   if (isLoading) {
     return (
@@ -763,85 +1239,171 @@ const ProgramsList: React.FC = () => {
         </Card>
       )}
 
-      {/* Filters and pagination */}
-      <div>
-        <div className="flex justify-between items-center bg-gray-50 p-4 rounded">
-          <div className="flex gap-4 items-center flex-wrap">
-            <div>
-              <label className="text-sm font-medium">Status:</label>
+      {/* Filters - Modern Design */}
+      <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Status:
+              </label>
               <select 
                 value={tempProgramStatus} 
                 onChange={(e) => setTempProgramStatus(e.target.value)}
-                className="ml-2 border rounded px-2 py-1"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
               >
-                <option value="CURRENT">CURRENT</option>
-                <option value="PAST">PAST</option>
-                <option value="FUTURE">FUTURE</option>
-                <option value="PAUSED">PAUSED</option>
                 <option value="ALL">ALL</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Business:</label>
-              <select
-                value={tempSelectedBusinessId}
-                onChange={(e) => setTempSelectedBusinessId(e.target.value)}
-                className="ml-2 border-2 border-gray-300 rounded-lg px-4 py-2 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-w-[300px] text-sm font-medium shadow-sm"
-              >
-                <option value="all" className="font-semibold">
-                  📊 All Businesses ({totalBusinessOptions})
+                <option value="CURRENT" disabled={!availableFilters.statuses.includes('CURRENT')} className={!availableFilters.statuses.includes('CURRENT') ? 'text-gray-400' : ''}>
+                  CURRENT {!availableFilters.statuses.includes('CURRENT') && '(No programs)'}
                 </option>
-                {isBusinessOptionsLoading && businessOptions.length === 0 && (
-                  <option value="loading" disabled>
-                    Loading businesses...
-                  </option>
-                )}
-                {businessOptions.map((business) => (
-                  <option
-                    key={business.id}
-                    value={business.id}
-                    className="py-2"
-                  >
-                    🏢 {formatBusinessOptionLabel(business)} ({business.programCount})
-                  </option>
-                ))}
+                <option value="PAST" disabled={!availableFilters.statuses.includes('PAST')} className={!availableFilters.statuses.includes('PAST') ? 'text-gray-400' : ''}>
+                  PAST {!availableFilters.statuses.includes('PAST') && '(No programs)'}
+                </option>
+                <option value="FUTURE" disabled={!availableFilters.statuses.includes('FUTURE')} className={!availableFilters.statuses.includes('FUTURE') ? 'text-gray-400' : ''}>
+                  FUTURE {!availableFilters.statuses.includes('FUTURE') && '(No programs)'}
+                </option>
+                <option value="PAUSED" disabled={!availableFilters.statuses.includes('PAUSED')} className={!availableFilters.statuses.includes('PAUSED') ? 'text-gray-400' : ''}>
+                  PAUSED {!availableFilters.statuses.includes('PAUSED') && '(No programs)'}
+                </option>
               </select>
             </div>
 
-            <div>
-              <label className="text-sm font-medium">Program Type:</label>
+            {/* Business Filter */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="text-lg">🏢</span>
+                Business:
+              </label>
+              <Select
+                value={tempSelectedBusinessId}
+                onValueChange={setTempSelectedBusinessId}
+              >
+                <SelectTrigger className="w-full h-11 border-2 border-gray-300 rounded-lg px-4 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm">
+                  <SelectValue placeholder="Select business">
+                    {tempSelectedBusinessId === 'all' ? (
+                      <span className="font-semibold">📊 All Businesses ({totalBusinessOptions})</span>
+                    ) : (
+                      <span>
+                        {businessOptions.find(b => b.id === tempSelectedBusinessId) 
+                          ? `${formatBusinessOptionLabel(businessOptions.find(b => b.id === tempSelectedBusinessId)!)} • ${businessOptions.find(b => b.id === tempSelectedBusinessId)!.programCount} programs`
+                          : tempSelectedBusinessId
+                        }
+                      </span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="max-h-[400px] overflow-y-auto">
+                  <SelectItem value="all" className="font-semibold cursor-pointer">
+                    📊 All Businesses ({totalBusinessOptions})
+                  </SelectItem>
+                  {isBusinessOptionsLoading && businessOptions.length === 0 && (
+                    <SelectItem value="loading" disabled>
+                      Loading businesses...
+                    </SelectItem>
+                  )}
+                  {businessOptions.map((business) => {
+                    const isAvailable = availableFilters.businesses.includes(business.id);
+                    return (
+                      <SelectItem
+                        key={business.id}
+                        value={business.id}
+                        disabled={!isAvailable}
+                        className={`cursor-pointer py-2 ${!isAvailable ? 'opacity-50 text-gray-400' : ''}`}
+                      >
+                        {formatBusinessOptionLabel(business)} • {business.programCount} programs
+                        {!isAvailable && ' (No programs for selected filters)'}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Program Type Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                Program Type:
+              </label>
               <select 
                 value={tempProgramType} 
                 onChange={(e) => setTempProgramType(e.target.value)}
-                className="ml-2 border rounded px-2 py-1"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
               >
                 <option value="ALL">ALL</option>
-                <option value="BP">BP – Branded Profile</option>
-                <option value="EP">EP – Enhanced Profile</option>
-                <option value="CPC">CPC – Cost Per Click ads</option>
-                <option value="RCA">RCA – Remove Competitor Ads</option>
-                <option value="CTA">CTA – Call To Action</option>
-                <option value="SLIDESHOW">SLIDESHOW – Slideshow</option>
-                <option value="BH">BH – Business Highlights</option>
-                <option value="VL">VL – Verified License</option>
-                <option value="LOGO">LOGO – Logo Feature</option>
-                <option value="PORTFOLIO">PORTFOLIO – Portfolio Feature</option>
+                <option value="BP" disabled={!availableFilters.programTypes.includes('BP')} className={!availableFilters.programTypes.includes('BP') ? 'text-gray-400' : ''}>
+                  BP – Branded Profile {!availableFilters.programTypes.includes('BP') && '(No programs)'}
+                </option>
+                <option value="EP" disabled={!availableFilters.programTypes.includes('EP')} className={!availableFilters.programTypes.includes('EP') ? 'text-gray-400' : ''}>
+                  EP – Enhanced Profile {!availableFilters.programTypes.includes('EP') && '(No programs)'}
+                </option>
+                <option value="CPC" disabled={!availableFilters.programTypes.includes('CPC')} className={!availableFilters.programTypes.includes('CPC') ? 'text-gray-400' : ''}>
+                  CPC – Cost Per Click ads {!availableFilters.programTypes.includes('CPC') && '(No programs)'}
+                </option>
+                <option value="RCA" disabled={!availableFilters.programTypes.includes('RCA')} className={!availableFilters.programTypes.includes('RCA') ? 'text-gray-400' : ''}>
+                  RCA – Remove Competitor Ads {!availableFilters.programTypes.includes('RCA') && '(No programs)'}
+                </option>
+                <option value="CTA" disabled={!availableFilters.programTypes.includes('CTA')} className={!availableFilters.programTypes.includes('CTA') ? 'text-gray-400' : ''}>
+                  CTA – Call To Action {!availableFilters.programTypes.includes('CTA') && '(No programs)'}
+                </option>
+                <option value="SLIDESHOW" disabled={!availableFilters.programTypes.includes('SLIDESHOW')} className={!availableFilters.programTypes.includes('SLIDESHOW') ? 'text-gray-400' : ''}>
+                  SLIDESHOW – Slideshow {!availableFilters.programTypes.includes('SLIDESHOW') && '(No programs)'}
+                </option>
+                <option value="BH" disabled={!availableFilters.programTypes.includes('BH')} className={!availableFilters.programTypes.includes('BH') ? 'text-gray-400' : ''}>
+                  BH – Business Highlights {!availableFilters.programTypes.includes('BH') && '(No programs)'}
+                </option>
+                <option value="VL" disabled={!availableFilters.programTypes.includes('VL')} className={!availableFilters.programTypes.includes('VL') ? 'text-gray-400' : ''}>
+                  VL – Verified License {!availableFilters.programTypes.includes('VL') && '(No programs)'}
+                </option>
+                <option value="LOGO" disabled={!availableFilters.programTypes.includes('LOGO')} className={!availableFilters.programTypes.includes('LOGO') ? 'text-gray-400' : ''}>
+                  LOGO – Logo Feature {!availableFilters.programTypes.includes('LOGO') && '(No programs)'}
+                </option>
+                <option value="PORTFOLIO" disabled={!availableFilters.programTypes.includes('PORTFOLIO')} className={!availableFilters.programTypes.includes('PORTFOLIO') ? 'text-gray-400' : ''}>
+                  PORTFOLIO – Portfolio Feature {!availableFilters.programTypes.includes('PORTFOLIO') && '(No programs)'}
+                </option>
               </select>
             </div>
+          </div>
 
-            {/* Search button */}
+          {/* ⚠️ Warning якщо немає програм для вибраної комбінації */}
+          {!hasAvailablePrograms && allPrograms.length > 0 && (
+            <div className="mt-4 p-3 bg-yellow-50 border-2 border-yellow-200 rounded-lg flex items-center gap-2">
+              <span className="text-xl">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-yellow-800">
+                  No programs available for selected combination
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Try changing Status, Business, or Program Type filters. 
+                  Currently {availableFilters.totalAvailable} programs match your selection.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Search Button - Full Width Below */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
             <Button
               onClick={handleApplyFilters}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 text-base"
               disabled={isLoading || isFetching}
             >
-              🔍 Search
+              {isLoading || isFetching ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  🔍 Search
+                </>
+              )}
             </Button>
-
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Warning banner for stale programs */}
       {warning && (
@@ -897,28 +1459,27 @@ const ProgramsList: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Show loader instead of list during background fetching */}
+          {/* ✅ OPTIMIZED: Show skeleton loading instead of spinner */}
           {(isLoading || isFetching) ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-              <div className="text-center">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Loading programs...
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Please wait...
-                </p>
-              </div>
+            <div className="grid gap-2">
+              {Array.from({ length: limit }).map((_, i) => (
+                <ProgramSkeleton key={`skeleton-${i}`} />
+              ))}
             </div>
           ) : (
             /* List View */
-          <div className="grid gap-4">
+          <div className="grid gap-2">
             {programs.map((program, index) => {
               const isTerminating = loadingActions[`${program.program_id}-terminate`];
               
               return (
               <>
-              <Card key={program.program_id || `program-${index}`} className={`relative hover:shadow-lg transition-shadow ${isTerminating ? 'opacity-60' : ''}`}>
+              <Card key={program.program_id || `program-${index}`} className={`relative transition-all duration-200 border-l-4 ${
+                program.program_status === 'ACTIVE' ? 'border-l-green-500' :
+                program.program_status === 'INACTIVE' ? 'border-l-gray-400' :
+                program.program_status === 'TERMINATED' ? 'border-l-red-500' :
+                'border-l-blue-500'
+              } ${isTerminating ? 'opacity-60' : ''}`}>
                 {/* Terminating Overlay */}
                 {isTerminating && (
                   <div className="absolute inset-0 bg-red-50/90 z-10 flex items-center justify-center rounded-lg backdrop-blur-sm">
@@ -935,284 +1496,98 @@ const ProgramsList: React.FC = () => {
                   </div>
                 )}
                 
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    <span className="text-lg">
-                      {program.program_type} Program
-                    </span>
-                    <div className="flex gap-2">
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                        program.program_status === 'INACTIVE' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {program.program_status}
-                      </span>
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        program.program_pause_status === 'NOT_PAUSED' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {program.program_pause_status}
-                      </span>
-                    </div>
-                  </CardTitle>
-                  
-                  {/* Custom Name Section */}
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        {editingCustomName === program.program_id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={customNameValue}
-                              onChange={(e) => setCustomNameValue(e.target.value)}
-                              placeholder="Enter custom name..."
-                              className="flex-1"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleCustomNameSave(program.program_id);
-                                } else if (e.key === 'Escape') {
-                                  handleCustomNameCancel();
-                                }
-                              }}
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => handleCustomNameSave(program.program_id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCustomNameCancel}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <span className="text-xs text-gray-500 uppercase font-semibold">Custom Name:</span>
-                              <p className="text-sm font-medium mt-1">
-                                {program.custom_name || <span className="text-gray-400 italic">No custom name set</span>}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleCustomNameEdit(program.program_id, program.custom_name)}
-                              className="ml-auto"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
+                <CardContent className="p-2">
+                  {/* Info Row - Modern Beautiful Design */}
+                  <div className="flex items-center gap-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 px-4 py-3 rounded-lg border border-gray-200/50 w-full shadow-sm">
+                    {/* Program Type & ID */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0 min-w-[160px]">
+                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Type</span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-indigo-700 text-base">{program.program_type}</span>
+                        <span className="text-sm font-mono text-gray-500">{program.program_id}</span>
                       </div>
+                    </div>
+                    
+                    {/* Status */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Status</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm px-2.5 py-1 rounded-md font-semibold ${
+                          program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                          program.program_status === 'INACTIVE' ? 'bg-gray-100 text-gray-700' :
+                          program.program_status === 'TERMINATED' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {program.program_status}
+                        </span>
+                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${
+                          program.program_pause_status === 'NOT_PAUSED' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {program.program_pause_status === 'NOT_PAUSED' ? '▶' : '⏸'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Business */}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Business</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-blue-700 text-base">{program.business_name || 'N/A'}</span>
+                        <span className="text-sm font-mono text-gray-500">{program.yelp_business_id || 'N/A'}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Budget */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Budget</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-bold text-green-700 text-lg">${program.program_metrics ? (Number(program.program_metrics.budget) / 100).toFixed(2) : '0.00'}</span>
+                        <span className="text-sm text-gray-500">{program.program_metrics?.currency || 'USD'}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Dates */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0 min-w-[200px]">
+                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Period</span>
+                      <span className="text-purple-700 text-sm font-medium whitespace-nowrap">{program.start_date} → {program.end_date}</span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <strong>Program ID:</strong>
-                        <p className="font-mono text-xs break-all">{program.program_id}</p>
-                      </div>
-                      <div>
-                        <strong>Business:</strong>
-                        <div className="flex flex-col gap-1">
-                          {program.business_name && (
-                            <p className="font-medium text-blue-600">
-                              {program.business_url ? (
-                                <a 
-                                  href={program.business_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="hover:underline flex items-center gap-1"
-                                >
-                                  {program.business_name}
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
-                              ) : (
-                                program.business_name
-                              )}
-                            </p>
-                          )}
-                          <p className="font-mono text-xs text-gray-500 break-all">
-                            ID: {program.yelp_business_id || 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <strong>Dates:</strong>
-                        <p>{program.start_date} - {program.end_date}</p>
-                      </div>
-                      <div>
-                        <strong>Budget:</strong>
-                        <p>
-                          {program.program_metrics
-                            ? `$${(Number(program.program_metrics.budget) / 100).toFixed(2)} ${program.program_metrics.currency}`
-                            : 'N/A (program not active yet)'
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Performance Metrics Section - Always show */}
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Performance Metrics</h4>
-                      
-                      {/* Always show basic info even without full metrics */}
-                      {(() => {
-                        // Get budget from metrics (backend enriches data from Yelp API for INACTIVE programs)
-                        const budgetInCents = program.program_metrics?.budget || 0;
-                        const adCostInCents = program.program_metrics?.ad_cost || 0;
-                        const budgetInDollars = budgetInCents / 100;
-                        const adCostInDollars = adCostInCents / 100;
-                        const spendPercentage = budgetInCents > 0 ? (adCostInCents / budgetInCents) * 100 : 0;
-                        
-                        return (
-                          <>
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-3 gap-3 mb-4">
-                              <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Eye className="w-4 h-4 text-green-600" />
-                                  <span className="text-xs font-medium text-green-700 uppercase">Impressions</span>
-                                </div>
-                                <p className="text-xl font-bold text-gray-900">
-                                  {program.program_metrics?.billed_impressions?.toLocaleString() || '0'}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">Ad views</p>
-                              </div>
-
-                              <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <MousePointer className="w-4 h-4 text-purple-600" />
-                                  <span className="text-xs font-medium text-purple-700 uppercase">Clicks</span>
-                                </div>
-                                <p className="text-xl font-bold text-gray-900">
-                                  {program.program_metrics?.billed_clicks?.toLocaleString() || '0'}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">User interactions</p>
-                              </div>
-
-                              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <DollarSign className="w-4 h-4 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700 uppercase">Total Spend</span>
-                                </div>
-                                <p className="text-xl font-bold text-gray-900">
-                                  ${adCostInDollars.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {budgetInCents > 0
-                                    ? adCostInCents > 0
-                                      ? `${spendPercentage.toFixed(1)}% of $${budgetInDollars.toFixed(2)} budget`
-                                      : `of $${budgetInDollars.toFixed(2)} budget`
-                                    : 'Budget pending'
-                                  }
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Budget Progress Bar - show if we have budget */}
-                            {budgetInCents > 0 && (
-                              <div className="bg-gray-50 p-3 rounded-lg border">
-                                <div className="flex justify-between text-xs mb-2">
-                                  <span className="font-medium text-gray-700">Budget Usage</span>
-                                  <span className="font-bold text-gray-900">
-                                    {spendPercentage.toFixed(1)}%
-                                  </span>
-                                </div>
-                                <Progress 
-                                  value={Math.min(100, spendPercentage)} 
-                                  className="h-2"
-                                />
-                                <div className="flex justify-between text-xs mt-2 text-gray-600">
-                                  <span>Spent: ${adCostInDollars.toFixed(2)}</span>
-                                  <span>Remaining: ${(budgetInDollars - adCostInDollars).toFixed(2)}</span>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                      
-                      {/* Info message if program not active */}
-                      {!program.program_metrics && (
-                        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-3">
-                          <p className="text-sm text-yellow-800">
-                            ℹ️ This program is <strong>{program.program_status}</strong>. Full metrics will be available once it becomes ACTIVE.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-3">
-                      {/* EDIT - edit program */}
+                  <div className="border-t mt-2 pt-2">
+                    {/* Action Buttons */}
+                    <div className="flex gap-1">
+                      {/* EDIT */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full border-2 hover:border-blue-500 hover:bg-blue-50 transition-all font-medium h-9 text-sm"
                         onClick={() => handleEdit(program.program_id)}
                         disabled={!program.program_id}
                       >
-                        <Edit className="w-4 h-4 mr-1" />
+                        <Edit className="w-3.5 h-3.5 mr-1.5" />
                         Edit
                       </Button>
 
-                      {/* DUPLICATE - create layer */}
+                      {/* DUPLICATE */}
                       <Button
                         size="sm"
-                        variant="default"
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 font-medium h-9 text-sm"
                         onClick={() => handleDuplicateClick(program)}
                         disabled={!program.program_id}
                       >
-                        <Copy className="w-4 h-4 mr-1" />
+                        <Copy className="w-3.5 h-3.5 mr-1.5" />
                         Layer
                       </Button>
 
-                      {/* TERMINATE - terminate program */}
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="w-full"
-                        onClick={() => handleTerminate(program.program_id)}
-                        disabled={
-                          loadingActions[`${program.program_id}-terminate`] ||
-                          !program.program_id ||
-                          // Забороняємо terminate тільки для:
-                          // 1. TERMINATED/EXPIRED статусів
-                          // 2. Програм з end_date в минулому (завершені)
-                          program.program_status === 'TERMINATED' ||
-                          program.program_status === 'EXPIRED' ||
-                          (program.end_date && new Date(program.end_date) < new Date())
-                        }
-                      >
-                        {loadingActions[`${program.program_id}-terminate`] ? (
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4 mr-1" />
-                        )}
-                        {program.program_status === 'TERMINATED' || 
-                         program.program_status === 'EXPIRED' ||
-                         (program.end_date && new Date(program.end_date) < new Date()) ? 
-                          'Expired' : 'Terminate'
-                        }
-                      </Button>
-
-                      {/* PAUSE/RESUME - pause/resume program */}
+                      {/* PAUSE/RESUME */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className={`w-full border-2 transition-all font-medium h-9 text-sm ${
+                          program.program_pause_status === 'PAUSED'
+                            ? 'border-green-500 hover:bg-green-50 text-green-700'
+                            : 'border-yellow-500 hover:bg-yellow-50 text-yellow-700'
+                        }`}
                         onClick={() => 
                           program.program_pause_status === 'PAUSED' ? 
                             handleResume(program.program_id) : 
@@ -1227,43 +1602,70 @@ const ProgramsList: React.FC = () => {
                       >
                         {(loadingActions[`${program.program_id}-pause`] || 
                           loadingActions[`${program.program_id}-resume`]) ? (
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                         ) : program.program_pause_status === 'PAUSED' ? (
-                          <Play className="w-4 h-4 mr-1" />
+                          <Play className="w-3.5 h-3.5 mr-1.5" />
                         ) : (
-                          <Square className="w-4 h-4 mr-1" />
+                          <Square className="w-3.5 h-3.5 mr-1.5" />
                         )}
                         {program.program_pause_status === 'PAUSED' ? 'Resume' : 'Pause'}
                       </Button>
 
-                      {/* INFO - view program information */}
+                      {/* INFO */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full border-2 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium h-9 text-sm"
                         onClick={() => navigate(`/program-info/${program.program_id}`)}
                         disabled={!program.program_id}
                       >
+                        <Settings className="w-3.5 h-3.5 mr-1.5" />
                         Details
                       </Button>
 
-                      {/* FEATURES - Program features */}
+                      {/* FEATURES */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full border-2 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium h-9 text-sm"
                         onClick={() => navigate(`/program-features/${program.program_id}`)}
                         disabled={!program.program_id}
                       >
-                        <Settings className="w-4 h-4 mr-1" />
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                         Features
+                      </Button>
+
+                      {/* TERMINATE */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-2 border-red-500 text-red-700 hover:bg-red-50 transition-all md:col-span-1 col-span-2 font-medium h-9 text-sm"
+                        onClick={() => handleTerminate(program.program_id)}
+                        disabled={
+                          loadingActions[`${program.program_id}-terminate`] ||
+                          !program.program_id ||
+                          program.program_status === 'TERMINATED' ||
+                          program.program_status === 'EXPIRED' ||
+                          (program.end_date && new Date(program.end_date) < new Date())
+                        }
+                      >
+                        {loadingActions[`${program.program_id}-terminate`] ? (
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                        )}
+                        {program.program_status === 'TERMINATED' || 
+                         program.program_status === 'EXPIRED' ||
+                         (program.end_date && new Date(program.end_date) < new Date()) ? 
+                          'Expired' : 'Terminate'
+                        }
                       </Button>
 
                       {/* STATUS - View status */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full h-9 text-sm"
                         onClick={() => navigate(`/program-status/${program.program_id}`)}
                         disabled={!program.program_id}
                       >
@@ -1271,6 +1673,9 @@ const ProgramsList: React.FC = () => {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Active Features */}
+                  {program.program_id && <ActiveFeatures programId={program.program_id} />}
                 </CardContent>
               </Card>
               

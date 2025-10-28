@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useCreateProgramMutation } from '../store/api/yelpApi';
+import React, { useState, useEffect } from 'react';
+import { useCreateProgramMutation, useGetBusinessIdsQuery } from '../store/api/yelpApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
-import { Plus, Loader2, Info } from 'lucide-react';
+import { Plus, Loader2, Info, Building2, Edit3 } from 'lucide-react';
+import JobTracker from './JobTracker';
 
 const PROGRAM_OPTIONS = [
   { value: 'BP', label: 'BP \u2013 Branded Profile' },
@@ -46,6 +47,16 @@ const PROGRAM_DESCRIPTIONS = [
 
 const CreateProgram: React.FC = () => {
   const [createProgram, { isLoading }] = useCreateProgramMutation();
+  const { data: businessIdsData, isLoading: isLoadingBusinesses } = useGetBusinessIdsQuery('ALL');
+  
+  // State for job tracking
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  
+  // State for business selection
+  const [businessSelectionMode, setBusinessSelectionMode] = useState<'existing' | 'manual'>('existing');
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [manualBusinessId, setManualBusinessId] = useState('');
+  
   const [formData, setFormData] = useState({
     business_id: '',
     program_name: '',
@@ -60,6 +71,15 @@ const CreateProgram: React.FC = () => {
     fee_period: '',
     ad_categories: '',
   });
+
+  // Update business_id when selection changes
+  useEffect(() => {
+    if (businessSelectionMode === 'existing') {
+      setFormData(prev => ({ ...prev, business_id: selectedBusinessId }));
+    } else {
+      setFormData(prev => ({ ...prev, business_id: manualBusinessId }));
+    }
+  }, [businessSelectionMode, selectedBusinessId, manualBusinessId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,10 +111,8 @@ const CreateProgram: React.FC = () => {
 
       const result = await createProgram(payload).unwrap();
 
-      toast({
-        title: "Program being created",
-        description: `Job ID: ${result.job_id}`,
-      });
+      // Set active job ID to start tracking
+      setActiveJobId(result.job_id);
 
       // Reset form
       setFormData({
@@ -111,6 +129,11 @@ const CreateProgram: React.FC = () => {
         fee_period: '',
         ad_categories: '',
       });
+      
+      // Reset business selection
+      setSelectedBusinessId('');
+      setManualBusinessId('');
+      setBusinessSelectionMode('existing');
     } catch (error: any) {
       const { title, description } = formatErrorForToast(error);
       toast({
@@ -126,17 +149,18 @@ const CreateProgram: React.FC = () => {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Create Advertising Program
-        </CardTitle>
-        <CardDescription>
-          Fill out the form to create a new Yelp advertising program
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Create Advertising Program
+          </CardTitle>
+          <CardDescription>
+            Fill out the form to create a new Yelp advertising program
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         {/* Program Types Reference */}
         <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -171,15 +195,109 @@ const CreateProgram: React.FC = () => {
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="business_id">Business ID</Label>
-            <Input
-              id="business_id"
-              value={formData.business_id}
-              onChange={(e) => handleChange('business_id', e.target.value)}
-              placeholder="Enter encrypted business ID"
-              required
-            />
+          {/* Business Selection */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Business Selection
+              </Label>
+            </div>
+            
+            {/* Business Selection Mode Toggle */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={businessSelectionMode === 'existing' ? 'default' : 'outline'}
+                onClick={() => setBusinessSelectionMode('existing')}
+                className="flex items-center gap-2"
+              >
+                <Building2 className="h-4 w-4" />
+                Choose from existing
+              </Button>
+              <Button
+                type="button"
+                variant={businessSelectionMode === 'manual' ? 'default' : 'outline'}
+                onClick={() => setBusinessSelectionMode('manual')}
+                className="flex items-center gap-2"
+              >
+                <Edit3 className="h-4 w-4" />
+                Enter manually
+              </Button>
+            </div>
+
+            {/* Existing Business Dropdown */}
+            {businessSelectionMode === 'existing' && (
+              <div className="space-y-2">
+                <Label htmlFor="existing_business">Select Business</Label>
+                <Select
+                  value={selectedBusinessId}
+                  onValueChange={setSelectedBusinessId}
+                >
+                  <SelectTrigger id="existing_business">
+                    <SelectValue placeholder="Choose a business..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingBusinesses ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading businesses...
+                        </div>
+                      </SelectItem>
+                    ) : businessIdsData?.businesses?.length ? (
+                      businessIdsData.businesses.map((business) => (
+                        <SelectItem key={business.business_id} value={business.business_id}>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            <span className="font-medium">{business.business_name || business.business_id}</span>
+                            <span className="text-xs text-gray-500">({business.business_id.substring(0, 12)}...)</span>
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              {business.program_count} programs
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-businesses" disabled>
+                        No businesses found
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {businessIdsData?.businesses?.length && (
+                  <p className="text-sm text-gray-600">
+                    Found {businessIdsData.businesses.length} businesses with {businessIdsData.total} total programs
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Manual Business Input */}
+            {businessSelectionMode === 'manual' && (
+              <div className="space-y-2">
+                <Label htmlFor="manual_business_id">Business ID</Label>
+                <Input
+                  id="manual_business_id"
+                  value={manualBusinessId}
+                  onChange={(e) => setManualBusinessId(e.target.value)}
+                  placeholder="Enter encrypted business ID"
+                  required
+                />
+                <p className="text-sm text-gray-600">
+                  Enter the encrypted business ID from Yelp
+                </p>
+              </div>
+            )}
+
+            {/* Current Selection Display */}
+            {formData.business_id && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800 font-medium">
+                  Selected Business ID: <code className="bg-blue-100 px-2 py-1 rounded">{formData.business_id}</code>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -366,9 +484,24 @@ const CreateProgram: React.FC = () => {
               'Create Program'
             )}
           </Button>
+
+          {/* Job Tracker - показується внизу під кнопкою */}
+          {activeJobId && (
+            <JobTracker 
+              jobId={activeJobId} 
+              jobType="create"
+              onComplete={(success) => {
+                if (!success) {
+                  setActiveJobId(null); // Reset on failure so user can try again
+                }
+                // On success, JobTracker will handle redirect
+              }}
+            />
+          )}
         </form>
       </CardContent>
     </Card>
+    </div>
   );
 };
 
