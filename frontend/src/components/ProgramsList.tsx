@@ -158,7 +158,7 @@ const ProgramsList: React.FC = () => {
   const [limit, setLimit] = useState(savedLimit ? parseInt(savedLimit) : 20);
   
   // Активні фільтри (використовуються для запиту)
-  const [programStatus, setProgramStatus] = useState(savedStatus || 'CURRENT');
+  const [programStatus, setProgramStatus] = useState(savedStatus || 'ALL');
   const [programType, setProgramType] = useState(savedProgramType || 'ALL');
   
   // ⚠️ ВАЖЛИВО: Завжди починаємо з 'all', щоб не фільтрувати по business_id з попереднього сеансу
@@ -171,9 +171,11 @@ const ProgramsList: React.FC = () => {
   const [tempProgramType, setTempProgramType] = useState(savedProgramType || 'ALL');
   const [tempSelectedBusinessId, setTempSelectedBusinessId] = useState<string>('all');
   
-  // Пошук по імені бізнесу
+  // Пошук по імені бізнесу з додатковими фільтрами
   const [businessNameSearch, setBusinessNameSearch] = useState<string>('');
   const [filteredBusinessOptions, setFilteredBusinessOptions] = useState<typeof businessOptions>([]);
+  const [dynamicSearchStatus, setDynamicSearchStatus] = useState<string>('ALL');
+  const [dynamicSearchProgramType, setDynamicSearchProgramType] = useState<string>('ALL');
   
   // Debug: Log initial business filter
   useEffect(() => {
@@ -387,7 +389,17 @@ const ProgramsList: React.FC = () => {
   const totalBusinessOptions = businessOptions.length;
   const filteredOutCount = Math.max(0, cachedPrograms.length - totalFiltered);
   
-  // Фільтрація бізнесів по введеному тексту (з debounce)
+  // Застосування динамічних фільтрів (Status і Program Type) в реальному часі
+  useEffect(() => {
+    // Застосовуємо динамічні фільтри до основних фільтрів
+    setProgramStatus(dynamicSearchStatus);
+    setProgramType(dynamicSearchProgramType);
+    setTempProgramStatus(dynamicSearchStatus);
+    setTempProgramType(dynamicSearchProgramType);
+    setOffset(0); // Скидаємо offset при зміні фільтрів
+  }, [dynamicSearchStatus, dynamicSearchProgramType]);
+  
+  // Фільтрація бізнесів по введеному тексту
   useEffect(() => {
     const searchLower = businessNameSearch.toLowerCase().trim();
     
@@ -396,6 +408,7 @@ const ProgramsList: React.FC = () => {
       return;
     }
     
+    // Спочатку фільтруємо бізнеси по введеному тексту
     const filtered = businessOptions.filter(business => {
       const businessName = business.businessName?.toLowerCase() || '';
       const businessId = business.id.toLowerCase();
@@ -1349,173 +1362,91 @@ const ProgramsList: React.FC = () => {
         </Card>
       )}
 
-      {/* Filters - Modern Design */}
+      {/* 🔍 Dynamic Search with Filters */}
       <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-lg">📊</span>
-                Status:
-              </label>
-              <select 
-                value={tempProgramStatus} 
-                onChange={(e) => setTempProgramStatus(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
-              >
-                <option value="ALL">ALL</option>
-                <option value="CURRENT" disabled={!availableFilters.statuses.includes('CURRENT')} className={!availableFilters.statuses.includes('CURRENT') ? 'text-gray-400' : ''}>
-                  CURRENT {!availableFilters.statuses.includes('CURRENT') && '(No programs)'}
-                </option>
-                <option value="PAST" disabled={!availableFilters.statuses.includes('PAST')} className={!availableFilters.statuses.includes('PAST') ? 'text-gray-400' : ''}>
-                  PAST {!availableFilters.statuses.includes('PAST') && '(No programs)'}
-                </option>
-                <option value="FUTURE" disabled={!availableFilters.statuses.includes('FUTURE')} className={!availableFilters.statuses.includes('FUTURE') ? 'text-gray-400' : ''}>
-                  FUTURE {!availableFilters.statuses.includes('FUTURE') && '(No programs)'}
-                </option>
-                <option value="PAUSED" disabled={!availableFilters.statuses.includes('PAUSED')} className={!availableFilters.statuses.includes('PAUSED') ? 'text-gray-400' : ''}>
-                  PAUSED {!availableFilters.statuses.includes('PAUSED') && '(No programs)'}
-                </option>
-              </select>
-            </div>
-
-            {/* Business Filter */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-lg">🏢</span>
-                Business:
-              </label>
-              <Select
-                value={tempSelectedBusinessId}
-                onValueChange={setTempSelectedBusinessId}
-              >
-                <SelectTrigger className="w-full h-11 border-2 border-gray-300 rounded-lg px-4 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm">
-                  <SelectValue placeholder="Select business">
-                    {tempSelectedBusinessId === 'all' ? (
-                      <span className="font-semibold">📊 All Businesses ({totalBusinessOptions})</span>
-                    ) : (
-                      <span>
-                        {businessOptions.find(b => b.id === tempSelectedBusinessId) 
-                          ? `${formatBusinessOptionLabel(businessOptions.find(b => b.id === tempSelectedBusinessId)!)} • ${businessOptions.find(b => b.id === tempSelectedBusinessId)!.programCount} programs`
-                          : tempSelectedBusinessId
-                        }
-                      </span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-[400px] overflow-y-auto">
-                  <SelectItem value="all" className="font-semibold cursor-pointer">
-                    📊 All Businesses ({totalBusinessOptions})
-                  </SelectItem>
-                  {isBusinessOptionsLoading && businessOptions.length === 0 && (
-                    <SelectItem value="loading" disabled>
-                      Loading businesses...
-                    </SelectItem>
-                  )}
-                  {businessOptions.map((business) => {
-                    const isAvailable = availableFilters.businesses.includes(business.id);
-                    return (
-                      <SelectItem
-                        key={business.id}
-                        value={business.id}
-                        disabled={!isAvailable}
-                        className={`cursor-pointer py-2 ${!isAvailable ? 'opacity-50 text-gray-400' : ''}`}
-                      >
-                        {formatBusinessOptionLabel(business)} • {business.programCount} programs
-                        {!isAvailable && ' (No programs for selected filters)'}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Program Type Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <span className="text-lg">🎯</span>
-                Program Type:
-              </label>
-              <select 
-                value={tempProgramType} 
-                onChange={(e) => setTempProgramType(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
-              >
-                <option value="ALL">ALL</option>
-                <option value="BP" disabled={!availableFilters.programTypes.includes('BP')} className={!availableFilters.programTypes.includes('BP') ? 'text-gray-400' : ''}>
-                  BP – Branded Profile {!availableFilters.programTypes.includes('BP') && '(No programs)'}
-                </option>
-                <option value="EP" disabled={!availableFilters.programTypes.includes('EP')} className={!availableFilters.programTypes.includes('EP') ? 'text-gray-400' : ''}>
-                  EP – Enhanced Profile {!availableFilters.programTypes.includes('EP') && '(No programs)'}
-                </option>
-                <option value="CPC" disabled={!availableFilters.programTypes.includes('CPC')} className={!availableFilters.programTypes.includes('CPC') ? 'text-gray-400' : ''}>
-                  CPC – Cost Per Click ads {!availableFilters.programTypes.includes('CPC') && '(No programs)'}
-                </option>
-                <option value="RCA" disabled={!availableFilters.programTypes.includes('RCA')} className={!availableFilters.programTypes.includes('RCA') ? 'text-gray-400' : ''}>
-                  RCA – Remove Competitor Ads {!availableFilters.programTypes.includes('RCA') && '(No programs)'}
-                </option>
-                <option value="CTA" disabled={!availableFilters.programTypes.includes('CTA')} className={!availableFilters.programTypes.includes('CTA') ? 'text-gray-400' : ''}>
-                  CTA – Call To Action {!availableFilters.programTypes.includes('CTA') && '(No programs)'}
-                </option>
-                <option value="SLIDESHOW" disabled={!availableFilters.programTypes.includes('SLIDESHOW')} className={!availableFilters.programTypes.includes('SLIDESHOW') ? 'text-gray-400' : ''}>
-                  SLIDESHOW – Slideshow {!availableFilters.programTypes.includes('SLIDESHOW') && '(No programs)'}
-                </option>
-                <option value="BH" disabled={!availableFilters.programTypes.includes('BH')} className={!availableFilters.programTypes.includes('BH') ? 'text-gray-400' : ''}>
-                  BH – Business Highlights {!availableFilters.programTypes.includes('BH') && '(No programs)'}
-                </option>
-                <option value="VL" disabled={!availableFilters.programTypes.includes('VL')} className={!availableFilters.programTypes.includes('VL') ? 'text-gray-400' : ''}>
-                  VL – Verified License {!availableFilters.programTypes.includes('VL') && '(No programs)'}
-                </option>
-                <option value="LOGO" disabled={!availableFilters.programTypes.includes('LOGO')} className={!availableFilters.programTypes.includes('LOGO') ? 'text-gray-400' : ''}>
-                  LOGO – Logo Feature {!availableFilters.programTypes.includes('LOGO') && '(No programs)'}
-                </option>
-                <option value="PORTFOLIO" disabled={!availableFilters.programTypes.includes('PORTFOLIO')} className={!availableFilters.programTypes.includes('PORTFOLIO') ? 'text-gray-400' : ''}>
-                  PORTFOLIO – Portfolio Feature {!availableFilters.programTypes.includes('PORTFOLIO') && '(No programs)'}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          {/* ⚠️ Warning якщо немає програм для вибраної комбінації */}
-          {!hasAvailablePrograms && allPrograms.length > 0 && (
-            <div className="mt-4 p-3 bg-yellow-50 border-2 border-yellow-200 rounded-lg flex items-center gap-2">
-              <span className="text-xl">⚠️</span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-yellow-800">
-                  No programs available for selected combination
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Try changing Status, Business, or Program Type filters. 
-                  Currently {availableFilters.totalAvailable} programs match your selection.
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* 🔍 Business Name Search - Dynamic */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
+          <div>
+            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
               <span className="text-lg">🔍</span>
               Search by Business Name (Dynamic):
             </label>
             
-            {/* Selected Business Indicator */}
-            {tempSelectedBusinessId !== 'all' && (
-              <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-green-700 font-semibold text-sm">
-                    ✓ Selected: {businessOptions.find(b => b.id === tempSelectedBusinessId)?.businessName || tempSelectedBusinessId}
+            {/* Dynamic Filters: Status & Program Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              {/* Status Filter */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                  📊 Status:
+                </label>
+                <select 
+                  value={dynamicSearchStatus} 
+                  onChange={(e) => setDynamicSearchStatus(e.target.value)}
+                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
+                >
+                  <option value="ALL">ALL</option>
+                  <option value="CURRENT">CURRENT</option>
+                  <option value="PAST">PAST</option>
+                  <option value="FUTURE">FUTURE</option>
+                  <option value="PAUSED">PAUSED</option>
+                </select>
+              </div>
+
+              {/* Program Type Filter */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                  🎯 Program Type:
+                </label>
+                <select 
+                  value={dynamicSearchProgramType} 
+                  onChange={(e) => setDynamicSearchProgramType(e.target.value)}
+                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm cursor-pointer"
+                >
+                  <option value="ALL">ALL</option>
+                  <option value="BP">BP – Branded Profile</option>
+                  <option value="EP">EP – Enhanced Profile</option>
+                  <option value="CPC">CPC – Cost Per Click ads</option>
+                  <option value="RCA">RCA – Remove Competitor Ads</option>
+                  <option value="CTA">CTA – Call To Action</option>
+                  <option value="SLIDESHOW">SLIDESHOW – Slideshow</option>
+                  <option value="BH">BH – Business Highlights</option>
+                  <option value="VL">VL – Verified License</option>
+                  <option value="LOGO">LOGO – Logo Feature</option>
+                  <option value="PORTFOLIO">PORTFOLIO – Portfolio Feature</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* Active Filters Summary */}
+            <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-blue-800">Active Filters:</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                    Status: {dynamicSearchStatus}
                   </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    Type: {dynamicSearchProgramType}
+                  </span>
+                  {tempSelectedBusinessId !== 'all' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Business: {businessOptions.find(b => b.id === tempSelectedBusinessId)?.businessName || tempSelectedBusinessId}
+                    </span>
+                  )}
                 </div>
                 <button
-                  onClick={() => setTempSelectedBusinessId('all')}
-                  className="text-green-600 hover:text-green-800 text-xs font-medium underline"
+                  onClick={() => {
+                    setDynamicSearchStatus('ALL');
+                    setDynamicSearchProgramType('ALL');
+                    setTempSelectedBusinessId('all');
+                    setBusinessNameSearch('');
+                  }}
+                  className="text-blue-600 hover:text-blue-800 text-xs font-medium underline"
                 >
-                  Clear
+                  Reset All
                 </button>
               </div>
-            )}
+            </div>
             
             <div className="relative">
               <input
@@ -1546,36 +1477,39 @@ const ProgramsList: React.FC = () => {
                     Found {filteredBusinessOptions.length} business{filteredBusinessOptions.length !== 1 ? 'es' : ''}
                   </p>
                 </div>
-                {filteredBusinessOptions.map((business) => (
-                  <button
-                    key={business.id}
-                    onClick={() => {
-                      setTempSelectedBusinessId(business.id);
-                      setBusinessNameSearch('');
-                      setFilteredBusinessOptions([]);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center justify-between gap-2"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-gray-900 truncate">
-                        {business.businessName || business.id}
+                {filteredBusinessOptions.map((business) => {
+                  const businessDisplayName = business.businessName || business.id;
+                  return (
+                    <button
+                      key={business.id}
+                      onClick={() => {
+                        setTempSelectedBusinessId(business.id);
+                        setBusinessNameSearch(businessDisplayName); // Відображаємо назву бізнесу в інпуті
+                        setFilteredBusinessOptions([]);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-gray-900 truncate">
+                          {businessDisplayName}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          ID: {business.id}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        ID: {business.id}
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                          {business.programCount} {business.programCount === 1 ? 'program' : 'programs'}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                        {business.programCount} {business.programCount === 1 ? 'program' : 'programs'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
             
-            {/* No Results Message */}
-            {businessNameSearch && filteredBusinessOptions.length === 0 && (
+            {/* No Results Message - показуємо тільки якщо бізнес НЕ вибраний */}
+            {businessNameSearch && filteredBusinessOptions.length === 0 && tempSelectedBusinessId === 'all' && (
               <div className="mt-2 p-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-center">
                 <p className="text-sm text-gray-600">
                   No businesses found matching "<span className="font-semibold">{businessNameSearch}</span>"

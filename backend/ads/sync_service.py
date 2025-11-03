@@ -849,7 +849,38 @@ class ProgramSyncService:
         
         # Фільтр по статусу
         if status and status != 'ALL':
-            query = query.filter(status=status)
+            if status == 'CURRENT':
+                # CURRENT: program_status == "ACTIVE"
+                query = query.filter(program_status='ACTIVE')
+            elif status == 'ACTIVE':
+                # Пряма фільтрація по ACTIVE
+                query = query.filter(program_status='ACTIVE')
+            elif status == 'INACTIVE':
+                # Пряма фільтрація по INACTIVE
+                query = query.filter(program_status='INACTIVE')
+            elif status == 'TERMINATED':
+                # Програми зі статусом TERMINATED
+                query = query.filter(program_status='TERMINATED')
+            elif status == 'EXPIRED':
+                # Програми зі статусом EXPIRED
+                query = query.filter(program_status='EXPIRED')
+            elif status == 'PAST':
+                # Минулі програми (INACTIVE + NOT_PAUSED)
+                query = query.filter(
+                    program_status='INACTIVE',
+                    program_pause_status='NOT_PAUSED'
+                )
+            elif status == 'FUTURE':
+                # Майбутні програми (start_date > today)
+                from django.utils import timezone
+                today = timezone.now().date()
+                query = query.filter(start_date__gt=today)
+            elif status == 'PAUSED':
+                # Призупинені програми
+                query = query.filter(program_pause_status='PAUSED')
+            else:
+                # Старий спосіб для зворотної сумісності
+                query = query.filter(status=status)
             logger.debug(f"🔍 Filtering by status: {status}")
         
         # Фільтр по типу програми

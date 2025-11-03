@@ -1194,7 +1194,28 @@ class ProgramListView(APIView):
                     query = ProgramRegistry.objects.filter(username=username)
                     
                     if program_status and program_status != 'ALL':
-                        query = query.filter(status=program_status)
+                        # Використовуємо ту ж логіку маппінгу статусів що і для availableFilters
+                        if program_status == 'CURRENT':
+                            query = query.filter(program_status='ACTIVE')
+                        elif program_status == 'ACTIVE':
+                            query = query.filter(program_status='ACTIVE')
+                        elif program_status == 'INACTIVE':
+                            query = query.filter(program_status='INACTIVE')
+                        elif program_status == 'TERMINATED':
+                            query = query.filter(program_status='TERMINATED')
+                        elif program_status == 'EXPIRED':
+                            query = query.filter(program_status='EXPIRED')
+                        elif program_status == 'PAST':
+                            query = query.filter(
+                                program_status='INACTIVE',
+                                program_pause_status='NOT_PAUSED'
+                            )
+                        elif program_status == 'FUTURE':
+                            from django.utils import timezone
+                            today = timezone.now().date()
+                            query = query.filter(start_date__gt=today)
+                        elif program_status == 'PAUSED':
+                            query = query.filter(program_pause_status='PAUSED')
                     
                     query = query.filter(program_name=program_type)
                     
@@ -1304,7 +1325,28 @@ class ProgramListView(APIView):
                     query = ProgramRegistry.objects.filter(username=username)
                     
                     if program_status and program_status != 'ALL':
-                        query = query.filter(status=program_status)
+                        # Використовуємо правильну логіку маппінгу статусів
+                        if program_status == 'CURRENT':
+                            query = query.filter(program_status='ACTIVE')
+                        elif program_status == 'ACTIVE':
+                            query = query.filter(program_status='ACTIVE')
+                        elif program_status == 'INACTIVE':
+                            query = query.filter(program_status='INACTIVE')
+                        elif program_status == 'TERMINATED':
+                            query = query.filter(program_status='TERMINATED')
+                        elif program_status == 'EXPIRED':
+                            query = query.filter(program_status='EXPIRED')
+                        elif program_status == 'PAST':
+                            query = query.filter(
+                                program_status='INACTIVE',
+                                program_pause_status='NOT_PAUSED'
+                            )
+                        elif program_status == 'FUTURE':
+                            from django.utils import timezone
+                            today = timezone.now().date()
+                            query = query.filter(start_date__gt=today)
+                        elif program_status == 'PAUSED':
+                            query = query.filter(program_pause_status='PAUSED')
                     
                     # Загальна кількість після фільтрів
                     total_count = query.count()
@@ -2208,6 +2250,18 @@ class AvailableFiltersView(APIView):
                 if program_status == 'CURRENT':
                     # Активні програми (program_status=ACTIVE)
                     query = query.filter(program_status='ACTIVE')
+                elif program_status == 'ACTIVE':
+                    # Пряма фільтрація по ACTIVE (якщо користувач вибрав ACTIVE напряму)
+                    query = query.filter(program_status='ACTIVE')
+                elif program_status == 'INACTIVE':
+                    # Пряма фільтрація по INACTIVE
+                    query = query.filter(program_status='INACTIVE')
+                elif program_status == 'TERMINATED':
+                    # Програми зі статусом TERMINATED
+                    query = query.filter(program_status='TERMINATED')
+                elif program_status == 'EXPIRED':
+                    # Програми зі статусом EXPIRED
+                    query = query.filter(program_status='EXPIRED')
                 elif program_status == 'PAST':
                     # Минулі програми (INACTIVE + NOT_PAUSED)
                     query = query.filter(
