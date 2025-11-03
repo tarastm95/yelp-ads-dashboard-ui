@@ -509,3 +509,69 @@ class LogEntry(models.Model):
     
     def __str__(self):
         return f"[{self.level}] {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {self.message[:50]}"
+
+
+class ScheduledPause(models.Model):
+    """Schedule program pause in the future"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('EXECUTED', 'Executed'),
+        ('CANCELLED', 'Cancelled'),
+        ('FAILED', 'Failed'),
+    ]
+    
+    program_id = models.CharField(max_length=100, db_index=True)
+    username = models.CharField(max_length=255, db_index=True)
+    scheduled_datetime = models.DateTimeField(db_index=True, help_text="Date and time when program should be paused")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
+    executed_at = models.DateTimeField(null=True, blank=True, help_text="When the pause was actually executed")
+    error_message = models.TextField(null=True, blank=True, help_text="Error message if execution failed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['program_id', 'status']),
+            models.Index(fields=['scheduled_datetime', 'status']),
+            models.Index(fields=['username', 'status']),
+        ]
+        ordering = ['scheduled_datetime']
+    
+    def __str__(self):
+        return f"{self.program_id} - pause at {self.scheduled_datetime}"
+
+
+class ScheduledBudgetUpdate(models.Model):
+    """Schedule program parameters update in the future"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('EXECUTED', 'Executed'),
+        ('CANCELLED', 'Cancelled'),
+        ('FAILED', 'Failed'),
+    ]
+    
+    program_id = models.CharField(max_length=100, db_index=True)
+    username = models.CharField(max_length=255, db_index=True)
+    new_budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="New budget amount in cents")
+    is_autobid = models.BooleanField(null=True, blank=True, help_text="Automatic bidding enabled")
+    max_bid = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Max bid in cents (for manual bidding)")
+    pacing_method = models.CharField(max_length=20, null=True, blank=True, help_text="Pacing method: paced or unpaced")
+    scheduled_datetime = models.DateTimeField(db_index=True, help_text="Date and time when update should be applied")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
+    executed_at = models.DateTimeField(null=True, blank=True, help_text="When the update was actually executed")
+    error_message = models.TextField(null=True, blank=True, help_text="Error message if execution failed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['program_id', 'status']),
+            models.Index(fields=['scheduled_datetime', 'status']),
+            models.Index(fields=['username', 'status']),
+        ]
+        ordering = ['scheduled_datetime']
+    
+    def __str__(self):
+        return f"{self.program_id} - budget update to ${self.new_budget/100} at {self.scheduled_datetime}"

@@ -6,6 +6,10 @@ from .views import (
     UpdateProgramCustomNameView,
     PauseProgramView,
     ResumeProgramView,
+    SchedulePauseProgramView,
+    ScheduledPausesListView,
+    ScheduleBudgetUpdateView,
+    ScheduledBudgetUpdatesListView,
     JobStatusView,
     BusinessMatchView,
     SyncSpecialtiesView,
@@ -39,6 +43,9 @@ from .views import (
     AvailableFiltersView,  # 🧠 NEW - Smart Filters
     # Logs View
     LogsView,
+    # Cancel scheduled operations
+    CancelScheduledPauseView,
+    CancelScheduledBudgetUpdateView,
 )
 
 urlpatterns = [
@@ -61,6 +68,12 @@ urlpatterns = [
     path('reseller/program/<str:program_id>/custom-name', UpdateProgramCustomNameView.as_view()),
     path('program/<str:program_id>/pause/v1', PauseProgramView.as_view()),
     path('program/<str:program_id>/resume/v1', ResumeProgramView.as_view()),
+    path('program/<str:program_id>/schedule-pause/v1', SchedulePauseProgramView.as_view()),
+    path('reseller/scheduled-pauses', ScheduledPausesListView.as_view()),
+    path('reseller/scheduled-pause/<int:pause_id>/cancel', CancelScheduledPauseView.as_view()),
+    path('program/<str:program_id>/schedule-budget-update/v1', ScheduleBudgetUpdateView.as_view()),
+    path('reseller/scheduled-budget-updates', ScheduledBudgetUpdatesListView.as_view()),
+    path('reseller/scheduled-budget-update/<int:update_id>/cancel', CancelScheduledBudgetUpdateView.as_view()),
     path('program/<str:program_id>/features/v1', ProgramFeaturesView.as_view()),
     path('reseller/status/<str:program_id>', JobStatusView.as_view()),
     path('reseller/active-jobs', ActiveJobsView.as_view()),

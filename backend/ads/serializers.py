@@ -48,7 +48,7 @@ class LinkTrackingSerializer(serializers.Serializer):
     """Serializer for LINK_TRACKING feature type"""
     website = serializers.CharField(required=False, allow_null=True)
     menu = serializers.CharField(required=False, allow_null=True)
-    url = serializers.CharField(required=False, allow_null=True)
+    call_to_action = serializers.CharField(required=False, allow_null=True)
 
 
 class NegativeKeywordTargetingSerializer(serializers.Serializer):

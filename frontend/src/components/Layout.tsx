@@ -2,6 +2,14 @@ import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { 
   Home,
   Plus,
@@ -11,7 +19,10 @@ import {
   Menu,
   Edit,
   LogOut,
-  Sparkles
+  Sparkles,
+  Pause,
+  DollarSign,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clearCredentials } from '../store/slices/authSlice';
@@ -28,14 +39,35 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const navigation = [
+  // Main navigation items (not in dropdowns)
+  const mainNav = [
     { name: 'Home', href: '/', icon: Home },
-    { name: 'Create Program', href: '/create', icon: Plus },
     { name: 'Programs', href: '/programs', icon: List },
-    { name: 'Advanced Editing', href: '/edit-advanced', icon: Edit },
+    { name: 'Create Program', href: '/create', icon: Plus },
+  ];
+
+  // Scheduled tasks dropdown
+  const scheduledTasks = [
+    { name: 'Scheduled Pauses', href: '/scheduled-pauses', icon: Pause },
+    { name: 'Scheduled Budget Updates', href: '/scheduled-budget-updates', icon: DollarSign },
+  ];
+
+  // Monitoring & History dropdown
+  const monitoring = [
     { name: 'Task Monitor', href: '/jobs', icon: Clock },
     { name: 'Job History', href: '/job-history', icon: BarChart3 },
   ];
+
+  // Settings dropdown
+  const settings = [
+    { name: 'Advanced Editing', href: '/edit-advanced', icon: Edit },
+  ];
+
+  const isInDropdown = (href: string) => {
+    return scheduledTasks.some(item => item.href === href) ||
+           monitoring.some(item => item.href === href) ||
+           settings.some(item => item.href === href);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
@@ -58,7 +90,8 @@ const Layout: React.FC = () => {
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center gap-1">
-              {navigation.map((item) => {
+              {/* Main navigation items */}
+              {mainNav.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = location.pathname === item.href;
                 return (
@@ -77,6 +110,129 @@ const Layout: React.FC = () => {
                   </Link>
                 );
               })}
+
+              {/* Scheduled Tasks Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      isInDropdown(location.pathname)
+                        ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200'
+                    )}
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span>Scheduled</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Scheduled Tasks</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {scheduledTasks.map((item) => {
+                    const IconComponent = item.icon;
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <DropdownMenuItem key={item.name} asChild>
+                        <Link
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-2 cursor-pointer',
+                            isActive && 'bg-blue-50 text-blue-700'
+                          )}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Monitoring Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      isInDropdown(location.pathname)
+                        ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200'
+                    )}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Monitoring</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Monitoring & History</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {monitoring.map((item) => {
+                    const IconComponent = item.icon;
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <DropdownMenuItem key={item.name} asChild>
+                        <Link
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-2 cursor-pointer',
+                            isActive && 'bg-blue-50 text-blue-700'
+                          )}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      isInDropdown(location.pathname)
+                        ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200'
+                    )}
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span>Settings</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {settings.map((item) => {
+                    const IconComponent = item.icon;
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <DropdownMenuItem key={item.name} asChild>
+                        <Link
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-2 cursor-pointer',
+                            isActive && 'bg-blue-50 text-blue-700'
+                          )}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
 
             {/* User Info and Logout */}
@@ -107,7 +263,7 @@ const Layout: React.FC = () => {
       {/* Main content */}
       <main className="flex-1">
         <div className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full mx-auto px-3 sm:px-4 lg:px-6">
             <Outlet />
           </div>
         </div>
@@ -117,3 +273,4 @@ const Layout: React.FC = () => {
 };
 
 export default Layout;
+

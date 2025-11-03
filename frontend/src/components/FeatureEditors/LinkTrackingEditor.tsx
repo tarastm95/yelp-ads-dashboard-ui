@@ -8,7 +8,7 @@ import { Link, Save, X } from 'lucide-react';
 interface LinkTrackingData {
   website?: string | null;
   menu?: string | null;
-  url?: string | null;
+  call_to_action?: string | null;
 }
 
 interface LinkTrackingEditorProps {
@@ -27,7 +27,7 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
   const [formData, setFormData] = useState<LinkTrackingData>({
     website: data?.website || '',
     menu: data?.menu || '',
-    url: data?.url || ''
+    call_to_action: data?.call_to_action || ''
   });
 
   useEffect(() => {
@@ -35,7 +35,7 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
       setFormData({
         website: data.website || '',
         menu: data.menu || '',
-        url: data.url || ''
+        call_to_action: data.call_to_action || ''
       });
     }
   }, [data]);
@@ -47,7 +47,7 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
     const processedData = {
       website: formData.website?.trim() || null,
       menu: formData.menu?.trim() || null,
-      url: formData.url?.trim() || null
+      call_to_action: formData.call_to_action?.trim() || null
     };
     
     onSave(processedData);
@@ -111,14 +111,14 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="url">Call-to-Action URL</Label>
+            <Label htmlFor="call_to_action">Call-to-Action URL</Label>
             <Input
-              id="url"
+              id="call_to_action"
               type="url"
-              value={formData.url || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+              value={formData.call_to_action || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, call_to_action: e.target.value }))}
               placeholder="https://mysite.com/contact?utm_source=yelp or utm_source=yelp&utm_medium=cpc"
-              className={!validateUrl(formData.url || '') ? 'border-red-500' : ''}
+              className={!validateUrl(formData.call_to_action || '') ? 'border-red-500' : ''}
             />
             <p className="text-xs text-gray-500 mt-1">
               URL for the Call-to-Action button. Used when AD_GOAL = WEBSITE_CLICKS
@@ -131,7 +131,7 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
               <li>• <strong>Empty field:</strong> use standard external URL (no tracking)</li>
               <li>• <strong>Full URL:</strong> https://mysite.com/page?utm_source=yelp</li>
               <li>• <strong>Parameters only:</strong> utm_source=yelp&utm_medium=cpc (Yelp will append to existing URL)</li>
-              <li>• <strong>Relation to AD_GOAL:</strong> if AD_GOAL = WEBSITE_CLICKS and url is set, tracking URL is used</li>
+              <li>• <strong>Relation to AD_GOAL:</strong> if AD_GOAL = WEBSITE_CLICKS and call_to_action is set, tracking URL is used</li>
               <li>• <strong>All fields null:</strong> feature is considered disabled</li>
             </ul>
           </div>
@@ -141,7 +141,7 @@ const LinkTrackingEditor: React.FC<LinkTrackingEditorProps> = ({
             <ul className="text-xs text-gray-600 space-y-1">
               <li>• Link tracking applies to <strong>CPC traffic</strong> from Yelp ads</li>
               <li>• Base URLs for organic traffic are set via the Data Ingestion API</li>
-              <li>• The <code>url</code> field controls the CTA button (Call-to-Action)</li>
+              <li>• The <code>call_to_action</code> field controls the CTA button (Call-to-Action)</li>
               <li>• Example "parameters only": {`{"LINK_TRACKING": {"website": "utm_source=yelp&utm_medium=cpc"}}`}</li>
             </ul>
           </div>

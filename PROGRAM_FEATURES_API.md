@@ -189,7 +189,7 @@ interface VerifiedLicenseFeature {
 ```
 
 ### 8. Інші типи
-- `LINK_TRACKING` - відстеження посилань (website, menu, url)
+- `LINK_TRACKING` - відстеження посилань (website, menu, call_to_action)
 - `NEGATIVE_KEYWORD_TARGETING` - негативні ключові слова
 - `STRICT_CATEGORY_TARGETING` - строге таргетування за категоріями  
 - `AD_SCHEDULING` - розклад показу реклами

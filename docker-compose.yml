@@ -65,6 +65,44 @@ services:
     networks:
       - app-network
 
+  scheduled-pauses:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    env_file:
+      - .env
+    command: python manage.py execute_scheduled_pauses --check-interval 60
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  scheduled-budget-updates:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    env_file:
+      - .env
+    command: python manage.py execute_scheduled_budget_updates --check-interval 60
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
 networks:
   app-network:
     driver: bridge

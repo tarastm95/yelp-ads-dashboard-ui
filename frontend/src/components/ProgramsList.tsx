@@ -8,6 +8,8 @@ import {
   useSyncProgramsMutation,
   useGetAvailableFiltersQuery,  // 🧠 NEW: Smart Filters
   useGetProgramFeaturesQuery,
+  useSchedulePauseProgramMutation,
+  useGetPartnerProgramInfoQuery,
   yelpApi
 } from '../store/api/yelpApi';
 import { useSelector, useDispatch } from 'react-redux';
@@ -25,12 +27,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp, Clock, Sparkles } from 'lucide-react';
+import { Loader2, Edit, Square, Play, Trash2, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, MousePointer, Eye, TrendingUp, Clock, Sparkles, Pause, Calendar } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatErrorForToast } from '@/lib/utils';
 import ApiErrorMessage from './ApiErrorMessage';
 import DuplicateProgramDialog, { DuplicateFormData } from './DuplicateProgramDialog';
 import InlineTaskMonitor from './InlineTaskMonitor';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { BusinessProgram } from '../types/yelp';
 import useProgramsSearch from '../hooks/useProgramsSearch';
 import {
@@ -40,6 +44,26 @@ import {
 } from '../lib/programFilters';
 import { useDebouncedCallback } from 'use-debounce';
 import ProgramSkeleton from './ProgramSkeleton';
+
+// Component for Schedule Pause button
+const SchedulePauseButton: React.FC<{ 
+  programId: string; 
+  program: BusinessProgram;
+  onSchedule: () => void;
+}> = ({ programId, program, onSchedule }) => {
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="w-full border-2 border-orange-500 hover:bg-orange-50 text-orange-700 transition-all font-medium h-9 text-sm"
+      onClick={onSchedule}
+      disabled={!programId || program.program_status === 'TERMINATED'}
+    >
+      <Pause className="w-3.5 h-3.5 mr-1.5" />
+      Schedule Pause
+    </Button>
+  );
+};
 
 // Component to display active features for a program
 const ActiveFeatures: React.FC<{ programId: string }> = ({ programId }) => {
@@ -57,7 +81,7 @@ const ActiveFeatures: React.FC<{ programId: string }> = ({ programId }) => {
       case 'CALL_TRACKING':
         return featureData.enabled === true;
       case 'LINK_TRACKING':
-        return !!(featureData.website || featureData.menu || featureData.url);
+        return !!(featureData.website || featureData.menu || featureData.call_to_action);
       case 'CUSTOM_LOCATION_TARGETING':
         return featureData.businesses?.some((b: any) => b.locations?.length > 0) || false;
       case 'NEGATIVE_KEYWORD_TARGETING':
@@ -97,22 +121,23 @@ const ActiveFeatures: React.FC<{ programId: string }> = ({ programId }) => {
   if (activeFeatures.length === 0) return null;
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-200">
-      <div className="text-center mb-2">
-        <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">
-          Active Features ({activeFeatures.length})
+    <div className="mt-1.5 p-2 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-md">
+      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+        <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wide flex-shrink-0">
+          Features ({activeFeatures.length})
         </span>
-      </div>
-      <div className="flex flex-wrap gap-2 justify-center items-center">
-        {activeFeatures.map((featureType) => (
-          <Badge 
-            key={featureType} 
-            variant="outline" 
-            className="bg-green-50 border-green-300 text-green-700 hover:bg-green-100 px-2.5 py-1 text-xs"
-          >
-            <Sparkles className="w-3 h-3 mr-1 inline" />
-            {featureType.replace(/_/g, ' ')}
-          </Badge>
+        {activeFeatures.map((featureType, index) => (
+          <React.Fragment key={featureType}>
+            <Badge
+              variant="outline"
+              className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 transition-colors text-[10px] font-medium px-1.5 py-0.5 h-5"
+            >
+              {featureType.replace(/_/g, ' ')}
+            </Badge>
+            {index < activeFeatures.length - 1 && (
+              <span className="text-purple-300 text-[10px]">•</span>
+            )}
+          </React.Fragment>
         ))}
       </div>
     </div>
@@ -145,6 +170,10 @@ const ProgramsList: React.FC = () => {
   const [tempProgramStatus, setTempProgramStatus] = useState(savedStatus || 'CURRENT');
   const [tempProgramType, setTempProgramType] = useState(savedProgramType || 'ALL');
   const [tempSelectedBusinessId, setTempSelectedBusinessId] = useState<string>('all');
+  
+  // Пошук по імені бізнесу
+  const [businessNameSearch, setBusinessNameSearch] = useState<string>('');
+  const [filteredBusinessOptions, setFilteredBusinessOptions] = useState<typeof businessOptions>([]);
   
   // Debug: Log initial business filter
   useEffect(() => {
@@ -357,6 +386,30 @@ const ProgramsList: React.FC = () => {
 
   const totalBusinessOptions = businessOptions.length;
   const filteredOutCount = Math.max(0, cachedPrograms.length - totalFiltered);
+  
+  // Фільтрація бізнесів по введеному тексту (з debounce)
+  useEffect(() => {
+    const searchLower = businessNameSearch.toLowerCase().trim();
+    
+    if (!searchLower) {
+      setFilteredBusinessOptions([]);
+      return;
+    }
+    
+    const filtered = businessOptions.filter(business => {
+      const businessName = business.businessName?.toLowerCase() || '';
+      const businessId = business.id.toLowerCase();
+      const yelpId = business.yelpBusinessId?.toLowerCase() || '';
+      const partnerId = business.partnerBusinessId?.toLowerCase() || '';
+      
+      return businessName.includes(searchLower) || 
+             businessId.includes(searchLower) ||
+             yelpId.includes(searchLower) ||
+             partnerId.includes(searchLower);
+    });
+    
+    setFilteredBusinessOptions(filtered);
+  }, [businessNameSearch, businessOptions]);
 
   // 🧠 РОЗУМНІ ФІЛЬТРИ: API запит для отримання доступних опцій
   const { data: availableFiltersData, isLoading: isLoadingAvailableFilters } = useGetAvailableFiltersQuery({
@@ -446,6 +499,7 @@ const ProgramsList: React.FC = () => {
   const [terminateProgram] = useTerminateProgramMutation();
   const [pauseProgram] = usePauseProgramMutation();
   const [resumeProgram] = useResumeProgramMutation();
+  const [schedulePause, { isLoading: isSchedulingPause }] = useSchedulePauseProgramMutation();
   const [duplicateProgram, { isLoading: isDuplicating }] = useDuplicateProgramMutation();
   const [syncPrograms, { isLoading: isSyncing, data: syncData, error: syncError }] = useSyncProgramsMutation();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
@@ -453,6 +507,10 @@ const ProgramsList: React.FC = () => {
   // State for duplicate dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [programToDuplicate, setProgramToDuplicate] = useState<BusinessProgram | null>(null);
+  
+  // State for pause in future dialog
+  const [pauseFutureProgramId, setPauseFutureProgramId] = useState<string | null>(null);
+  const [pauseDateTime, setPauseDateTime] = useState<string>('');
   
   // State for active tasks monitoring
   const [activeTasks, setActiveTasks] = useState<Record<string, { jobId: string; taskType: 'terminate' | 'pause' | 'resume' }>>({});
@@ -859,6 +917,58 @@ const ProgramsList: React.FC = () => {
     }
   };
 
+  const handleSchedulePause = async () => {
+    if (!pauseDateTime || !pauseFutureProgramId) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select a date and time',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Validate datetime format
+      const selectedDate = new Date(pauseDateTime);
+      const now = new Date();
+      
+      if (selectedDate <= now) {
+        toast({
+          title: 'Validation Error',
+          description: 'Scheduled time must be in the future',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Convert datetime-local format to ISO format
+      const isoDateTime = pauseDateTime ? new Date(pauseDateTime).toISOString() : '';
+      
+      const result = await schedulePause({
+        program_id: pauseFutureProgramId,
+        scheduled_datetime: isoDateTime,
+      }).unwrap();
+
+      toast({
+        title: 'Pause Scheduled',
+        description: result.message || `Program will be paused at ${pauseDateTime}`,
+      });
+
+      setPauseFutureProgramId(null);
+      setPauseDateTime('');
+      // Refresh programs to show updated status
+      refreshPrograms();
+      // Invalidate scheduled pauses to refresh the list
+      dispatch(yelpApi.util.invalidateTags(['ScheduledPause']));
+    } catch (error: any) {
+      toast({
+        title: 'Schedule Failed',
+        description: error.data?.error || error.message || 'Failed to schedule pause',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDuplicateClick = (program: BusinessProgram) => {
     setProgramToDuplicate(program);
     setShowDuplicateDialog(true);
@@ -1108,7 +1218,7 @@ const ProgramsList: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Advertising Programs</h2>
@@ -1383,6 +1493,97 @@ const ProgramsList: React.FC = () => {
             </div>
           )}
 
+          {/* 🔍 Business Name Search - Dynamic */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
+              <span className="text-lg">🔍</span>
+              Search by Business Name (Dynamic):
+            </label>
+            
+            {/* Selected Business Indicator */}
+            {tempSelectedBusinessId !== 'all' && (
+              <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-700 font-semibold text-sm">
+                    ✓ Selected: {businessOptions.find(b => b.id === tempSelectedBusinessId)?.businessName || tempSelectedBusinessId}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setTempSelectedBusinessId('all')}
+                  className="text-green-600 hover:text-green-800 text-xs font-medium underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            
+            <div className="relative">
+              <input
+                type="text"
+                value={businessNameSearch}
+                onChange={(e) => setBusinessNameSearch(e.target.value)}
+                placeholder="Type business name (e.g., test_br, te...)"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 pr-10 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 text-sm font-medium shadow-sm"
+              />
+              {businessNameSearch && (
+                <button
+                  onClick={() => setBusinessNameSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            
+            {/* Search Results Dropdown */}
+            {businessNameSearch && filteredBusinessOptions.length > 0 && (
+              <div className="mt-2 max-h-64 overflow-y-auto border-2 border-blue-300 rounded-lg bg-white shadow-lg">
+                <div className="p-2 bg-blue-50 border-b border-blue-200 sticky top-0">
+                  <p className="text-xs font-semibold text-blue-800">
+                    Found {filteredBusinessOptions.length} business{filteredBusinessOptions.length !== 1 ? 'es' : ''}
+                  </p>
+                </div>
+                {filteredBusinessOptions.map((business) => (
+                  <button
+                    key={business.id}
+                    onClick={() => {
+                      setTempSelectedBusinessId(business.id);
+                      setBusinessNameSearch('');
+                      setFilteredBusinessOptions([]);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-gray-900 truncate">
+                        {business.businessName || business.id}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        ID: {business.id}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                        {business.programCount} {business.programCount === 1 ? 'program' : 'programs'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* No Results Message */}
+            {businessNameSearch && filteredBusinessOptions.length === 0 && (
+              <div className="mt-2 p-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-center">
+                <p className="text-sm text-gray-600">
+                  No businesses found matching "<span className="font-semibold">{businessNameSearch}</span>"
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Search Button - Full Width Below */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <Button
@@ -1497,180 +1698,231 @@ const ProgramsList: React.FC = () => {
                 )}
                 
                 <CardContent className="p-2">
-                  {/* Info Row - Modern Beautiful Design */}
-                  <div className="flex items-center gap-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 px-4 py-3 rounded-lg border border-gray-200/50 w-full shadow-sm">
-                    {/* Program Type & ID */}
-                    <div className="flex flex-col gap-1.5 flex-shrink-0 min-w-[160px]">
-                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Type</span>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-indigo-700 text-base">{program.program_type}</span>
-                        <span className="text-sm font-mono text-gray-500">{program.program_id}</span>
-                      </div>
+                  {/* Info Row - Single Line Compact Layout - Centered */}
+                  <div className="flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-50/50 to-indigo-50/50 px-3 py-2 rounded-lg border border-gray-200/50 w-full shadow-sm flex-wrap">
+                    {/* Type */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 font-medium">Type:</span>
+                      <span className="font-bold text-indigo-700">{program.program_type}</span>
                     </div>
+                    <span className="text-gray-300">|</span>
+                    
+                    {/* ID */}
+                    <span className="font-mono text-xs text-gray-600">{program.program_id}</span>
+                    <span className="text-gray-300">|</span>
                     
                     {/* Status */}
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Status</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm px-2.5 py-1 rounded-md font-semibold ${
-                          program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                          program.program_status === 'INACTIVE' ? 'bg-gray-100 text-gray-700' :
-                          program.program_status === 'TERMINATED' ? 'bg-red-100 text-red-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                          {program.program_status}
-                        </span>
-                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${
-                          program.program_pause_status === 'NOT_PAUSED' ? 'bg-blue-100 text-blue-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {program.program_pause_status === 'NOT_PAUSED' ? '▶' : '⏸'}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                        program.program_status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                        program.program_status === 'INACTIVE' ? 'bg-gray-100 text-gray-700' :
+                        program.program_status === 'TERMINATED' ? 'bg-red-100 text-red-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {program.program_status}
+                      </span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                        program.program_pause_status === 'NOT_PAUSED' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {program.program_pause_status === 'NOT_PAUSED' ? '▶' : '⏸'}
+                      </span>
                     </div>
+                    <span className="text-gray-300">|</span>
                     
                     {/* Business */}
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
-                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Business</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-blue-700 text-base">{program.business_name || 'N/A'}</span>
-                        <span className="text-sm font-mono text-gray-500">{program.yelp_business_id || 'N/A'}</span>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 font-medium">Business:</span>
+                      <span className="font-semibold text-blue-700">{program.business_name || 'N/A'}</span>
+                      <span className="font-mono text-xs text-gray-500">{program.yelp_business_id || 'N/A'}</span>
                     </div>
+                    <span className="text-gray-300">|</span>
                     
                     {/* Budget */}
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Budget</span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-bold text-green-700 text-lg">${program.program_metrics ? (Number(program.program_metrics.budget) / 100).toFixed(2) : '0.00'}</span>
-                        <span className="text-sm text-gray-500">{program.program_metrics?.currency || 'USD'}</span>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 font-medium">Budget:</span>
+                      <span className="font-bold text-green-700">${program.program_metrics ? (Number(program.program_metrics.budget) / 100).toFixed(2) : '0.00'}</span>
+                      <span className="text-xs text-gray-500">{program.program_metrics?.currency || 'USD'}</span>
                     </div>
+                    <span className="text-gray-300">|</span>
                     
-                    {/* Dates */}
-                    <div className="flex flex-col gap-1.5 flex-shrink-0 min-w-[200px]">
-                      <span className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Period</span>
-                      <span className="text-purple-700 text-sm font-medium whitespace-nowrap">{program.start_date} → {program.end_date}</span>
+                    {/* Period */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 font-medium">Period:</span>
+                      <span className="text-xs text-purple-700">{program.start_date} → {program.end_date}</span>
+                    </div>
+                    <span className="text-gray-300">|</span>
+                    
+                    {/* Spent & Usage */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500 font-medium">Spent:</span>
+                      <span className="font-bold text-red-700">${program.program_metrics?.ad_cost ? (Number(program.program_metrics.ad_cost) / 100).toFixed(2) : '0.00'}</span>
+                      {(() => {
+                        const budget = program.program_metrics?.budget ? Number(program.program_metrics.budget) / 100 : 0;
+                        const spent = program.program_metrics?.ad_cost ? Number(program.program_metrics.ad_cost) / 100 : 0;
+                        const usagePercent = budget > 0 ? (spent / budget) * 100 : 0;
+                        
+                        return (
+                          <>
+                            <span className="text-xs text-gray-600">({usagePercent.toFixed(1)}% used)</span>
+                            <div className="w-20 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div 
+                                className={`h-full transition-all ${
+                                  usagePercent > 90 ? 'bg-red-500' :
+                                  usagePercent > 75 ? 'bg-yellow-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="border-t mt-2 pt-2">
-                    {/* Action Buttons */}
-                    <div className="flex gap-1">
-                      {/* EDIT */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-2 hover:border-blue-500 hover:bg-blue-50 transition-all font-medium h-9 text-sm"
-                        onClick={() => handleEdit(program.program_id)}
-                        disabled={!program.program_id}
-                      >
-                        <Edit className="w-3.5 h-3.5 mr-1.5" />
-                        Edit
-                      </Button>
+                    {/* Action Buttons - Logically Grouped - Centered */}
+                    <div className="flex flex-wrap gap-1.5 items-center justify-center">
+                      {/* Group 1: Main Actions (Blue/Indigo) */}
+                      <div className="flex gap-1 border-r border-gray-200 pr-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-blue-500 text-blue-700 hover:bg-blue-50 transition-all text-xs font-medium"
+                          onClick={() => handleEdit(program.program_id)}
+                          disabled={!program.program_id}
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-indigo-500 text-indigo-700 hover:bg-indigo-50 transition-all text-xs font-medium"
+                          onClick={() => navigate(`/program-info/${program.program_id}`)}
+                          disabled={!program.program_id}
+                        >
+                          <Settings className="w-3 h-3 mr-1" />
+                          Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-indigo-500 text-indigo-700 hover:bg-indigo-50 transition-all text-xs font-medium"
+                          onClick={() => navigate(`/program-features/${program.program_id}`)}
+                          disabled={!program.program_id}
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Features
+                        </Button>
+                      </div>
 
-                      {/* DUPLICATE */}
-                      <Button
-                        size="sm"
-                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 font-medium h-9 text-sm"
-                        onClick={() => handleDuplicateClick(program)}
-                        disabled={!program.program_id}
-                      >
-                        <Copy className="w-3.5 h-3.5 mr-1.5" />
-                        Layer
-                      </Button>
+                      {/* Group 2: Control Actions (Yellow/Orange/Purple) */}
+                      <div className="flex gap-1 border-r border-gray-200 pr-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`h-7 px-2.5 border-2 transition-all text-xs font-medium ${
+                            program.program_pause_status === 'PAUSED'
+                              ? 'border-green-500 hover:bg-green-50 text-green-700'
+                              : 'border-yellow-500 hover:bg-yellow-50 text-yellow-700'
+                          }`}
+                          onClick={() => 
+                            program.program_pause_status === 'PAUSED' ? 
+                              handleResume(program.program_id) : 
+                              handlePause(program.program_id)
+                          }
+                          disabled={
+                            loadingActions[`${program.program_id}-pause`] ||
+                            loadingActions[`${program.program_id}-resume`] ||
+                            !program.program_id ||
+                            program.program_status === 'TERMINATED'
+                          }
+                        >
+                          {(loadingActions[`${program.program_id}-pause`] || 
+                            loadingActions[`${program.program_id}-resume`]) ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : program.program_pause_status === 'PAUSED' ? (
+                            <Play className="w-3 h-3 mr-1" />
+                          ) : (
+                            <Square className="w-3 h-3 mr-1" />
+                          )}
+                          {program.program_pause_status === 'PAUSED' ? 'Resume' : 'Pause'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-orange-500 text-orange-700 hover:bg-orange-50 transition-all text-xs font-medium"
+                          onClick={() => {
+                            setPauseFutureProgramId(program.program_id);
+                          }}
+                          disabled={!program.program_id || program.program_status === 'TERMINATED'}
+                        >
+                          <Pause className="w-3 h-3 mr-1" />
+                          Schedule Pause
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-purple-500 text-purple-700 hover:bg-purple-50 transition-all text-xs font-medium"
+                          onClick={() => navigate(`/schedule-budget-update/${program.program_id}`)}
+                          disabled={!program.program_id || program.program_status === 'TERMINATED'}
+                        >
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Schedule Update
+                        </Button>
+                      </div>
 
-                      {/* PAUSE/RESUME */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={`w-full border-2 transition-all font-medium h-9 text-sm ${
-                          program.program_pause_status === 'PAUSED'
-                            ? 'border-green-500 hover:bg-green-50 text-green-700'
-                            : 'border-yellow-500 hover:bg-yellow-50 text-yellow-700'
-                        }`}
-                        onClick={() => 
-                          program.program_pause_status === 'PAUSED' ? 
-                            handleResume(program.program_id) : 
-                            handlePause(program.program_id)
-                        }
-                        disabled={
-                          loadingActions[`${program.program_id}-pause`] ||
-                          loadingActions[`${program.program_id}-resume`] ||
-                          !program.program_id ||
-                          program.program_status === 'TERMINATED'
-                        }
-                      >
-                        {(loadingActions[`${program.program_id}-pause`] || 
-                          loadingActions[`${program.program_id}-resume`]) ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        ) : program.program_pause_status === 'PAUSED' ? (
-                          <Play className="w-3.5 h-3.5 mr-1.5" />
-                        ) : (
-                          <Square className="w-3.5 h-3.5 mr-1.5" />
-                        )}
-                        {program.program_pause_status === 'PAUSED' ? 'Resume' : 'Pause'}
-                      </Button>
+                      {/* Group 3: Additional Actions (Purple/Pink) */}
+                      <div className="flex gap-1 border-r border-gray-200 pr-1.5">
+                        <Button
+                          size="sm"
+                          className="h-7 px-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 text-xs font-medium"
+                          onClick={() => handleDuplicateClick(program)}
+                          disabled={!program.program_id}
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          Layer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-purple-500 text-purple-700 hover:bg-purple-50 transition-all text-xs font-medium"
+                          onClick={() => navigate(`/program-status/${program.program_id}`)}
+                          disabled={!program.program_id}
+                        >
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                          Status
+                        </Button>
+                      </div>
 
-                      {/* INFO */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-2 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium h-9 text-sm"
-                        onClick={() => navigate(`/program-info/${program.program_id}`)}
-                        disabled={!program.program_id}
-                      >
-                        <Settings className="w-3.5 h-3.5 mr-1.5" />
-                        Details
-                      </Button>
-
-                      {/* FEATURES */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-2 hover:border-purple-500 hover:bg-purple-50 transition-all font-medium h-9 text-sm"
-                        onClick={() => navigate(`/program-features/${program.program_id}`)}
-                        disabled={!program.program_id}
-                      >
-                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                        Features
-                      </Button>
-
-                      {/* TERMINATE */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-2 border-red-500 text-red-700 hover:bg-red-50 transition-all md:col-span-1 col-span-2 font-medium h-9 text-sm"
-                        onClick={() => handleTerminate(program.program_id)}
-                        disabled={
-                          loadingActions[`${program.program_id}-terminate`] ||
-                          !program.program_id ||
-                          program.program_status === 'TERMINATED' ||
-                          program.program_status === 'EXPIRED' ||
-                          (program.end_date && new Date(program.end_date) < new Date())
-                        }
-                      >
-                        {loadingActions[`${program.program_id}-terminate`] ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                        )}
-                        {program.program_status === 'TERMINATED' || 
-                         program.program_status === 'EXPIRED' ||
-                         (program.end_date && new Date(program.end_date) < new Date()) ? 
-                          'Expired' : 'Terminate'
-                        }
-                      </Button>
-
-                      {/* STATUS - View status */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-9 text-sm"
-                        onClick={() => navigate(`/program-status/${program.program_id}`)}
-                        disabled={!program.program_id}
-                      >
-                        Program Status
-                      </Button>
+                      {/* Group 4: Dangerous Actions (Red) */}
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-red-500 text-red-700 hover:bg-red-50 transition-all text-xs font-medium"
+                          onClick={() => handleTerminate(program.program_id)}
+                          disabled={
+                            loadingActions[`${program.program_id}-terminate`] ||
+                            !program.program_id ||
+                            program.program_status === 'TERMINATED' ||
+                            program.program_status === 'EXPIRED' ||
+                            (program.end_date && new Date(program.end_date) < new Date())
+                          }
+                        >
+                          {loadingActions[`${program.program_id}-terminate`] ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3 h-3 mr-1" />
+                          )}
+                          {program.program_status === 'TERMINATED' || 
+                           program.program_status === 'EXPIRED' ||
+                           (program.end_date && new Date(program.end_date) < new Date()) ? 
+                            'Expired' : 'Terminate'
+                          }
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -1923,7 +2175,103 @@ const ProgramsList: React.FC = () => {
         onConfirm={handleDuplicateConfirm}
         isLoading={isDuplicating}
       />
+
+      {/* Schedule Pause Dialog */}
+      {pauseFutureProgramId && (
+        <SchedulePauseDialog 
+          programId={pauseFutureProgramId}
+          isOpen={!!pauseFutureProgramId}
+          onClose={() => {
+            setPauseFutureProgramId(null);
+            setPauseDateTime('');
+          }}
+          onConfirm={handleSchedulePause}
+          pauseDateTime={pauseDateTime}
+          setPauseDateTime={setPauseDateTime}
+          isLoading={isSchedulingPause}
+        />
+      )}
     </div>
+  );
+};
+
+// Schedule Pause Dialog Component
+const SchedulePauseDialog: React.FC<{
+  programId: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  pauseDateTime: string;
+  setPauseDateTime: (value: string) => void;
+  isLoading: boolean;
+}> = ({ programId, isOpen, onClose, onConfirm, pauseDateTime, setPauseDateTime, isLoading }) => {
+  const { data: programInfo } = useGetPartnerProgramInfoQuery(programId, {
+    skip: !programId,
+  });
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Schedule Program Pause</DialogTitle>
+          <DialogDescription>
+            Select the date and time when this program should be automatically paused.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {programInfo?.start_date && (
+            <div className="text-sm text-gray-600">
+              <strong>Program Start:</strong> {programInfo.start_date}
+            </div>
+          )}
+          {programInfo?.end_date && (
+            <div className="text-sm text-gray-600">
+              <strong>Program End:</strong> {programInfo.end_date}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="pause-datetime">Date & Time</Label>
+            <Input
+              id="pause-datetime"
+              type="datetime-local"
+              value={pauseDateTime}
+              onChange={(e) => setPauseDateTime(e.target.value)}
+              min={
+                programInfo?.start_date 
+                  ? new Date(programInfo.start_date).toISOString().slice(0, 16)
+                  : new Date().toISOString().slice(0, 16)
+              }
+              max={
+                programInfo?.end_date 
+                  ? new Date(programInfo.end_date).toISOString().slice(0, 16)
+                  : undefined
+              }
+            />
+            <p className="text-xs text-gray-500">
+              Select a date and time in the future when the program should be paused
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading || !pauseDateTime}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Scheduling...
+              </>
+            ) : (
+              'Schedule Pause'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

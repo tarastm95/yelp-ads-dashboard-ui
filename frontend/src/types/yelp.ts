@@ -180,7 +180,7 @@ export interface LinkTrackingFeature extends ProgramFeature {
   feature_type: 'LINK_TRACKING';
   website: string | null;
   menu: string | null;
-  url: string | null;
+  call_to_action: string | null;
 }
 
 // NEGATIVE_KEYWORD_TARGETING feature  

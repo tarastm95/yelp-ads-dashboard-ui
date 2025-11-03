@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db import models
 from .services import YelpService
-from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential, CustomSuggestedKeyword
+from .models import Program, PortfolioProject, PortfolioPhoto, PartnerCredential, CustomSuggestedKeyword, ScheduledPause, ScheduledBudgetUpdate, ProgramRegistry
 from .serializers import (
     ProgramSerializer, ProgramFeaturesRequestSerializer, ProgramFeaturesDeleteSerializer,
     PortfolioProjectSerializer, PortfolioProjectCreateResponseSerializer,
@@ -194,6 +194,469 @@ class ResumeProgramView(APIView):
                 {"error": f"Unexpected error: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class SchedulePauseProgramView(APIView):
+    """Schedule program pause in the future"""
+    
+    def post(self, request, program_id):
+        logger.info(f"Scheduling pause for program {program_id}")
+        
+        try:
+            scheduled_datetime_str = request.data.get('scheduled_datetime')
+            if not scheduled_datetime_str:
+                return Response(
+                    {"error": "scheduled_datetime is required (format: YYYY-MM-DDTHH:MM:SS)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            from datetime import datetime
+            from django.utils import timezone
+            try:
+                # Parse the datetime - ensure it's timezone-aware
+                if scheduled_datetime_str.endswith('Z'):
+                    scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
+                elif '+' in scheduled_datetime_str or scheduled_datetime_str.count('-') > 2:
+                    # Already has timezone info
+                    scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str)
+                else:
+                    # No timezone info, assume UTC
+                    scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', ''))
+                    # Make it timezone-aware (UTC)
+                    scheduled_datetime = timezone.make_aware(scheduled_datetime)
+            except ValueError as e:
+                return Response(
+                    {"error": f"Invalid datetime format. Use YYYY-MM-DDTHH:MM:SS. Error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Ensure scheduled_datetime is timezone-aware
+            if timezone.is_naive(scheduled_datetime):
+                scheduled_datetime = timezone.make_aware(scheduled_datetime)
+            
+            # Check if scheduled time is in the future (use timezone-aware now)
+            now = timezone.now()
+            if scheduled_datetime <= now:
+                return Response(
+                    {"error": "Scheduled datetime must be in the future"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get program info to validate start_date and end_date
+            try:
+                program = ProgramRegistry.objects.get(program_id=program_id)
+            except ProgramRegistry.DoesNotExist:
+                return Response(
+                    {"error": f"Program {program_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Validate that scheduled datetime is within program dates
+            scheduled_date = scheduled_datetime.date()
+            
+            if program.start_date and scheduled_date < program.start_date:
+                return Response(
+                    {"error": f"Scheduled pause date ({scheduled_date}) is before program start date ({program.start_date})"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if program.end_date and scheduled_date > program.end_date:
+                return Response(
+                    {"error": f"Scheduled pause date ({scheduled_date}) is after program end date ({program.end_date})"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get username from request
+            if not request.user or not request.user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            username = request.user.username
+            
+            # Check if there's already a pending pause for this program
+            existing_pending = ScheduledPause.objects.filter(
+                program_id=program_id,
+                status='PENDING'
+            ).first()
+            
+            if existing_pending:
+                return Response(
+                    {"error": f"There is already a pending pause scheduled for {existing_pending.scheduled_datetime}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create scheduled pause
+            scheduled_pause = ScheduledPause.objects.create(
+                program_id=program_id,
+                username=username,
+                scheduled_datetime=scheduled_datetime,
+                status='PENDING'
+            )
+            
+            logger.info(f"Successfully scheduled pause for program {program_id} at {scheduled_datetime}")
+            
+            return Response({
+                "id": scheduled_pause.id,
+                "program_id": program_id,
+                "scheduled_datetime": scheduled_pause.scheduled_datetime.isoformat(),
+                "status": scheduled_pause.status,
+                "message": f"Program {program_id} will be paused at {scheduled_datetime}"
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error scheduling pause for program {program_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ScheduledPausesListView(APIView):
+    """Get list of all scheduled pauses"""
+    
+    def get(self, request):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        
+        # Get all scheduled pauses for this user
+        scheduled_pauses = ScheduledPause.objects.filter(username=username).order_by('-scheduled_datetime')
+        
+        # Prepare response data
+        pauses_data = []
+        for pause in scheduled_pauses:
+            # Try to get program info
+            program_info = None
+            try:
+                program = ProgramRegistry.objects.get(program_id=pause.program_id, username=username)
+                program_info = {
+                    'program_name': program.custom_name or program.program_name or pause.program_id,
+                    'business_id': program.yelp_business_id,
+                    'business_name': program.business.name if program.business else program.business_name,
+                    'program_status': program.program_status,
+                    'program_pause_status': program.program_pause_status,
+                    'start_date': program.start_date.isoformat() if program.start_date else None,
+                    'end_date': program.end_date.isoformat() if program.end_date else None,
+                }
+            except ProgramRegistry.DoesNotExist:
+                program_info = {
+                    'program_name': pause.program_id,
+                    'business_id': None,
+                    'business_name': None,
+                    'program_status': None,
+                    'program_pause_status': None,
+                    'start_date': None,
+                    'end_date': None,
+                }
+            
+            pauses_data.append({
+                'id': pause.id,
+                'program_id': pause.program_id,
+                'program_info': program_info,
+                'scheduled_datetime': pause.scheduled_datetime.isoformat(),
+                'status': pause.status,
+                'executed_at': pause.executed_at.isoformat() if pause.executed_at else None,
+                'error_message': pause.error_message,
+                'created_at': pause.created_at.isoformat(),
+            })
+        
+        return Response({
+            'count': len(pauses_data),
+            'results': pauses_data
+        }, status=status.HTTP_200_OK)
+
+
+class CancelScheduledPauseView(APIView):
+    """Cancel a scheduled pause"""
+    
+    def post(self, request, pause_id):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        
+        try:
+            scheduled_pause = ScheduledPause.objects.get(id=pause_id, username=username)
+            
+            # Only allow cancelling PENDING pauses
+            if scheduled_pause.status != 'PENDING':
+                return Response(
+                    {"error": f"Cannot cancel a pause with status {scheduled_pause.status}. Only PENDING pauses can be cancelled."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update status to CANCELLED
+            scheduled_pause.status = 'CANCELLED'
+            scheduled_pause.save()
+            
+            logger.info(f"Successfully cancelled scheduled pause {pause_id} for program {scheduled_pause.program_id}")
+            
+            return Response({
+                "message": f"Scheduled pause for program {scheduled_pause.program_id} has been cancelled",
+                "status": "CANCELLED"
+            }, status=status.HTTP_200_OK)
+            
+        except ScheduledPause.DoesNotExist:
+            return Response(
+                {"error": "Scheduled pause not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error cancelling scheduled pause {pause_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ScheduleBudgetUpdateView(APIView):
+    """Schedule a program parameters update for the future"""
+    
+    def post(self, request, program_id):
+        logger.info(f"Scheduling program update for program {program_id}")
+        
+        try:
+            new_budget = request.data.get('new_budget')
+            scheduled_datetime_str = request.data.get('scheduled_datetime')
+            is_autobid = request.data.get('is_autobid')
+            max_bid = request.data.get('max_bid')
+            pacing_method = request.data.get('pacing_method')
+            
+            # At least one parameter should be provided
+            if not new_budget and is_autobid is None and not max_bid and not pacing_method:
+                return Response(
+                    {"error": "At least one parameter (budget, bidding, or pacing) must be provided"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            from datetime import datetime
+            from django.utils import timezone
+            
+            # Parse the datetime - ensure it's timezone-aware
+            if scheduled_datetime_str.endswith('Z'):
+                scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
+            elif '+' in scheduled_datetime_str or scheduled_datetime_str.count('-') > 2:
+                scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str)
+            else:
+                scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', ''))
+                scheduled_datetime = timezone.make_aware(scheduled_datetime)
+            
+            # Ensure timezone-aware
+            if timezone.is_naive(scheduled_datetime):
+                scheduled_datetime = timezone.make_aware(scheduled_datetime)
+            
+            # Check if scheduled time is in the future
+            now = timezone.now()
+            if scheduled_datetime <= now:
+                return Response(
+                    {"error": "Scheduled datetime must be in the future"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate and convert budget if provided
+            budget_cents = None
+            if new_budget:
+                try:
+                    budget_cents = int(float(new_budget) * 100)  # Convert dollars to cents
+                    if budget_cents < 2500:  # Minimum $25.00
+                        return Response(
+                            {"error": "Budget must be at least $25.00"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                except (ValueError, TypeError):
+                    return Response(
+                        {"error": "Invalid budget format"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Validate and convert max_bid if provided
+            max_bid_cents = None
+            if max_bid:
+                try:
+                    max_bid_cents = int(float(max_bid) * 100)  # Convert dollars to cents
+                    if max_bid_cents < 25:  # Minimum $0.25
+                        return Response(
+                            {"error": "Max bid must be at least $0.25"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                except (ValueError, TypeError):
+                    return Response(
+                        {"error": "Invalid max bid format"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Get username from request
+            if not request.user or not request.user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            username = request.user.username
+            
+            # Check if there's already a pending update for this program
+            existing_pending = ScheduledBudgetUpdate.objects.filter(
+                program_id=program_id,
+                status='PENDING'
+            ).first()
+            
+            if existing_pending:
+                return Response(
+                    {"error": f"There is already a pending budget update scheduled for {existing_pending.scheduled_datetime}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create scheduled budget update
+            scheduled_update = ScheduledBudgetUpdate.objects.create(
+                program_id=program_id,
+                username=username,
+                new_budget=budget_cents,
+                is_autobid=is_autobid,
+                max_bid=max_bid_cents,
+                pacing_method=pacing_method,
+                scheduled_datetime=scheduled_datetime,
+                status='PENDING'
+            )
+            
+            logger.info(f"Successfully scheduled program update for program {program_id} at {scheduled_datetime}")
+            
+            update_parts = []
+            if budget_cents:
+                update_parts.append(f"budget to ${budget_cents/100}")
+            if is_autobid is not None:
+                update_parts.append(f"bidding to {'automatic' if is_autobid else 'manual'}")
+            if pacing_method:
+                update_parts.append(f"pacing to {pacing_method}")
+            
+            message = f"Program {program_id} will be updated: {', '.join(update_parts)} at {scheduled_datetime}"
+            
+            return Response({
+                "id": scheduled_update.id,
+                "program_id": program_id,
+                "scheduled_datetime": scheduled_update.scheduled_datetime.isoformat(),
+                "status": scheduled_update.status,
+                "message": message
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error scheduling budget update for program {program_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ScheduledBudgetUpdatesListView(APIView):
+    """Get list of all scheduled budget updates"""
+    
+    def get(self, request):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        
+        # Get all scheduled budget updates for this user
+        scheduled_updates = ScheduledBudgetUpdate.objects.filter(username=username).order_by('-scheduled_datetime')
+        
+        # Prepare response data
+        updates_data = []
+        for update in scheduled_updates:
+            # Try to get program info
+            program_info = None
+            try:
+                program = ProgramRegistry.objects.get(program_id=update.program_id, username=username)
+                program_info = {
+                    'program_name': program.custom_name or program.program_name or update.program_id,
+                    'business_id': program.yelp_business_id,
+                    'business_name': program.business.name if program.business else program.business_name,
+                    'program_status': program.program_status,
+                    'current_budget': float(program.budget) if program.budget else None,
+                }
+            except ProgramRegistry.DoesNotExist:
+                program_info = {
+                    'program_name': update.program_id,
+                    'business_id': None,
+                    'business_name': None,
+                    'program_status': None,
+                    'current_budget': None,
+                }
+            
+            updates_data.append({
+                'id': update.id,
+                'program_id': update.program_id,
+                'program_info': program_info,
+                'new_budget': float(update.new_budget) / 100 if update.new_budget else None,  # Convert cents to dollars
+                'is_autobid': update.is_autobid,
+                'max_bid': float(update.max_bid) / 100 if update.max_bid else None,
+                'pacing_method': update.pacing_method,
+                'scheduled_datetime': update.scheduled_datetime.isoformat(),
+                'status': update.status,
+                'executed_at': update.executed_at.isoformat() if update.executed_at else None,
+                'error_message': update.error_message,
+                'created_at': update.created_at.isoformat(),
+            })
+        
+        return Response({
+            'count': len(updates_data),
+            'results': updates_data
+        }, status=status.HTTP_200_OK)
+
+
+class CancelScheduledBudgetUpdateView(APIView):
+    """Cancel a scheduled budget update"""
+    
+    def post(self, request, update_id):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        username = request.user.username
+        
+        try:
+            scheduled_update = ScheduledBudgetUpdate.objects.get(id=update_id, username=username)
+            
+            # Only allow cancelling PENDING updates
+            if scheduled_update.status != 'PENDING':
+                return Response(
+                    {"error": f"Cannot cancel an update with status {scheduled_update.status}. Only PENDING updates can be cancelled."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update status to CANCELLED
+            scheduled_update.status = 'CANCELLED'
+            scheduled_update.save()
+            
+            logger.info(f"Successfully cancelled scheduled budget update {update_id} for program {scheduled_update.program_id}")
+            
+            return Response({
+                "message": f"Scheduled budget update for program {scheduled_update.program_id} has been cancelled",
+                "status": "CANCELLED"
+            }, status=status.HTTP_200_OK)
+            
+        except ScheduledBudgetUpdate.DoesNotExist:
+            return Response(
+                {"error": "Scheduled budget update not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error cancelling scheduled budget update {update_id}: {e}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class JobStatusView(APIView):
     def get(self, request, program_id):

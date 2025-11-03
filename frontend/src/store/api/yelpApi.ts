@@ -103,7 +103,7 @@ const baseQuery: BaseQueryFn<
 export const yelpApi = createApi({
   reducerPath: 'yelpApi',
   baseQuery,
-  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto', 'CustomSuggestedKeywords'],
+  tagTypes: ['Program', 'Report', 'JobStatus', 'ProgramFeatures', 'PortfolioProject', 'PortfolioPhoto', 'CustomSuggestedKeywords', 'ScheduledPause', 'ScheduledBudgetUpdate'],
   endpoints: (builder) => ({
     // 1. Create a new ad product
     createProgram: builder.mutation<{ job_id: string }, CreateProgramRequest>({
@@ -178,6 +178,116 @@ export const yelpApi = createApi({
         method: 'POST',
       }),
       invalidatesTags: ['Program'],
+    }),
+
+    schedulePauseProgram: builder.mutation<
+      { id: number; program_id: string; scheduled_datetime: string; status: string; message: string },
+      { program_id: string; scheduled_datetime: string }
+    >({
+      query: ({ program_id, scheduled_datetime }) => ({
+        url: `/program/${program_id}/schedule-pause/v1`,
+        method: 'POST',
+        body: { scheduled_datetime },
+      }),
+      invalidatesTags: ['Program', 'ScheduledPause'],
+    }),
+
+    getScheduledPauses: builder.query<
+      {
+        count: number;
+        results: Array<{
+          id: number;
+          program_id: string;
+          program_info: {
+            program_name: string;
+            business_id: string | null;
+            business_name: string | null;
+            program_status: string | null;
+            program_pause_status: string | null;
+            start_date: string | null;
+            end_date: string | null;
+          };
+          scheduled_datetime: string;
+          status: 'PENDING' | 'EXECUTED' | 'CANCELLED' | 'FAILED';
+          executed_at: string | null;
+          error_message: string | null;
+          created_at: string;
+        }>;
+      },
+      void
+    >({
+      query: () => ({
+        url: '/reseller/scheduled-pauses',
+        method: 'GET',
+      }),
+      providesTags: ['ScheduledPause'],
+    }),
+
+    cancelScheduledPause: builder.mutation<
+      { message: string; status: string },
+      { pause_id: number }
+    >({
+      query: ({ pause_id }) => ({
+        url: `/reseller/scheduled-pause/${pause_id}/cancel`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['ScheduledPause', 'Program'],
+    }),
+
+      scheduleBudgetUpdate: builder.mutation<
+        { id: number; program_id: string; scheduled_datetime: string; status: string; message: string },
+        { program_id: string; new_budget?: number; is_autobid?: boolean; max_bid?: number; pacing_method?: string; scheduled_datetime: string }
+      >({
+        query: ({ program_id, new_budget, is_autobid, max_bid, pacing_method, scheduled_datetime }) => ({
+          url: `/program/${program_id}/schedule-budget-update/v1`,
+          method: 'POST',
+          body: { new_budget, is_autobid, max_bid, pacing_method, scheduled_datetime },
+        }),
+      invalidatesTags: ['Program', 'ScheduledBudgetUpdate'],
+    }),
+
+    getScheduledBudgetUpdates: builder.query<
+      {
+        count: number;
+           results: Array<{
+             id: number;
+             program_id: string;
+             program_info: {
+               program_name: string;
+               business_id: string | null;
+               business_name: string | null;
+               program_status: string | null;
+               current_budget: number | null;
+             };
+             new_budget: number | null;
+             is_autobid: boolean | null;
+             max_bid: number | null;
+             pacing_method: string | null;
+             scheduled_datetime: string;
+             status: 'PENDING' | 'EXECUTED' | 'CANCELLED' | 'FAILED';
+             executed_at: string | null;
+             error_message: string | null;
+             created_at: string;
+           }>;
+      },
+      void
+    >({
+      query: () => ({
+        url: '/reseller/scheduled-budget-updates',
+        method: 'GET',
+      }),
+      providesTags: ['ScheduledBudgetUpdate'],
+    }),
+
+    cancelScheduledBudgetUpdate: builder.mutation<
+      { message: string; status: string },
+      { update_id: number }
+    >({
+      query: ({ update_id }) => ({
+        url: `/reseller/scheduled-budget-update/${update_id}/cancel`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['ScheduledBudgetUpdate', 'Program'],
     }),
 
     // 4. Check job status
@@ -601,4 +711,12 @@ export const {
   useGetCustomSuggestedKeywordsQuery,
   useAddCustomSuggestedKeywordsMutation,
   useDeleteCustomSuggestedKeywordsMutation,
+  // Scheduled Pauses hooks
+  useGetScheduledPausesQuery,
+  useSchedulePauseProgramMutation,
+  useCancelScheduledPauseMutation,
+  useCancelScheduledBudgetUpdateMutation,
+  // Scheduled Budget Updates hooks
+  useGetScheduledBudgetUpdatesQuery,
+  useScheduleBudgetUpdateMutation,
 } = yelpApi;

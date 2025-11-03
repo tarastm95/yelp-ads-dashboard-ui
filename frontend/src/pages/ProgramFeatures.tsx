@@ -8,10 +8,10 @@ import FeatureEditorManager, { FeatureType } from '../components/FeatureEditors/
 import { 
   useGetProgramFeaturesQuery, 
   useUpdateProgramFeaturesMutation,
-  useDeleteProgramFeaturesMutation
+  useGetPartnerProgramInfoQuery
 } from '../store/api/yelpApi';
 import { 
-  Loader2, Settings, Save, Trash2, Info, 
+  Loader2, Settings, Save, Info, 
   Globe, Phone, Camera, MapPin, Clock, 
   Target, Shield, Star, Award, Link, FolderOpen, Briefcase
 } from 'lucide-react';
@@ -192,8 +192,6 @@ const FEATURE_DESCRIPTIONS = {
 const ProgramFeatures: React.FC = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [selectedDeactivatedFeatures, setSelectedDeactivatedFeatures] = useState<string[]>([]);
   const [editingFeature, setEditingFeature] = useState<FeatureType | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   
@@ -201,8 +199,11 @@ const ProgramFeatures: React.FC = () => {
     skip: !programId,
   });
   
+  const { data: programInfo } = useGetPartnerProgramInfoQuery(programId!, {
+    skip: !programId,
+  });
+  
   const [updateFeatures, { isLoading: isUpdating }] = useUpdateProgramFeaturesMutation();
-  const [deleteFeatures, { isLoading: isDeleting }] = useDeleteProgramFeaturesMutation();
 
   if (!programId) {
     return (
@@ -274,205 +275,6 @@ const ProgramFeatures: React.FC = () => {
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (selectedFeatures.length === 0) {
-      toast({
-        title: 'Nothing Selected',
-        description: 'Select features to deactivate',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    console.log('🗑️ Deactivating features:', selectedFeatures);
-
-    try {
-      const result = await deleteFeatures({
-        program_id: programId,
-        features: selectedFeatures,
-      }).unwrap();
-
-      console.log('✅ Delete API response:', result);
-      
-      // Force refresh data from server
-      await refetch();
-
-      setSelectedFeatures([]);
-      toast({
-        title: 'Features Deactivated',
-        description: `Yelp API deactivated ${selectedFeatures.length} features`,
-      });
-    } catch (error: any) {
-      console.error('❌ Delete error:', error);
-      toast({
-        title: 'Deactivation Error',
-        description: error.data?.detail || 'Failed to deactivate features',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const toggleFeatureSelection = (featureType: string) => {
-    setSelectedFeatures(prev => 
-      prev.includes(featureType) 
-        ? prev.filter(f => f !== featureType)
-        : [...prev, featureType]
-    );
-  };
-
-  const toggleDeactivatedFeatureSelection = (featureType: string) => {
-    setSelectedDeactivatedFeatures(prev => 
-      prev.includes(featureType) 
-        ? prev.filter(f => f !== featureType)
-        : [...prev, featureType]
-    );
-  };
-
-  // Default values for activating features according to Yelp API specification
-  const getDefaultFeatureValue = (featureType: string) => {
-    switch (featureType) {
-      case 'CUSTOM_RADIUS_TARGETING':
-        // Radius in miles (1-60), null means inactive
-        return { custom_radius: 25 };
-        
-      case 'CALL_TRACKING':
-        // CALL_TRACKING requires business_id and metered_phone_number (string|null)
-        const existingBusinessId = features.CALL_TRACKING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
-        return { 
-          enabled: true, 
-          businesses: [{ 
-            business_id: existingBusinessId,
-            metered_phone_number: null // According to specification this is a required field
-          }] 
-        };
-        
-      case 'LINK_TRACKING':
-        // All fields must be null for deactivation, or contain values
-        return { 
-          website: 'https://example.com/track',
-          menu: null,
-          url: null
-        };
-        
-      case 'CUSTOM_LOCATION_TARGETING':
-        // Requires business_id and locations (up to 25 per business, US only)
-        const existingBusinessIdForLocation = features.CUSTOM_LOCATION_TARGETING?.businesses?.[0]?.business_id || 'xrPncND82FtoH4_-7LZrxg';
-        return { 
-          businesses: [{ 
-            business_id: existingBusinessIdForLocation, 
-            locations: ['New York, NY'] 
-          }] 
-        };
-        
-      case 'NEGATIVE_KEYWORD_TARGETING':
-        // empty blocked_keywords = deactivated feature
-        return { 
-          blocked_keywords: ['spam', 'fake'],
-          suggested_keywords: [] // Read-only, ignored in POST
-        };
-        
-      case 'STRICT_CATEGORY_TARGETING':
-        return { enabled: true };
-        
-      case 'AD_SCHEDULING':
-        return { uses_opening_hours: true };
-        
-      case 'CUSTOM_AD_TEXT':
-        // Only one field can be set, min 15 characters, max 1500
-        return { 
-          custom_text: 'Custom promotional text for this business',
-          custom_review_id: null
-        };
-        
-      case 'AD_GOAL':
-        // Must be one of: DEFAULT, CALLS, WEBSITE_CLICKS
-        return { ad_goal: 'WEBSITE_CLICKS' };
-        
-      case 'BUSINESS_HIGHLIGHTS':
-        // POST uses business_highlights, not active_business_highlights
-        return { business_highlights: [] }; // Need real values
-        
-      case 'VERIFIED_LICENSE':
-        // Cannot send empty list, skip this
-        return null; // Will be filtered out
-        
-      case 'CUSTOM_AD_PHOTO':
-        // Need real photo_id
-        return null; // Will be filtered out
-        
-      case 'BUSINESS_LOGO':
-        // Need public image URL
-        return null; // Will be filtered out
-        
-      case 'YELP_PORTFOLIO':
-        // Need real project_id
-        return null; // Will be filtered out
-        
-      default:
-        return null; // Will be filtered out
-    }
-  };
-
-  const handleActivateSelected = async () => {
-    if (selectedDeactivatedFeatures.length === 0) {
-      toast({
-        title: 'Nothing Selected',
-        description: 'Select deactivated features for activation',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    console.log('🔄 Activating features:', selectedDeactivatedFeatures);
-
-    try {
-      // Create payload with default values for activation
-      const featuresPayload = {
-        features: selectedDeactivatedFeatures.reduce((acc, featureType) => {
-          const defaultValue = getDefaultFeatureValue(featureType);
-          if (defaultValue !== null) {
-            acc[featureType] = defaultValue;
-          }
-          return acc;
-        }, {} as any)
-      };
-
-      // Check if there are valid features for activation
-      if (Object.keys(featuresPayload.features).length === 0) {
-        toast({
-          title: 'Cannot Activate',
-          description: 'Selected features require additional data (photo ID, URL, etc.)',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      console.log('📝 Activation payload:', featuresPayload);
-
-      const result = await updateFeatures({
-        program_id: programId,
-        features: featuresPayload,
-      }).unwrap();
-
-      console.log('✅ Activation API response:', result);
-      
-      // Force refresh data from server
-      await refetch();
-
-      setSelectedDeactivatedFeatures([]);
-      toast({
-        title: 'Features Activated',
-        description: `Successfully activated ${selectedDeactivatedFeatures.length} features`,
-      });
-    } catch (error: any) {
-      console.error('❌ Activation error:', error);
-      toast({
-        title: 'Activation Error',
-        description: error.data?.detail || 'Failed to activate features',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleEditFeature = (featureType: string) => {
     setEditingFeature(featureType as FeatureType);
@@ -556,7 +358,7 @@ const ProgramFeatures: React.FC = () => {
       case 'CALL_TRACKING':
         return featureData.enabled === true;
       case 'LINK_TRACKING':
-        return !!(featureData.website || featureData.menu || featureData.url);
+        return !!(featureData.website || featureData.menu || featureData.call_to_action);
       case 'CUSTOM_LOCATION_TARGETING':
         return featureData.businesses?.some((b: any) => b.locations?.length > 0) || false;
       case 'NEGATIVE_KEYWORD_TARGETING':
@@ -596,24 +398,14 @@ const ProgramFeatures: React.FC = () => {
     
     // Scroll to this card after save (set by handleSaveFeature)
     const cardRef = React.useRef<HTMLDivElement>(null);
-    const isSelected = selectedFeatures.includes(featureType);
-    const isDeactivatedSelected = selectedDeactivatedFeatures.includes(featureType);
 
     return (
       <Card 
         id={`feature-${featureType}`}
         ref={cardRef}
-        className={`cursor-pointer transition-all ${
-          isSelected ? 'ring-2 ring-blue-500' : 
-          isDeactivatedSelected ? 'ring-2 ring-orange-500' : ''
-        } ${isActive ? 'border-green-500' : isPresent ? 'border-orange-300' : 'border-gray-200'}`}
-        onClick={() => {
-          if (isActive) {
-            toggleFeatureSelection(featureType);
-          } else if (isDeactivated) {
-            toggleDeactivatedFeatureSelection(featureType);
-          }
-        }}
+        className={`transition-all ${
+          isActive ? 'border-green-500' : isPresent ? 'border-orange-300' : 'border-gray-200'
+        }`}
       >
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center justify-between">
@@ -632,7 +424,7 @@ const ProgramFeatures: React.FC = () => {
               )}
               {isPresent && !isActive && (
                 <Badge variant="outline" className="border-orange-300 text-orange-700">
-                  Deactivated {isDeactivatedSelected ? '(selected)' : ''}
+                  Deactivated
                 </Badge>
               )}
               {!isPresent && (
@@ -749,6 +541,18 @@ const ProgramFeatures: React.FC = () => {
               <strong>Program Type:</strong>
               <p>{data?.program_type}</p>
             </div>
+            {programInfo?.start_date && (
+              <div>
+                <strong>Start Date:</strong>
+                <p>{programInfo.start_date}</p>
+              </div>
+            )}
+            {programInfo?.end_date && (
+              <div>
+                <strong>End Date:</strong>
+                <p>{programInfo.end_date}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -761,75 +565,6 @@ const ProgramFeatures: React.FC = () => {
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
-          {selectedFeatures.length > 0 && (
-            <Card className="border-red-200">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm">
-                    Selected {selectedFeatures.length} active features for deactivation
-                  </p>
-                  <div className="space-x-2">
-                    <Button 
-                      onClick={() => setSelectedFeatures([])}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleDeleteSelected}
-                      disabled={isDeleting}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 mr-2" />
-                      )}
-                      Deactivate
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedDeactivatedFeatures.length > 0 && (
-            <Card className="border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm">
-                    Selected {selectedDeactivatedFeatures.length} deactivated features for activation
-                  </p>
-                  <div className="space-x-2">
-                    <Button 
-                      onClick={() => setSelectedDeactivatedFeatures([])}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleActivateSelected}
-                      disabled={isUpdating}
-                      variant="default"
-                      className="bg-green-600 hover:bg-green-700"
-                      size="sm"
-                    >
-                      {isUpdating ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Activate
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {featureKeys.length === 0 ? (
             <div className="text-center py-8">
               <Settings className="mx-auto h-12 w-12 text-gray-400 mb-4" />
